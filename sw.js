@@ -1,7 +1,15 @@
-/* Turni Corvetto PWA SW v8.1.0 */
-const CACHE_CORE = 'corvetto-core-v8.1.0';
-const CACHE_CDN = 'corvetto-cdn-v8.1.0';
-const CORE_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+/* Turni Corvetto PWA SW v8.2.1 — GitHub Pages compatible */
+const CACHE_CORE = 'corvetto-core-v8.2.1';
+const CACHE_CDN = 'corvetto-cdn-v8.2.1';
+
+// Relative paths work under /turni-corvetto/ on GitHub Pages
+const CORE_ASSETS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
 const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js',
@@ -38,58 +46,44 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  const url = req.url || '';
-  if (url.indexOf('firebaseio.com') !== -1 || url.indexOf('googleapis.com') !== -1) return;
+  const url = new URL(req.url);
 
-  if (url.indexOf('cdnjs.cloudflare.com') !== -1 || url.indexOf('gstatic.com') !== -1) {
+  // CDN: cache-first
+  if (CDN_ASSETS.some((u) => req.url.startsWith(u.split('?')[0]) || req.url.includes('cdnjs.cloudflare.com') || req.url.includes('gstatic.com/firebasejs'))) {
     event.respondWith((async () => {
-      const cached = await caches.match(req);
-      if (cached) return cached;
+      const cache = await caches.open(CACHE_CDN);
+      const hit = await cache.match(req);
+      if (hit) return hit;
       try {
         const res = await fetch(req);
-        if (res && res.ok) {
-          const cdn = await caches.open(CACHE_CDN);
-          cdn.put(req, res.clone());
-        }
+        if (res && res.ok) cache.put(req, res.clone());
         return res;
       } catch (e) {
-        return cached || Response.error();
+        return hit || Response.error();
       }
     })());
     return;
   }
 
-  if (url.startsWith(self.location.origin)) {
+  // Same-origin: network-first, fallback cache
+  if (url.origin === self.location.origin) {
     event.respondWith((async () => {
       try {
         const res = await fetch(req);
-        if (res && res.ok && (req.mode === 'navigate' || url.indexOf('index.html') !== -1 || url.endsWith(self.location.origin + '/') || url.endsWith('/'))) {
-          const core = await caches.open(CACHE_CORE);
-          try { core.put(req, res.clone()); } catch (e) {}
+        if (res && res.ok) {
+          const cache = await caches.open(CACHE_CORE);
+          cache.put(req, res.clone());
         }
         return res;
       } catch (e) {
-        const cached = await caches.match(req);
-        if (cached) return cached;
-        const fallback = await caches.match('/index.html');
-        return fallback || Response.error();
+        const cache = await caches.open(CACHE_CORE);
+        const hit = await cache.match(req);
+        if (hit) return hit;
+        if (req.mode === 'navigate') {
+          return (await cache.match('./index.html')) || (await cache.match('./')) || Response.error();
+        }
+        return Response.error();
       }
     })());
   }
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const target = (event.notification && event.notification.data && event.notification.data.url) || '/';
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) {
-          try { client.navigate(target); } catch (e) {}
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(target);
-    })
-  );
 });
