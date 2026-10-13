@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.0</title>
+  <title>Turni Corvetto v8.3.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.0';
+    const APP_VERSION = '8.3.1';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1036,15 +1036,31 @@
       border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
     }
     .choice-card h5 { margin: 0 0 6px; font-size: 12px; color: #fbbf24; }
-    .choice-options { display: flex; flex-wrap: wrap; gap: 6px; }
+    .choice-options { display: flex; flex-wrap: wrap; gap: 8px; }
     .choice-options button {
-      flex: 1 1 120px; justify-content: center; min-height: 40px;
-      background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border);
+      flex: 1 1 130px; justify-content: center; min-height: 48px;
+      background: #1e293b !important; color: #e2e8f0 !important;
+      border: 2px solid #475569 !important;
+      font-weight: 700 !important;
+      border-radius: 12px !important;
+      opacity: 1 !important;
+    }
+    body.light-theme .choice-options button {
+      background: #f1f5f9 !important; color: #0f172a !important;
+      border: 2px solid #94a3b8 !important;
     }
     .choice-options button.selected {
-      background: var(--primary); color: #fff; border-color: var(--primary);
+      background: #16a34a !important; color: #ffffff !important;
+      border: 2px solid #15803d !important;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.4) !important;
+      font-weight: 800 !important;
+      transform: scale(1.02);
     }
-    .choice-options button small { display: block; font-weight: 500; opacity: .85; font-size: 10px; }
+    body.light-theme .choice-options button.selected {
+      background: #16a34a !important; color: #ffffff !important;
+      border-color: #15803d !important;
+    }
+    .choice-options button small { display: block; font-weight: 500; opacity: .9; font-size: 10px; }
     .mobile-cards { display: none; gap: 10px; flex-direction: column; }
     .worker-card {
       background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
@@ -1675,7 +1691,7 @@
     }
 
   
-    /* v8.3.0 top-nav mobile-safe */
+    /* v8.3.1 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1793,7 +1809,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1811,7 +1827,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.0</small>
+          <small>CORVETTO · v8.3.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2078,7 +2094,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.0 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.1 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -9675,7 +9691,10 @@ function annotateEventOnWeek(e,weekKey){
         const opts = c.options.map(o => {
           const sel = c.selected === o.id ? 'selected' : '';
           const shiftLbl = [o.shift?.mIn&&o.shift?.mOut?`${o.shift.mIn}-${o.shift.mOut}`:'', o.shift?.pIn&&o.shift?.pOut?`${o.shift.pIn}-${o.shift.pOut}`:''].filter(Boolean).join(' | ');
-          return `<button type="button" class="${sel}" onclick="selectProposalChoice(${jsStringArg(c.id)},${jsStringArg(o.id)})">${escapeHtmlV47(o.name)}<small>${escapeHtmlV47(o.hint || shiftLbl)}</small></button>`;
+          const isSel = c.selected != null && String(c.selected) === String(o.id);
+          const selCls = isSel ? 'selected' : '';
+          const mark = isSel ? '✓ ' : '';
+          return `<button type="button" class="choice-opt-btn ${selCls}" data-choice="${escapeHtmlV47(c.id)}" data-opt="${escapeHtmlV47(o.id)}" onclick="selectProposalChoice(${jsStringArg(c.id)},${jsStringArg(o.id)})">${mark}${escapeHtmlV47(o.name)}<small>${escapeHtmlV47(o.hint || shiftLbl)}</small></button>`;
         }).join('');
         return `<div class="choice-card"><h5>${escapeHtmlV47(c.label)}</h5><div class="choice-options">${opts}</div></div>`;
       }).join('');
@@ -9883,14 +9902,33 @@ function annotateEventOnWeek(e,weekKey){
   function selectProposalChoice(choiceId, optionId) {
     const p = window.pendingTurnProposal;
     if (!p || !p.choices) return;
-    const ch = p.choices.find(c => c.id === choiceId);
-    if (!ch) return;
-    ch.selected = optionId;
-    // La selezione modifica solo la decisione visualizzata, non ancora i turni.
-    // È obbligatorio ricalcolare prima di poter applicare la proposta.
+    const cid = String(choiceId);
+    const oid = String(optionId);
+    const ch = p.choices.find(c => String(c.id) === cid);
+    if (!ch) {
+      console.warn('Scelta non trovata', choiceId);
+      return;
+    }
+    ch.selected = oid;
     p.choiceSelectionsDirty = true;
+    // Evidenzia subito nel DOM (prima del re-render completo)
+    try {
+      const box = document.getElementById('proposalChoices');
+      if (box) {
+        box.querySelectorAll('button[data-choice]').forEach(function(btn) {
+          if (btn.getAttribute('data-choice') === cid) {
+            const on = btn.getAttribute('data-opt') === oid;
+            btn.classList.toggle('selected', on);
+            const name = (btn.textContent || '').replace(/^[✓✔]\s*/, '').trim();
+            // keep structure: first text node - simpler re-render below
+          }
+        });
+      }
+    } catch (e) {}
     showProposalReviewModal();
+    try { showToast('Scelta registrata: ' + (ch.options.find(o => String(o.id) === oid)?.name || oid), 'success', 1800); } catch (e2) {}
   }
+  window.selectProposalChoice = selectProposalChoice;
 
   function recalculateProposalWithChoices() {
     const p = window.pendingTurnProposal;
