@@ -8802,10 +8802,6 @@ function annotateEventOnWeek(e,weekKey){
         }
         const block=typeof eventCoverageBlocks==='function'?eventCoverageBlocks(e):null;
         if(block) adjusted.coverageBlockedIntervals=mergeCoverageBlocks([...(cell.coverageBlockedIntervals||[]),block]);
-        const block=eventCoverageBlocks(e);
-        if(block){
-          adjusted.coverageBlockedIntervals=mergeCoverageBlocks([...(adjusted.coverageBlockedIntervals||[]),block]);
-        }
         proposal[wid][day]=adjusted;
       });
     });
