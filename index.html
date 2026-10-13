@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.2.0</title>
+  <title>Turni Corvetto v8.2.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.2.0';
+    const APP_VERSION = '8.2.1';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1675,7 +1675,7 @@
     }
 
   
-    /* v8.2.0 top-nav mobile-safe */
+    /* v8.2.1 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1761,7 +1761,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1776,7 +1776,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.2.0</small>
+          <small>CORVETTO · v8.2.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -1806,7 +1806,7 @@
     </div>
     <div class="leave-toolbar toolbar-secondary" style="margin-bottom:0;">
       <button class="alt" onclick="openExportMenu()">📤 Esporta</button>
-      <button class="alt" onclick="openToolsMenu()">🧰 Strumenti</button>
+      <button class="alt" onclick="openToolsMenu()">⚙️ Impostazioni</button>
       <button class="alt" onclick="openHelpGuide()">❓ Guida</button>
       <button class="alt" id="themeToggleBtn" onclick="toggleTheme()" title="Chiaro / scuro">🌓 Tema</button>
     </div>
@@ -1831,7 +1831,8 @@
       </select>
       <button class="success" onclick="openLeaveRequestModal()">➕ Ferie / Permesso</button>
       <button type="button" class="btn-malattia" onclick="openMalattiaModal()">🤒 Malattia / Ricovero</button>
-      <button class="alt" type="button" id="btnToggleRequests" onclick="toggleLeaveRequests()">📋 Richieste ▾</button>
+      <button class="alt" type="button" id="btnToggleRequests" onclick="toggleLeaveRequests()">📋 Ferie/Permessi ▾</button>
+      <button class="btn-malattia" type="button" id="btnToggleMalattia" onclick="toggleMalattiaPanel()">🤒 Malattie ▾</button>
       <button class="alt" type="button" id="btnToggleBalances" onclick="toggleLeaveBalances()">📊 Residui ▾</button>
       <button class="alt" onclick="exportLeavePDF()">📄 PDF</button>
       <button class="alt" id="themeToggleBtnFerie" onclick="toggleTheme()" title="Cambia tema">🌙 Tema</button>
@@ -1936,7 +1937,12 @@
     <h3 style="font-size:13px; margin:0 0 10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Residui ferie</h3>
     <div class="leave-balance-bar" id="leaveBalanceBar"></div>
   </div>
-  <div class="leave-calendar-grid" id="leaveCalendarGrid"></div>
+  
+  <div id="malattiaPanel" class="leave-panel" style="display:none;margin-top:12px;">
+    <h3 style="font-size:13px; margin:0 0 10px; color:#f87171; text-transform:uppercase; letter-spacing:0.04em;">🤒 Malattia / Ricovero (cartella separata)</h3>
+    <div id="malattiaRequestsList"></div>
+  </div>
+<div class="leave-calendar-grid" id="leaveCalendarGrid"></div>
 </div>
 
 <!-- Modal Richiesta Ferie/Permessi (modello CENTROEDILE) -->
@@ -2018,7 +2024,8 @@
       <button type="button" class="alt" onclick="openHelpGuide()">❓ Guida</button>
       <button type="button" class="alt" onclick="toggleTheme()">🌓 Tema</button>
     </div>
-    <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">v8.0.0 Hybrid — UI chiara + motore Corvetto v7.3</p>
+    <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Questa schermata unisce <strong>Impostazioni</strong> e <strong>Strumenti</strong> (team, regole, backup, diagnostica, export).</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.1 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -6655,8 +6662,12 @@ function switchView(view) {
   }
 
   function openToolsMenu() {
-    const el = document.getElementById('toolsMenuModal');
-    if (el) el.style.display = 'flex';
+    // Unificato con Impostazioni: stessa area, niente doppioni
+    if (typeof switchView === 'function') switchView('settings');
+    else {
+      const el = document.getElementById('toolsMenuModal');
+      if (el) el.style.display = 'flex';
+    }
   }
   function openHelpGuide() {
     const el = document.getElementById('helpGuideModal');
@@ -9869,7 +9880,7 @@ function switchView(view) {
     if (modal) modal.style.display = 'flex';
   }
 
-  async function buildPdfBlobForShare() {
+  async async function buildPdfBlobForShare() {
     const libs = await ensurePdfLibraries();
     if (!libs.jsPdf || !libs.autoTable) throw new Error('Le librerie PDF non sono disponibili. Controlla la connessione e ricarica la pagina.');
     const doc = buildPDFDocument();
@@ -10361,7 +10372,21 @@ function switchView(view) {
       html += events.map(e=>`<tr><td>${esc(formatEventDate(e.date))}</td><td>${esc(e.title)}</td><td>${esc(e.allDay?'Giornata intera':`${e.fromTime}-${e.toTime}`)}</td><td>${esc(e.location||'')}</td><td>${esc(eventParticipantsNames(e.participantIds).join(', '))}</td></tr>`).join('');
       html += '</tbody></table>';
     }
-    html += '<div class="print-warning">Se i contenuti superano l’area A4, controllare l’anteprima di stampa: il browser potrebbe distribuirli su più pagine per non tagliare informazioni.</div></body></html>';
+    html += '<div class="print-warning">Se i contenuti superano l’area A4, controllare l’anteprima di stampa: il browser potrebbe distribuirli su più pagine per non tagliare informazioni.</div>
+<div class="modal-backdrop" id="pdfPreviewModal" style="display:none;z-index:12000;" onclick="if(event.target===this)closePdfPreview()">
+  <div class="modal" style="max-width:min(960px,100%);width:100%;height:min(92vh,920px);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
+      <h3 style="margin:0;">👁️ Anteprima PDF</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="success" onclick="downloadPdfFromPreview()">⬇️ Scarica</button>
+        <button type="button" class="alt" onclick="closePdfPreview()">Chiudi</button>
+      </div>
+    </div>
+    <iframe id="pdfPreviewFrame" title="Anteprima PDF" style="flex:1;width:100%;min-height:65vh;border:1px solid var(--border);border-radius:10px;background:#525659;"></iframe>
+  </div>
+</div>
+
+</body></html>';
     return html;
   }
 
@@ -10394,11 +10419,25 @@ function switchView(view) {
       window._pdfPreviewBlob = pdfBlob;
       const frame = document.getElementById('pdfPreviewFrame');
       const modal = document.getElementById('pdfPreviewModal');
-      if (frame) frame.src = window._pdfPreviewUrl;
-      if (modal) modal.style.display = 'flex';
+      if (frame) {
+        frame.src = window._pdfPreviewUrl;
+        // iOS/Brave: se iframe non mostra PDF, offri almeno download
+        frame.onload = function() {};
+      }
+      if (modal) {
+        modal.style.display = 'flex';
+      } else {
+        // fallback se modal assente
+        const a = document.createElement('a');
+        a.href = window._pdfPreviewUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.click();
+      }
     } catch (err) {
-      if (typeof showActionError === 'function') showActionError("Impossibile aprire l'anteprima PDF.", err);
-      try { if (typeof exportToPDF === 'function') exportToPDF(); } catch (e2) {}
+      console.error(err);
+      if (typeof showActionError === 'function') showActionError("Impossibile aprire l'anteprima PDF. Controlla la connessione (jsPDF) e riprova.", err);
+      else alert("Impossibile aprire l'anteprima PDF: " + (err && err.message ? err.message : err));
     }
   }
   function closePdfPreview() {
@@ -11417,7 +11456,12 @@ function switchView(view) {
     list.innerHTML = '';
     if (archiveList) archiveList.innerHTML = '';
 
-    const allReqs = (appData.leaveRequests || []).filter(r => !leaveFilterWorker || r.workerId === leaveFilterWorker);
+    const isMalReq = (r) => {
+      const t = String(r.tipo || '').toLowerCase();
+      return t.includes('malattia') || t.includes('ricovero');
+    };
+    const allReqs = (appData.leaveRequests || []).filter(r => !isMalReq(r) && (!leaveFilterWorker || r.workerId === leaveFilterWorker));
+    const allMalReqs = (appData.leaveRequests || []).filter(r => isMalReq(r) && (!leaveFilterWorker || r.workerId === leaveFilterWorker));
     const activeReqs = allReqs.filter(r => !isRequestPeriodPast(r)).sort((a,b) => requestDateMs(a,false) - requestDateMs(b,false));
     const pastReqs = allReqs.filter(r => isRequestPeriodPast(r)).sort((a,b) => requestDateMs(b,true) - requestDateMs(a,true));
 
@@ -11451,6 +11495,20 @@ function switchView(view) {
 
     if (!activeReqs.length) list.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">Nessuna richiesta futura o in corso.</p>';
     else activeReqs.forEach(r => list.appendChild(renderLeaveRequestCard(r,false)));
+    // Cartella separata malattia/ricovero
+    const malList = document.getElementById('malattiaRequestsList');
+    if (malList) {
+      malList.innerHTML = '';
+      const malActive = allMalReqs.filter(r => !isRequestPeriodPast(r)).sort((a,b) => requestDateMs(a,false) - requestDateMs(b,false));
+      const malPast = allMalReqs.filter(r => isRequestPeriodPast(r)).sort((a,b) => requestDateMs(a,false) - requestDateMs(b,false));
+      if (!malActive.length && !malPast.length) {
+        malList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Nessuna malattia/ricovero registrata.</p>';
+      } else {
+        malActive.forEach(r => malList.appendChild(renderLeaveRequestCard(r,false)));
+        malPast.forEach(r => malList.appendChild(renderLeaveRequestCard(r,true)));
+      }
+    }
+
 
     if (archiveList) {
       if (archiveCount) archiveCount.textContent = pastReqs.length ? `(${pastReqs.length})` : '';
@@ -11774,30 +11832,77 @@ function switchView(view) {
 
   /** Elenco richieste anno (riepilogo) */
   function exportLeavePDF() {
-    if (typeof window.jspdf === 'undefined') return alert('Libreria PDF non caricata.');
+    if (typeof window.jspdf === 'undefined') return alert('Libreria PDF non caricata. Controlla la connessione e ricarica.');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('portrait', 'mm', 'a4');
     doc.setFontSize(14);
     doc.text(`Richieste Ferie/Permessi ${leaveYear} – ${appData.title || 'CORVETTO'}`, 14, 16);
-    const rows = (appData.leaveRequests || [])
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text('Ordine: dal periodo più vicino al più lontano · solo ferie/permessi (malattia esclusa)', 14, 22);
+    doc.setTextColor(0);
+
+    const today = new Date(); today.setHours(12,0,0,0);
+    const isMal = (r) => {
+      const t = String(r.tipo || '').toLowerCase();
+      return t.includes('malattia') || t.includes('ricovero');
+    };
+    const startMs = (r) => {
+      try {
+        if (typeof requestDateMs === 'function') return requestDateMs(r, false);
+      } catch (e) {}
+      const s = r.mode === 'single' ? r.day : r.fromDay;
+      const d = s ? new Date(s + 'T12:00:00') : new Date(0);
+      return d.getTime();
+    };
+    const endMs = (r) => {
+      const s = r.mode === 'single' ? r.day : (r.toDay || r.fromDay);
+      if (!s && r.openEnded) return Infinity;
+      const d = s ? new Date(s + 'T12:00:00') : new Date(0);
+      return d.getTime();
+    };
+    const tempoLabel = (r) => {
+      const a = startMs(r), b = endMs(r);
+      if (b < today.getTime()) return 'Passata';
+      if (a > today.getTime()) return 'Futura';
+      return 'In corso';
+    };
+
+    const filtered = (appData.leaveRequests || [])
       .filter(r => {
+        if (isMal(r)) return false;
         let hit = false;
-        eachDateInRequest(r, d => { if (d.getFullYear() === leaveYear) hit = true; });
+        if (typeof eachDateInRequest === 'function') {
+          eachDateInRequest(r, d => { if (d.getFullYear() === leaveYear) hit = true; });
+        } else {
+          hit = true;
+        }
         return hit;
       })
-      .map(r => {
-        const w = appData.workers.find(x => x.id === r.workerId);
-        const when = r.mode === 'single'
-          ? `${formatITDate(r.day)} ${formatITTime(r.fromTime)}-${formatITTime(r.toTime)} (${r.hours}h)`
-          : `${formatITDate(r.fromDay)} → ${formatITDate(r.toDay)}`;
-        return [w ? w.name : r.workerId, r.tipo, when, r.status, formatITDate(r.requestDate)];
-      });
+      .sort((a, b) => startMs(a) - startMs(b)); // crescente: più vicino → più lontano
+
+    const rows = filtered.map(r => {
+      const w = appData.workers.find(x => x.id === r.workerId);
+      const when = r.mode === 'single'
+        ? `${formatITDate(r.day)} ${r.fullDay ? '(giornata)' : `${formatITTime(r.fromTime)}-${formatITTime(r.toTime)} (${r.hours}h)`}`
+        : `${formatITDate(r.fromDay)} → ${formatITDate(r.toDay) || 'in corso'}`;
+      return [w ? w.name : r.workerId, r.tipo, when, tempoLabel(r), r.status, formatITDate(r.requestDate)];
+    });
+
     doc.autoTable({
-      startY: 22,
-      head: [['Collaboratore', 'Tipo', 'Periodo', 'Stato', 'Data rich.']],
+      startY: 26,
+      head: [['Collaboratore', 'Tipo', 'Periodo', 'Tempo', 'Stato', 'Data rich.']],
       body: rows,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [0, 80, 120] }
+      headStyles: { fillColor: [0, 80, 120] },
+      didParseCell: function(data) {
+        if (data.section === 'body' && data.column.index === 3) {
+          const v = String(data.cell.raw || '');
+          if (v === 'Passata') data.cell.styles.textColor = [120, 120, 120];
+          if (v === 'Futura') data.cell.styles.textColor = [30, 100, 60];
+          if (v === 'In corso') data.cell.styles.textColor = [180, 100, 0];
+        }
+      }
     });
     doc.save(`Ferie_${leaveYear}_${appData.title || 'CORVETTO'}.pdf`);
   }
