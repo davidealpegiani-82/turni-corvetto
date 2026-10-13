@@ -3874,6 +3874,7 @@
     var fc = document.getElementById('ferieControlCard');
     var ec = document.getElementById('eventiControlCard');
     var mc = document.getElementById('malattiaControlCard');
+    var mc = document.getElementById('malattiaControlCard');
     if (tc) tc.style.display = (view === 'turni' || view === 'proposta') ? '' : 'none';
     if (fc) fc.style.display = view === 'ferie' ? '' : 'none';
     if (ec) ec.style.display = view === 'eventi' ? '' : 'none';
@@ -10527,98 +10528,150 @@
   }
 
   async function exportToPDF() {
+    // Sempre anteprima prima del salvataggio
+    return previewPDF();
+  }
+
+
+  async function renderPdfPagesToPreview(pdfBlob) {
+    const box = document.getElementById('pdfPreviewPages');
+    if (!box) throw new Error('Area anteprima non trovata');
+    box.innerHTML = '<p style="color:#ccc;padding:24px;">Generazione anteprima…</p>';
+    const libs = await ensurePdfLibraries();
+    if (!window.pdfjsLib) throw new Error('pdf.js non disponibile. Controlla la connessione e ricarica.');
     try {
-      const libs = await ensurePdfLibraries();
-      if (libs.jsPdf && libs.autoTable) {
-        const doc = buildPDFDocument();
-        if (doc) {
-          doc.save(`Turni_${appData.title.replace(/\s+/g, '_')}_${currentWeekKey}.pdf`);
-          showToast('PDF generato correttamente.', 'success', 2500);
-          return;
-        }
+      if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       }
-      // Fallback affidabile: stampa nativa del browser, da cui si può scegliere "Salva come PDF".
-      const win = window.open('', '_blank');
-      if (!win) { alert('Il browser ha bloccato la finestra di stampa. Consenti i popup per questo sito.'); return; }
-      win.document.open(); win.document.write(buildNativePrintPreview()); win.document.close();
-      win.focus();
-      setTimeout(() => win.print(), 300);
-    } catch (err) { showActionError('Impossibile generare il PDF.', err); }
+    } catch (e) {}
+    const arrayBuffer = await pdfBlob.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    box.innerHTML = '';
+    const maxPages = Math.min(pdf.numPages, 12);
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i);
+      const base = page.getViewport({ scale: 1 });
+      const targetW = Math.min(900, (box.clientWidth || 360) - 16);
+      const scale = Math.max(1.2, targetW / base.width);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      canvas.style.cssText = 'max-width:100%;height:auto;margin:0 auto 12px;display:block;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);background:#fff;';
+      const ctx = canvas.getContext('2d', { alpha: false });
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      box.appendChild(canvas);
+      if (pdf.numPages > 1) {
+        const lab = document.createElement('div');
+        lab.style.cssText = 'color:#bbb;font-size:11px;margin:-6px 0 12px;';
+        lab.textContent = 'Pagina ' + i + ' / ' + pdf.numPages;
+        box.appendChild(lab);
+      }
+    }
+    if (pdf.numPages > maxPages) {
+      const more = document.createElement('p');
+      more.style.cssText = 'color:#ccc;font-size:12px;';
+      more.textContent = 'Anteprima limitata alle prime ' + maxPages + ' pagine. Il file completo si scarica con Salva.';
+      box.appendChild(more);
+    }
+  }
+
+  async function openDocumentPreview(opts) {
+    // opts: { blob, filename, title, allowJpg }
+    const blob = opts.blob;
+    if (!blob) throw new Error('Nessun documento da mostrare');
+    window._pdfPreviewBlob = blob;
+    window._pdfPreviewFilename = opts.filename || 'documento.pdf';
+    window._pdfPreviewAllowJpg = !!opts.allowJpg;
+    if (window._pdfPreviewUrl) { try { URL.revokeObjectURL(window._pdfPreviewUrl); } catch (e) {} }
+    window._pdfPreviewUrl = URL.createObjectURL(blob);
+    const title = document.getElementById('pdfPreviewTitle');
+    if (title) title.textContent = opts.title || '👁️ Anteprima';
+    const jpgBtn = document.getElementById('pdfPreviewJpgBtn');
+    if (jpgBtn) jpgBtn.style.display = opts.allowJpg ? 'inline-flex' : 'none';
+    const modal = document.getElementById('pdfPreviewModal');
+    if (modal) modal.style.display = 'flex';
+    await renderPdfPagesToPreview(blob);
   }
 
   async function previewPDF() {
     try {
       showToast('Generazione anteprima…', 'info', 2000);
       const pdfBlob = await buildPdfBlobForShare();
-      if (window._pdfPreviewUrl) { try { URL.revokeObjectURL(window._pdfPreviewUrl); } catch (e) {} }
-      window._pdfPreviewUrl = URL.createObjectURL(pdfBlob);
-      window._pdfPreviewBlob = pdfBlob;
-      const frame = document.getElementById('pdfPreviewFrame');
-      const modal = document.getElementById('pdfPreviewModal');
-      if (frame) {
-        frame.src = window._pdfPreviewUrl;
-        // iOS/Brave: se iframe non mostra PDF, offri almeno download
-        frame.onload = function() {};
-      }
-      if (modal) {
-        modal.style.display = 'flex';
-      } else {
-        // fallback se modal assente
-        const a = document.createElement('a');
-        a.href = window._pdfPreviewUrl;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.click();
-      }
+      const name = 'Turni_' + String((appData && appData.title) || 'Corvetto').replace(/\s+/g, '_') + '_' + (typeof currentWeekKey !== 'undefined' ? currentWeekKey : 'sett') + '.pdf';
+      await openDocumentPreview({ blob: pdfBlob, filename: name, title: '👁️ Anteprima turni', allowJpg: true });
     } catch (err) {
       console.error(err);
-      if (typeof showActionError === 'function') showActionError("Impossibile aprire l'anteprima PDF. Controlla la connessione (jsPDF) e riprova.", err);
-      else alert("Impossibile aprire l'anteprima PDF: " + (err && err.message ? err.message : err));
+      if (typeof showActionError === 'function') showActionError("Impossibile aprire l'anteprima. Controlla la connessione e ricarica.", err);
+      else alert("Impossibile aprire l'anteprima: " + (err && err.message ? err.message : err));
     }
   }
+
   function closePdfPreview() {
     const modal = document.getElementById('pdfPreviewModal');
     if (modal) modal.style.display = 'none';
+    const box = document.getElementById('pdfPreviewPages');
+    if (box) box.innerHTML = '';
     const frame = document.getElementById('pdfPreviewFrame');
     if (frame) frame.src = 'about:blank';
     if (window._pdfPreviewUrl) { try { URL.revokeObjectURL(window._pdfPreviewUrl); } catch (e) {} window._pdfPreviewUrl = null; }
   }
   window.closePdfPreview = closePdfPreview;
+
   function downloadPdfFromPreview() {
     try {
       const blob = window._pdfPreviewBlob;
-      if (!blob) { if (typeof exportToPDF === 'function') exportToPDF(); return; }
+      if (!blob) { alert('Nessun file in anteprima'); return; }
       const a = document.createElement('a');
       const url = URL.createObjectURL(blob);
       a.href = url;
-      a.download = 'Turni_' + String((appData && appData.title) || 'Corvetto').replace(/\s+/g, '_') + '_' + (typeof currentWeekKey !== 'undefined' ? currentWeekKey : 'sett') + '.pdf';
+      a.download = window._pdfPreviewFilename || 'documento.pdf';
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
-      showToast('PDF scaricato', 'success', 2500);
+      showToast('File salvato', 'success', 2500);
     } catch (e) {
-      if (typeof showActionError === 'function') showActionError('Download PDF non riuscito', e);
+      if (typeof showActionError === 'function') showActionError('Download non riuscito', e);
     }
   }
   window.downloadPdfFromPreview = downloadPdfFromPreview;
 
+  async function downloadJpgFromPreview() {
+    try {
+      const blob = window._pdfPreviewBlob;
+      if (!blob) return;
+      showToast('Conversione JPG…', 'info', 2000);
+      const jpgBlob = await pdfBlobToJpgBlob(blob);
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(jpgBlob);
+      a.href = url;
+      a.download = String(window._pdfPreviewFilename || 'turni.pdf').replace(/\.pdf$/i, '.jpg');
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      showToast('JPG salvato', 'success', 2500);
+    } catch (e) {
+      if (typeof showActionError === 'function') showActionError('JPG non riuscito', e);
+      else alert('JPG non riuscito: ' + e.message);
+    }
+  }
+  window.downloadJpgFromPreview = downloadJpgFromPreview;
+
+
+
 
   async function exportTableToJPG() {
+    // Anteprima PDF prima, poi da lì si può salvare JPG
     try {
-      // Il JPG viene ricavato direttamente dal PDF definitivo: grafica,
-      // dimensioni, gruppi, note, eventi e contenuti restano quindi identici.
+      showToast('Generazione anteprima…', 'info', 2000);
       const pdfBlob = await buildPdfBlobForShare();
-      const jpgBlob = await pdfBlobToJpgBlob(pdfBlob);
-      const link=document.createElement('a');
-      link.download=`Turni_${appData.title.replace(/\s+/g,'_')}_${currentWeekKey}.jpg`;
-      link.href=URL.createObjectURL(jpgBlob);
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(()=>{ URL.revokeObjectURL(link.href); link.remove(); }, 1500);
-      showToast('JPG generato dal PDF: grafica identica al PDF.', 'success', 2500);
-    } catch(err){ showActionError('Impossibile generare il JPG.', err); }
+      const name = 'Turni_' + String((appData && appData.title) || 'Corvetto').replace(/\s+/g, '_') + '_' + (typeof currentWeekKey !== 'undefined' ? currentWeekKey : 'sett') + '.pdf';
+      await openDocumentPreview({ blob: pdfBlob, filename: name, title: '👁️ Anteprima (PDF/JPG)', allowJpg: true });
+    } catch (err) {
+      if (typeof showActionError === 'function') showActionError('Anteprima non riuscita', err);
+      else alert('Anteprima non riuscita: ' + (err && err.message ? err.message : err));
+    }
   }
 
-  // ========== TEMA CHIARO / SCURO ==========
+
   function setThemeButtons(isLight) {
     const label = isLight ? '☀️ Tema' : '🌙 Tema';
     ['themeToggleBtn', 'themeToggleBtnFerie', 'themeToggleBtnEventi'].forEach(id => {
@@ -11968,80 +12021,93 @@
 
   /** Elenco richieste anno (riepilogo) */
   function exportLeavePDF() {
-    if (typeof window.jspdf === 'undefined') return alert('Libreria PDF non caricata. Controlla la connessione e ricarica.');
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('portrait', 'mm', 'a4');
-    doc.setFontSize(14);
-    doc.text(`Richieste Ferie/Permessi ${leaveYear} – ${appData.title || 'CORVETTO'}`, 14, 16);
-    doc.setFontSize(9);
-    doc.setTextColor(100);
-    doc.text('Ordine: dal periodo più vicino al più lontano · solo ferie/permessi (malattia esclusa)', 14, 22);
-    doc.setTextColor(0);
-
-    const today = new Date(); today.setHours(12,0,0,0);
-    const isMal = (r) => {
-      const t = String(r.tipo || '').toLowerCase();
-      return t.includes('malattia') || t.includes('ricovero');
-    };
-    const startMs = (r) => {
+    (async function() {
       try {
-        if (typeof requestDateMs === 'function') return requestDateMs(r, false);
-      } catch (e) {}
-      const s = r.mode === 'single' ? r.day : r.fromDay;
-      const d = s ? new Date(s + 'T12:00:00') : new Date(0);
-      return d.getTime();
-    };
-    const endMs = (r) => {
-      const s = r.mode === 'single' ? r.day : (r.toDay || r.fromDay);
-      if (!s && r.openEnded) return Infinity;
-      const d = s ? new Date(s + 'T12:00:00') : new Date(0);
-      return d.getTime();
-    };
-    const tempoLabel = (r) => {
-      const a = startMs(r), b = endMs(r);
-      if (b < today.getTime()) return 'Passata';
-      if (a > today.getTime()) return 'Futura';
-      return 'In corso';
-    };
-
-    const filtered = (appData.leaveRequests || [])
-      .filter(r => {
-        if (isMal(r)) return false;
-        let hit = false;
-        if (typeof eachDateInRequest === 'function') {
-          eachDateInRequest(r, d => { if (d.getFullYear() === leaveYear) hit = true; });
-        } else {
-          hit = true;
+        if (typeof window.jspdf === 'undefined') {
+          await ensurePdfLibraries();
         }
-        return hit;
-      })
-      .sort((a, b) => startMs(a) - startMs(b)); // crescente: più vicino → più lontano
+        if (typeof window.jspdf === 'undefined') return alert('Libreria PDF non caricata. Controlla la connessione e ricarica.');
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('portrait', 'mm', 'a4');
+        doc.setFontSize(14);
+        doc.text(`Richieste Ferie/Permessi ${leaveYear} – ${appData.title || 'CORVETTO'}`, 14, 16);
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text('Ordine: dal periodo più vicino al più lontano · solo ferie/permessi (malattia esclusa)', 14, 22);
+        doc.setTextColor(0);
 
-    const rows = filtered.map(r => {
-      const w = appData.workers.find(x => x.id === r.workerId);
-      const when = r.mode === 'single'
-        ? `${formatITDate(r.day)} ${r.fullDay ? '(giornata)' : `${formatITTime(r.fromTime)}-${formatITTime(r.toTime)} (${r.hours}h)`}`
-        : `${formatITDate(r.fromDay)} → ${formatITDate(r.toDay) || 'in corso'}`;
-      return [w ? w.name : r.workerId, r.tipo, when, tempoLabel(r), r.status, formatITDate(r.requestDate)];
-    });
+        const today = new Date(); today.setHours(12,0,0,0);
+        const isMal = (r) => {
+          const t = String(r.tipo || '').toLowerCase();
+          return t.includes('malattia') || t.includes('ricovero');
+        };
+        const startMs = (r) => {
+          try { if (typeof requestDateMs === 'function') return requestDateMs(r, false); } catch (e) {}
+          const s = r.mode === 'single' ? r.day : r.fromDay;
+          const d = s ? new Date(s + 'T12:00:00') : new Date(0);
+          return d.getTime();
+        };
+        const endMs = (r) => {
+          const s = r.mode === 'single' ? r.day : (r.toDay || r.fromDay);
+          if (!s && r.openEnded) return Infinity;
+          const d = s ? new Date(s + 'T12:00:00') : new Date(0);
+          return d.getTime();
+        };
+        const tempoLabel = (r) => {
+          const a = startMs(r), b = endMs(r);
+          if (b < today.getTime()) return 'Passata';
+          if (a > today.getTime()) return 'Futura';
+          return 'In corso';
+        };
 
-    doc.autoTable({
-      startY: 26,
-      head: [['Collaboratore', 'Tipo', 'Periodo', 'Tempo', 'Stato', 'Data rich.']],
-      body: rows,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [0, 80, 120] },
-      didParseCell: function(data) {
-        if (data.section === 'body' && data.column.index === 3) {
-          const v = String(data.cell.raw || '');
-          if (v === 'Passata') data.cell.styles.textColor = [120, 120, 120];
-          if (v === 'Futura') data.cell.styles.textColor = [30, 100, 60];
-          if (v === 'In corso') data.cell.styles.textColor = [180, 100, 0];
+        const filtered = (appData.leaveRequests || [])
+          .filter(r => {
+            if (isMal(r)) return false;
+            let hit = false;
+            if (typeof eachDateInRequest === 'function') {
+              eachDateInRequest(r, d => { if (d.getFullYear() === leaveYear) hit = true; });
+            } else hit = true;
+            return hit;
+          })
+          .sort((a, b) => startMs(a) - startMs(b));
+
+        const rows = filtered.map(r => {
+          const w = appData.workers.find(x => x.id === r.workerId);
+          const when = r.mode === 'single'
+            ? `${formatITDate(r.day)} ${r.fullDay ? '(giornata)' : `${formatITTime(r.fromTime)}-${formatITTime(r.toTime)} (${r.hours}h)`}`
+            : `${formatITDate(r.fromDay)} → ${formatITDate(r.toDay) || 'in corso'}`;
+          return [w ? w.name : r.workerId, r.tipo, when, tempoLabel(r), r.status, formatITDate(r.requestDate)];
+        });
+
+        if (typeof doc.autoTable === 'function' || (window.jspdf && true)) {
+          // autoTable plugin
         }
+        doc.autoTable({
+          startY: 26,
+          head: [['Collaboratore', 'Tipo', 'Periodo', 'Tempo', 'Stato', 'Data rich.']],
+          body: rows,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [0, 80, 120] },
+          didParseCell: function(data) {
+            if (data.section === 'body' && data.column.index === 3) {
+              const v = String(data.cell.raw || '');
+              if (v === 'Passata') data.cell.styles.textColor = [120, 120, 120];
+              if (v === 'Futura') data.cell.styles.textColor = [30, 100, 60];
+              if (v === 'In corso') data.cell.styles.textColor = [180, 100, 0];
+            }
+          }
+        });
+        const blob = doc.output('blob');
+        const fname = `Ferie_${leaveYear}_${appData.title || 'CORVETTO'}.pdf`;
+        await openDocumentPreview({ blob, filename: fname, title: '👁️ Anteprima ferie ' + leaveYear, allowJpg: false });
+      } catch (err) {
+        console.error(err);
+        if (typeof showActionError === 'function') showActionError('Anteprima ferie non riuscita', err);
+        else alert('Anteprima ferie non riuscita: ' + (err && err.message ? err.message : err));
       }
-    });
-    doc.save(`Ferie_${leaveYear}_${appData.title || 'CORVETTO'}.pdf`);
+    })();
   }
+
 
   // ========== FIREBASE: ACCESSO AUTOMATICO ==========
   // L'app non esegue un login Firebase. La protezione dei dati cloud dipende dalle
@@ -12068,15 +12134,18 @@
 </script>
 
 <div class="modal-backdrop" id="pdfPreviewModal" style="display:none;z-index:12000;" onclick="if(event.target===this)closePdfPreview()">
-  <div class="modal" style="max-width:min(960px,100%);width:100%;height:min(92vh,920px);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
-      <h3 style="margin:0;">👁️ Anteprima PDF</h3>
+  <div class="modal" style="max-width:min(960px,100%);width:100%;height:min(94vh,960px);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <h3 style="margin:0;" id="pdfPreviewTitle">👁️ Anteprima</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" class="success" onclick="downloadPdfFromPreview()">⬇️ Scarica</button>
+        <button type="button" class="success" id="pdfPreviewDownloadBtn" onclick="downloadPdfFromPreview()">⬇️ Salva PDF</button>
+        <button type="button" class="alt" id="pdfPreviewJpgBtn" style="display:none;" onclick="downloadJpgFromPreview()">🖼️ Salva JPG</button>
         <button type="button" class="alt" onclick="closePdfPreview()">Chiudi</button>
       </div>
     </div>
-    <iframe id="pdfPreviewFrame" title="Anteprima PDF" style="flex:1;width:100%;min-height:65vh;border:1px solid var(--border);border-radius:10px;background:#525659;"></iframe>
+    <p id="pdfPreviewHint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted);">Controlla l’anteprima, poi tocca Salva per scaricare.</p>
+    <div id="pdfPreviewPages" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:#3a3a3a;border-radius:10px;padding:10px;text-align:center;min-height:50vh;"></div>
+    <iframe id="pdfPreviewFrame" title="Anteprima PDF" style="display:none;"></iframe>
   </div>
 </div>
 
