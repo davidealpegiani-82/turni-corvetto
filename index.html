@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.1</title>
+  <title>Turni Corvetto v8.3.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.1';
+    const APP_VERSION = '8.3.2';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1691,7 +1691,7 @@
     }
 
   
-    /* v8.3.1 top-nav mobile-safe */
+    /* v8.3.2 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1809,7 +1809,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.2</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1827,7 +1827,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.1</small>
+          <small>CORVETTO · v8.3.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2094,7 +2094,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.1 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.2 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -5391,18 +5391,31 @@ function annotateEventOnWeek(e,weekKey){
           else if(!already) cell.eventMinutes=Math.max(Number(cell.eventMinutes)||0, 480);
         }
       } else {
-        // NON modificare automaticamente gli orari del turno.
-        // Solo: collega impegno, blocca copertura se fuori sede, calcola straordinario.
+        // Non allungare il turno. Per Davide/Caregnato/Poppa/Severin prova a spostare solo la pausa.
         if(!isHardUnavailableCell(cell)){
           const block=typeof eventCoverageBlocks==='function' ? eventCoverageBlocks(e) : null;
           if(block) cell.coverageBlockedIntervals=mergeCoverageBlocks([...(cell.coverageBlockedIntervals||[]),block]);
           if(!already && dur) cell.eventMinutes=(Number(cell.eventMinutes)||0)+dur;
+          // Raccogli intervalli impegno del giorno e ottimizza pausa (senza cambiare mIn/fine)
+          const dayEvs = (typeof getWorkerDayEventIntervals==='function') ? getWorkerDayEventIntervals(wid, dObj) : [];
+          if (cell.mIn || cell.pIn) {
+            const before = JSON.stringify({mIn:cell.mIn,mOut:cell.mOut,pIn:cell.pIn,pOut:cell.pOut});
+            const optimized = optimizeLunchBreakOnly(cell, wid, dayEvs);
+            if (optimized) Object.assign(cell, optimized);
+            const after = JSON.stringify({mIn:cell.mIn,mOut:cell.mOut,pIn:cell.pIn,pOut:cell.pOut});
+            if (before !== after) {
+              cell.breakAdjusted = true;
+            }
+          }
           const ot = computeEventOvertimeMinutes(cell, e.fromTime, e.toTime);
           if(ot > 0){
             cell.overtimeMinutes = Math.max(Number(cell.overtimeMinutes)||0, ot);
             cell.overtimeNote = 'Straordinario ~' + (ot/60).toFixed(1) + 'h per impegno «' + (e.title||'') + '» fuori turno';
             const sug = suggestShiftToCoverEvent(cell, e.fromTime, e.toTime);
             if(sug) cell.overtimeSuggestion = sug;
+          } else {
+            cell.overtimeMinutes = 0;
+            delete cell.overtimeNote;
           }
         }
       }
@@ -6037,7 +6050,127 @@ function annotateEventOnWeek(e,weekKey){
   }
 
   /** Pausa pranzo minima: 60 minuti per tutti, 30 solo per Severin. */
-  function minLunchBreakMinutes(wId) {
+  
+  /** Davide Alpegiani, Caregnato, Poppa: pausa 1h spostabile tra slot fissi. */
+  function isFlexibleLunchOfficeWorker(wId) {
+    try {
+      const w = (appData.workers || []).find(x => x.id === wId);
+      if (!w) return false;
+      const n = String(w.name || '').toLowerCase();
+      return /alpegiani|caregnato|poppa/.test(n);
+    } catch (e) { return false; }
+  }
+
+  function isSeverinWorker(wId) {
+    try {
+      if (typeof SEVERIN_ID === 'function' && wId === SEVERIN_ID()) return true;
+      const w = (appData.workers || []).find(x => x.id === wId);
+      return !!(w && /severin/i.test(w.name || ''));
+    } catch (e) { return false; }
+  }
+
+  /**
+   * Slot pausa ammessi (minuti da mezzanotte).
+   * Ufficio flessibile (Davide/Caregnato/Poppa): 12–13 | 12:30–13:30 | 13–14
+   * Severin (30'): 12:30–13:00 | 13:00–13:30
+   * Altri: solo 12:00 + durata minima
+   */
+  function allowedLunchBreakSlots(wId) {
+    const minB = minLunchBreakMinutes(wId);
+    if (isSeverinWorker(wId)) {
+      return [
+        [timeToMin('12:30'), timeToMin('13:00')],
+        [timeToMin('13:00'), timeToMin('13:30')]
+      ];
+    }
+    if (isFlexibleLunchOfficeWorker(wId)) {
+      return [
+        [timeToMin('12:00'), timeToMin('13:00')],
+        [timeToMin('12:30'), timeToMin('13:30')],
+        [timeToMin('13:00'), timeToMin('14:00')]
+      ];
+    }
+    return [[timeToMin('12:00'), timeToMin('12:00') + minB]];
+  }
+
+  /**
+   * Sceglie lo slot pausa migliore senza allungare inizio/fine giornata.
+   * Priorità: zero straordinario sugli impegni, blocchi ≤6h30, copertura pausa bilanciata.
+   * Modifica solo mOut/pIn (la pausa), non mIn né l'orario di fine turno.
+   */
+  function optimizeLunchBreakOnly(cell, wId, dayEvents) {
+    if (!cell) return cell;
+    const minB = minLunchBreakMinutes(wId);
+    const MAX_CONT = 6.5 * 60;
+    const events = Array.isArray(dayEvents) ? dayEvents.slice() : [];
+    const mIn = cell.mIn ? timeToMin(cell.mIn) : null;
+    const pOut = cell.pOut ? timeToMin(cell.pOut) : (cell.mOut && !cell.pIn ? timeToMin(cell.mOut) : null);
+    if (mIn == null || pOut == null || !(pOut > mIn)) return cell;
+
+    const slots = allowedLunchBreakSlots(wId);
+    let best = null;
+    let bestScore = Infinity;
+
+    function overtimeFor(mOut, pIn) {
+      let ot = 0;
+      events.forEach(function(ev) {
+        const a = ev[0], b = ev[1];
+        // lavoro = [mIn,mOut] U [pIn,pOut]
+        let covered = 0;
+        if (mOut > mIn) {
+          const o0 = Math.max(a, mIn), o1 = Math.min(b, mOut);
+          if (o1 > o0) covered += o1 - o0;
+        }
+        if (pOut > pIn) {
+          const o0 = Math.max(a, pIn), o1 = Math.min(b, pOut);
+          if (o1 > o0) covered += o1 - o0;
+        }
+        ot += Math.max(0, (b - a) - covered);
+      });
+      return ot;
+    }
+
+    slots.forEach(function(slot, idx) {
+      let bStart = slot[0], bEnd = slot[1];
+      if (bEnd - bStart < minB - 1) return;
+      // Pausa deve stare dentro la giornata
+      if (bStart <= mIn + 30) return;
+      if (bEnd >= pOut - 30) return;
+      const morning = bStart - mIn;
+      const afternoon = pOut - bEnd;
+      if (morning > MAX_CONT + 1) return;
+      if (afternoon > MAX_CONT + 1) return;
+      if (morning < 60 || afternoon < 30) return; // pezzi troppo corti
+
+      // Evita che un impegno cada interamente dentro la pausa se poteva stare nel lavoro
+      let eventInBreak = 0;
+      events.forEach(function(ev) {
+        const a = ev[0], b = ev[1];
+        const o0 = Math.max(a, bStart), o1 = Math.min(b, bEnd);
+        if (o1 > o0) eventInBreak += (o1 - o0);
+      });
+
+      const ot = overtimeFor(bStart, bEnd);
+      // Preferisci slot che riduce OT; poi quello più "centrale"; Severin preferisce 12:30 se OT uguale
+      const preferIdx = isSeverinWorker(wId) ? 0 : 0;
+      const score = ot * 1000 + eventInBreak * 2 + Math.abs(idx - preferIdx) * 5 + Math.abs(bStart - timeToMin('12:30'));
+      if (score < bestScore) {
+        bestScore = score;
+        best = { mOut: bStart, pIn: bEnd, ot: ot, slotIdx: idx };
+      }
+    });
+
+    if (!best) return cell;
+    const out = { ...cell };
+    out.mOut = minToTime(best.mOut);
+    out.pIn = minToTime(best.pIn);
+    if (!out.pOut && pOut != null) out.pOut = minToTime(pOut);
+    out.breakAdjusted = true;
+    out.breakSlotNote = 'Pausa ' + out.mOut + '–' + out.pIn + (best.ot > 0 ? ' (OT residuo ~' + (best.ot/60).toFixed(1) + 'h)' : ' (senza straordinario se possibile)');
+    return out;
+  }
+
+function minLunchBreakMinutes(wId) {
     // UNICA eccezione: Severin → sempre 30 minuti. Tutti gli altri → 60 minuti.
     try {
       const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : ((appData.rules && appData.rules.severinId) || 'w_4');
@@ -6076,7 +6209,19 @@ function annotateEventOnWeek(e,weekKey){
     const MAX_CONT = 6.5 * 60;
 
     const events = Array.isArray(dayEvents) ? dayEvents.slice() : [];
-    // Preferenza pausa standard
+    // Per ufficio flessibile / Severin: scegli tra slot ammessi (non inventare orari arbitrari)
+    if (isFlexibleLunchOfficeWorker(wId) || isSeverinWorker(wId)) {
+      const opt = optimizeLunchBreakOnly(out, wId, events);
+      if (opt && (opt.mOut || opt.pIn)) {
+        out.mOut = opt.mOut || out.mOut;
+        out.pIn = opt.pIn || out.pIn;
+        if (opt.pOut) out.pOut = opt.pOut;
+        if (opt.breakSlotNote) out.breakSlotNote = opt.breakSlotNote;
+        out.breakAdjusted = !!opt.breakAdjusted;
+        return out;
+      }
+    }
+    // Preferenza pausa standard (altri collaboratori)
     let preferStart = timeToMin('12:00');
     let preferEnd = preferStart + minBreak; // 13:00 se 60'
 
@@ -6086,7 +6231,6 @@ function annotateEventOnWeek(e,weekKey){
         preferStart = Math.max(preferStart, b);
         preferEnd = preferStart + minBreak;
       }
-      // Evento che inizia nel pomeriggio presto: non far partire il pomeriggio prima della fine pausa
       if (a >= timeToMin('12:00') && a <= timeToMin('15:00')) {
         preferEnd = Math.max(preferEnd, Math.min(a, preferStart + minBreak));
         if (preferEnd - preferStart < minBreak) {
