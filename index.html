@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.2.3</title>
+  <title>Turni Corvetto v8.2.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.2.3';
+    const APP_VERSION = '8.2.4';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1675,7 +1675,7 @@
     }
 
   
-    /* v8.2.3 top-nav mobile-safe */
+    /* v8.2.4 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1761,7 +1761,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.3</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.4</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1776,7 +1776,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.2.3</small>
+          <small>CORVETTO · v8.2.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2038,7 +2038,7 @@
 <div id="viewSettings" style="display:none;">
   <div class="control-card">
     <h3 style="margin:0 0 6px;">⚙️ Impostazioni</h3>
-    <p style="margin:0 0 12px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica.</p>
+    <p style="margin:0 0 12px;font-size:12px;color:var(--text-muted);">Unica area di configurazione (stesso contenuto del pulsante Impostazioni in Tabella). Team, regole, backup e diagnostica.</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
       <button type="button" class="alt" onclick="openTeamModal()">👥 Team</button>
       <button type="button" class="alt" onclick="openRulesModal()">⚙️ Regole</button>
@@ -2051,7 +2051,7 @@
       <button type="button" class="alt" onclick="toggleTheme()">🌓 Tema</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Questa schermata unisce <strong>Impostazioni</strong> e <strong>Strumenti</strong> (team, regole, backup, diagnostica, export).</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.3 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.4 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -2503,10 +2503,8 @@
     <h3>📤 Esporta / condividi</h3>
     <p id="exportPdfStatus" style="font-size:12px;margin:0 0 10px;color:var(--text-muted);">Verifica librerie PDF…</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="alt" data-needs-pdf="1" onclick="closeModal('exportMenuModal');exportToPDF();">📄 PDF</button>
-      <button class="alt" data-needs-pdf="1" onclick="closeModal('exportMenuModal');previewPDF();">👁️ Anteprima PDF</button>
+      <button class="alt" data-needs-pdf="1" onclick="closeModal('exportMenuModal');exportToPDF();">📄 PDF / JPG — anteprima e salva</button>
       <button class="alt" data-needs-pdf="1" onclick="closeModal('exportMenuModal');openEmailChoice();">✉️ Email (allegato PDF/JPG)</button>
-      <button class="alt" onclick="closeModal('exportMenuModal');exportTableToJPG();">🖼️ JPG (non richiede jsPDF se canvas ok)</button>
       <button class="alt" onclick="closeModal('exportMenuModal');exportCurrentWeekEventsICS();">📅 Calendario ICS</button>
       <button class="success" onclick="closeModal('exportMenuModal');shareWeekEventsWhatsApp();">WhatsApp impegni</button>
     </div>
@@ -6813,7 +6811,7 @@
   }
 
   function openToolsMenu() {
-    // Unificato con Impostazioni: stessa area, niente doppioni
+    // Unica area Impostazioni (tab e pulsante tabella fanno la stessa cosa)
     if (typeof switchView === 'function') switchView('settings');
     else {
       const el = document.getElementById('toolsMenuModal');
@@ -12016,7 +12014,20 @@
     doc.text('Modulo generato da Gestione Turni – ' + (appData.title || 'CORVETTO'), pageW / 2, 285, { align: 'center' });
 
     const safeName = workerNameStr.replace(/\s+/g, '_');
-    doc.save(`Richiesta_Ferie_${safeName}_${req.day || req.fromDay || 'modulo'}.pdf`);
+    const fname = `Richiesta_Ferie_${safeName}_${req.day || req.fromDay || 'modulo'}.pdf`;
+    try {
+      const blob = doc.output('blob');
+      if (typeof openDocumentPreview === 'function') {
+        openDocumentPreview({
+          blob,
+          filename: fname,
+          title: '👁️ Anteprima modulo ferie',
+          allowJpg: false
+        });
+        return;
+      }
+    } catch (e) { console.warn(e); }
+    doc.save(fname);
   }
 
   /** Elenco richieste anno (riepilogo) */
