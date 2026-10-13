@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.3</title>
+  <title>Turni Corvetto v8.3.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.3';
+    const APP_VERSION = '8.3.4';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1691,7 +1691,7 @@
     }
 
   
-    /* v8.3.3 top-nav mobile-safe */
+    /* v8.3.4 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1809,7 +1809,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.3</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.4</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1827,7 +1827,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.3</small>
+          <small>CORVETTO · v8.3.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2094,7 +2094,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.3 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.4 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -3635,17 +3635,12 @@
     };
   }
 
-  function formatCellShort(d) {
+  function formatCellShort(d, wId, dateObj) {
     if (!d) return '—';
     const st = (d.status || '').toUpperCase();
-    if (st && st !== 'LAVORO') {
-      let s = st;
-      if (d.mIn || d.pIn) {
-        const m = (d.mIn && d.mOut) ? `${d.mIn}-${d.mOut}` : '';
-        const p = (d.pIn && d.pOut) ? `${d.pIn}-${d.pOut}` : '';
-        s += ' ' + [m, p].filter(Boolean).join(' | ');
-      }
-      return s;
+    if (st && st !== 'LAVORO' && !d.mIn && !d.pIn) return st;
+    if (typeof formatWorkAndEventsTimeline === 'function' && wId != null && dateObj) {
+      return formatWorkAndEventsTimeline(wId, dateObj, d);
     }
     const m = (d.mIn && d.mOut) ? `${d.mIn}-${d.mOut}` : '';
     const p = (d.pIn && d.pOut) ? `${d.pIn}-${d.pOut}` : '';
@@ -4134,7 +4129,85 @@
   }
   function jsStringArg(value){ return escapeHtmlV47(JSON.stringify(String(value ?? ''))); }
 
-  function getDayDisplayModelV47(wId, day, dateObj, dayData){
+  
+  /** Timeline: lavoro in filiale + impegni (es. 06:30-12:00 | 13:00-14:30 | 18:00-19:30 Riunione). */
+  function formatWorkAndEventsTimeline(wId, dateObj, dayData) {
+    const d = dayData || {};
+    const st = String(d.status || '').toUpperCase();
+    if (typeof isRestStatus === 'function' && isRestStatus(st)) return '—';
+    if (st && st !== 'LAVORO' && !d.mIn && !d.pIn) {
+      try {
+        return leaveDisplayLabel(d, findLeaveRequestForCell(wId, dateObj, d)) || st;
+      } catch (e) { return st; }
+    }
+    const events = (typeof getDayEventsForWorker === 'function' && dateObj)
+      ? (getDayEventsForWorker(wId, dateObj) || []) : [];
+    let work = [];
+    if (d.mIn && d.mOut) work.push([timeToMin(d.mIn), timeToMin(d.mOut)]);
+    if (d.pIn && d.pOut) work.push([timeToMin(d.pIn), timeToMin(d.pOut)]);
+    const evSegs = [];
+    events.forEach(function(e) {
+      if (!e || e.allDay || !e.fromTime || !e.toTime) return;
+      const a = timeToMin(e.fromTime), b = timeToMin(e.toTime);
+      if (b > a) evSegs.push({ a: a, b: b, title: e.title || 'Impegno' });
+    });
+    function subtract(ranges, cuts) {
+      let out = ranges.slice();
+      cuts.forEach(function(c) {
+        const next = [];
+        out.forEach(function(r) {
+          if (c.b <= r[0] || c.a >= r[1]) { next.push(r); return; }
+          if (r[0] < c.a) next.push([r[0], Math.min(r[1], c.a)]);
+          if (r[1] > c.b) next.push([Math.max(r[0], c.b), r[1]]);
+        });
+        out = next.filter(function(x) { return x[1] > x[0]; });
+      });
+      return out;
+    }
+    const workOnly = subtract(work, evSegs);
+    const parts = [];
+    workOnly.forEach(function(r) { parts.push({ a: r[0], b: r[1], label: '' }); });
+    evSegs.forEach(function(e) { parts.push({ a: e.a, b: e.b, label: e.title }); });
+    parts.sort(function(x, y) { return x.a - y.a || x.b - y.b; });
+    if (!parts.length) {
+      const m = (d.mIn && d.mOut) ? (d.mIn + '-' + d.mOut) : '';
+      const p = (d.pIn && d.pOut) ? (d.pIn + '-' + d.pOut) : '';
+      const t = [m, p].filter(Boolean).join(' | ');
+      return t || '—';
+    }
+    return parts.map(function(p) {
+      const span = minToTime(p.a) + '-' + minToTime(p.b);
+      return p.label ? (span + ' ' + p.label) : span;
+    }).join(' | ');
+  }
+
+  function refreshCoverageBlocksForWeek(weekKey) {
+    try {
+      const week = appData.weeks && appData.weeks[weekKey];
+      if (!week) return;
+      const monday = (typeof eventWeekDates === 'function') ? eventWeekDates(currentDate) : null;
+      if (!monday || !monday.length) return;
+      (appData.workers || []).forEach(function(w) {
+        if (!week[w.id]) return;
+        for (let day = 0; day < 6; day++) {
+          const cell = week[w.id][day] || week[w.id][String(day)];
+          if (!cell || typeof cell !== 'object') continue;
+          const dObj = monday[day];
+          if (!dObj) continue;
+          const dateKey = localDateKey(dObj);
+          const blocks = (appData.events || [])
+            .filter(function(e) {
+              return e.date === dateKey && Array.isArray(e.participantIds) && e.participantIds.indexOf(w.id) >= 0;
+            })
+            .map(eventCoverageBlocks)
+            .filter(Boolean);
+          cell.coverageBlockedIntervals = blocks.length ? mergeCoverageBlocks(blocks) : [];
+        }
+      });
+    } catch (e) {}
+  }
+
+function getDayDisplayModelV47(wId, day, dateObj, dayData){
     const d = dayData || {};
     const leaveReq = findLeaveRequestForCell(wId, dateObj, d);
     const events = getDayEventsForWorker(wId, dateObj) || [];
@@ -4160,9 +4233,8 @@
     // Una ferie/malattia a giornata intera deve essere una singola informazione:
     // causale + ore retribuite, senza mostrare eventuali vecchi orari rimasti nella cella.
     const h = countableDayHours(wId, day, d, currentWeekKey);
-    const m = !isFullLeave && d.mIn && d.mOut ? `${escapeHtmlV47(d.mIn)}–${escapeHtmlV47(d.mOut)}` : '';
-    const p = !isFullLeave && d.pIn && d.pOut ? `${escapeHtmlV47(d.pIn)}–${escapeHtmlV47(d.pOut)}` : '';
-    const times = [m,p].filter(Boolean).join(' · ');
+    const timelineRaw = !isFullLeave ? formatWorkAndEventsTimeline(wId, dateObj, d) : '';
+    const times = (timelineRaw && timelineRaw !== '—') ? escapeHtmlV47(timelineRaw) : '';
     const note = displayableCellNote(d, events);
     let cls='cell-content-v47';
     if (isFullLeave && status && status!=='LAVORO') cls+=' cell-fullleave-v47';
@@ -4173,6 +4245,8 @@
     let mainLabel='';
     if (status && status!=='LAVORO') {
       mainLabel=label;
+    } else if (times) {
+      mainLabel=''; // orari+impegni già in timeline
     } else if (d.eventLabel || events.length) {
       mainLabel='IMPEGNO';
     } else if (note) {
@@ -4181,12 +4255,14 @@
       mainLabel='—';
     }
     let html=`<div class="${cls}">`;
-    const mainLabelHtml = (status && status!=='LAVORO' && status!=='RIPOSO')
-      ? leaveLinkHtml(leaveReq, mainLabel, status)
-      : escapeHtmlV47(mainLabel);
-    html += `<div class="cell-status-v47">${mainLabelHtml}</div>`;
+    if (mainLabel) {
+      const mainLabelHtml = (status && status!=='LAVORO' && status!=='RIPOSO')
+        ? leaveLinkHtml(leaveReq, mainLabel, status)
+        : escapeHtmlV47(mainLabel);
+      html += `<div class="cell-status-v47">${mainLabelHtml}</div>`;
+    }
     if (times) {
-      html += `<div class="cell-times-v47" style="font-weight:800;">${times}</div>`;
+      html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${times}</div>`;
     }
     if (h>0 && !isRest) html += `<span class="hours-badge cell-hours-v47">${String(h).replace(/\.0$/,'')}h</span>`;
     if (note && status!=='LAVORO') html += `<div class="cell-note-v47" title="${escapeHtmlV47(note)}">${escapeHtmlV47(note)}</div>`;
@@ -4199,9 +4275,14 @@
 
   function appendEventsToCellV47(td, model){
     const shown=new Set();
+    const hasTimed=(model.events||[]).some(e=>e&&e.fromTime&&e.toTime&&!e.allDay);
     (model.events||[]).forEach(e=>{
       if(!e || !e.title || shown.has(e.id)) return;
       shown.add(e.id);
+      if(e.fromTime&&e.toTime&&!e.allDay&&hasTimed){
+        td.innerHTML += `<div class="event-link cell-event-v47" data-event-id="${escapeHtmlV47(e.id)}" title="${escapeHtmlV47(e.title)}" style="font-size:10px;opacity:.85;">📌</div>`;
+        return;
+      }
       const conflict=model.conflict ? `<span class="event-conflict-v47">⚠️</span>` : '';
       td.innerHTML += `<div class="event-link cell-event-v47" data-event-id="${escapeHtmlV47(e.id)}" title="${escapeHtmlV47(e.title)}">📌 ${escapeHtmlV47(e.title)}${conflict}</div>`;
     });
@@ -4212,6 +4293,7 @@
 
   function renderWeek() {
     currentWeekKey = getWeekKey(currentDate);
+    try { if (typeof refreshCoverageBlocksForWeek === "function") refreshCoverageBlocksForWeek(currentWeekKey); } catch (e) {}
     document.getElementById('weekLabel').innerText = getWeekDisplayLabel(currentDate);
 
     if (!appData.weeks) appData.weeks = {};
@@ -5935,7 +6017,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.3.3):
+    // POLICY (v8.3.4):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -8561,7 +8643,8 @@ function minLunchBreakMinutes(wId) {
     return !/(corvetto|via bonfadini|bonfadini|filiale.*corvetto)/i.test(loc);
   }
   function eventCoverageBlocks(e){
-    if(!isOffsiteEvent(e) || !e.fromTime || !e.toTime) return null;
+    // Qualsiasi impegno con orario: non disponibile per copertura filiale
+    if(!e || e.allDay || !e.fromTime || !e.toTime) return null;
     const a=timeToMin(e.fromTime), b=timeToMin(e.toTime);
     return b>a ? [a,b] : null;
   }
@@ -10387,53 +10470,16 @@ function minLunchBreakMinutes(wId) {
   function resetAppData() {
     createSnapshot("pre-svuota");
 
-    // Svuota solo orari/turni generati o manuali; NON elimina note settimanali
-    // e NON elimina gli impegni/eventi collegati alle celle.
     currentWeekKey = getWeekKey(currentDate);
-    if (!confirm("Svuotare i turni della settimana visualizzata?\n\nFerie, permessi, note ed eventi collegati verranno conservati.")) {
+    if (!confirm("Svuotare TUTTA la tabella della settimana?\n\nVerranno cancellati turni, ferie, malattia e impegni dalle celle.\nLe richieste ferie e gli impegni in archivio restano e potranno essere riproposti con Genera Proposta.\nLe note settimanali restano.")) {
       return;
     }
     pushUndo('Svuota settimana', snapshotWeeks());
-    if (appData.weeks && appData.weeks[currentWeekKey]) {
-      const week = appData.weeks[currentWeekKey];
-      const kept = {};
-      Object.keys(week).forEach(wId => {
-        const days = week[wId];
-        if (!days || typeof days !== 'object') return;
-        const keptDays = {};
-        Object.keys(days).forEach(dayKey => {
-          const d = days[dayKey];
-          if (!d || typeof d !== 'object') return;
+    // Svuota completamente le celle della settimana (inclusi ferie/malattia/impegni in tabella)
+    if (!appData.weeks) appData.weeks = {};
+    appData.weeks[currentWeekKey] = {};
 
-          // Ferie/ROL/assenze autorizzate: conserva la cella.
-          if (isProtectedLeaveCell(d)) {
-            keptDays[dayKey] = { ...d };
-            return;
-          }
-
-          // Gli eventi sono indipendenti dai turni: NON devono sparire con "Svuota".
-          const hasEvent = Array.isArray(d.eventIds) && d.eventIds.length > 0 || d.eventId || d.eventLabel || d.status === 'EVENTO';
-          if (hasEvent) {
-            const keptEvent = { ...d };
-            // Svuota solo gli orari, mantenendo nota/etichetta/evento.
-            keptEvent.mIn = '';
-            keptEvent.mOut = '';
-            keptEvent.pIn = '';
-            keptEvent.pOut = '';
-            keptEvent.generated = false;
-            keptDays[dayKey] = keptEvent;
-            return;
-          }
-          // LAVORO/RIPOSO e turni normali vengono svuotati.
-        });
-        if (Object.keys(keptDays).length) kept[wId] = keptDays;
-      });
-      if (Object.keys(kept).length) appData.weeks[currentWeekKey] = kept;
-      else delete appData.weeks[currentWeekKey];
-    }
-
-    // IMPORTANTISSIMO: le note della settimana NON vengono cancellate.
-    // Gli eventi restano in appData.events e continuano a comparire nel PDF.
+    // Note settimanali e archivio eventi/richieste restano intatti.
     syncToCloud();
     renderWeek();
     if (typeof renderEventsView === 'function' && currentView === 'eventi') renderEventsView();
@@ -10615,34 +10661,18 @@ function minLunchBreakMinutes(wId) {
               }
             }
           }
-        } else if (dayData.mIn || dayData.pIn) {
-          let mStr = (dayData.mIn && dayData.mOut) ? `${dayData.mIn}-${dayData.mOut}` : '';
-          let pStr = (dayData.pIn && dayData.pOut) ? `${dayData.pIn}-${dayData.pOut}` : '';
-          let timePart = mStr && pStr ? `${mStr} | ${pStr}` : (mStr || pStr);
-          textCell = timePart + (dayData.note ? `\n${dayData.note}` : '');
+        } else if (dayData.mIn || dayData.pIn || ((getDayEventsForWorker(w.id, weekDates[day]) || []).length > 0)) {
+          textCell = formatWorkAndEventsTimeline(w.id, weekDates[day], dayData);
+          if (dayData.note) {
+            const n = String(dayData.note).trim();
+            if (n && textCell.indexOf(n.slice(0, Math.min(10, n.length))) < 0)
+              textCell += "\n" + n;
+          }
         } else if (dayData.note) {
           textCell = dayData.note;
         }
 
-        // Gli impegni/corsi vengono mostrati anche nella tabella web tramite
-        // appendEventsToCellV47(). Devono quindi essere inclusi nello stesso
-        // modello dati usato da PDF, anteprima e JPG, altrimenti risultano
-        // visibili a video ma spariscono dalla stampa.
-        const dayEvents = getDayEventsForWorker(w.id, weekDates[day]) || [];
-        const eventTitles = [];
-        const seenEventTitles = new Set();
-        dayEvents.forEach(ev => {
-          const title = String(ev?.title || '').trim();
-          if (!title || seenEventTitles.has(title)) return;
-          seenEventTitles.add(title);
-          eventTitles.push(title);
-        });
-        if (eventTitles.length) {
-          const eventText = eventTitles.map(t => `• ${t}`).join('\n');
-          textCell = textCell === '—' ? eventText : `${textCell}\n${eventText}`;
-        }
-
-        row.push({ text: textCell, rawData: dayData, noteColor: dayData.noteColor ? hexToRgb(dayData.noteColor) : null });
+                row.push({ text: textCell, rawData: dayData, noteColor: dayData.noteColor ? hexToRgb(dayData.noteColor) : null });
       }
 
       rows.push(row);
