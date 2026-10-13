@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.2.7</title>
+  <title>Turni Corvetto v8.2.8</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.2.7';
+    const APP_VERSION = '8.2.8';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1675,7 +1675,7 @@
     }
 
   
-    /* v8.2.7 top-nav mobile-safe */
+    /* v8.2.8 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1793,7 +1793,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.7</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.8</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1811,7 +1811,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.2.7</small>
+          <small>CORVETTO · v8.2.8</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2079,7 +2079,7 @@
       <button type="button" class="alt" onclick="openHelpGuide()">❓ Guida</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Questa schermata unisce <strong>Impostazioni</strong> e <strong>Strumenti</strong> (team, regole, backup, diagnostica, export).</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.7 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.8 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -3702,24 +3702,119 @@
       var problems = (typeof collectWeekProblems === 'function') ? (collectWeekProblems() || []) : [];
       var danger = problems.filter(function(p){ return p.sev === 'danger'; });
       var warn = problems.filter(function(p){ return p.sev === 'warn'; });
-      if (danger.length) {
-        el.className = 'rules-banner danger';
-        el.textContent = 'Problemi critici: ' + danger.length + ' — correggi turni o apri Diagnostica';
-      } else if (warn.length) {
-        el.className = 'rules-banner warn';
-        el.textContent = 'Avvisi: ' + warn.length + ' — controlla ore, richieste o backup';
-      } else if (problems.length) {
-        el.className = 'rules-banner warn';
-        el.textContent = 'Segnalazioni: ' + problems.length;
-      } else {
-        el.className = 'rules-banner';
-        el.textContent = 'Tutte le regole rispettate (controllo automatico settimana corrente)';
+      var list = danger.length ? danger : (warn.length ? warn : problems);
+
+      // clear previous highlights
+      try {
+        document.querySelectorAll('.problem-highlight-day, .problem-highlight-worker').forEach(function(n){
+          n.classList.remove('problem-highlight-day');
+          n.classList.remove('problem-highlight-worker');
+        });
+      } catch (e0) {}
+
+      if (!list.length) {
+        el.className = 'rules-banner ok';
+        el.innerHTML = '✅ Tutte le regole rispettate (settimana corrente)';
+        el.onclick = null;
+        el.style.cursor = 'default';
+        return;
       }
+
+      var first = list[0];
+      var more = list.length > 1 ? ' <span style="opacity:.85;">(+' + (list.length - 1) + ' altri — tocca per l’elenco)</span>' : '';
+      var icon = danger.length ? '🚨' : '⚡';
+      var head = danger.length ? 'Problema critico' : 'Avviso';
+      el.className = 'rules-banner ' + (danger.length ? 'danger' : 'warn');
+      el.style.cursor = 'pointer';
+      el.innerHTML =
+        '<div style="font-weight:800;line-height:1.25;">' + icon + ' ' + head + ': ' + escapeHtmlBanner(first.title || 'Anomalia') + more + '</div>' +
+        '<div style="font-size:12px;margin-top:5px;line-height:1.35;font-weight:600;">' + escapeHtmlBanner(first.detail || 'Apri i dettagli per capire cosa correggere.') + '</div>' +
+        '<div style="font-size:11px;margin-top:6px;opacity:.9;">Tocca qui per vedere tutti i problemi e dove intervenire</div>';
+
+      el.onclick = function() {
+        showWeekProblemsPanel(problems);
+      };
+
+      try { highlightWeekProblem(first); } catch (e1) {}
     } catch (e) {
       el.className = 'rules-banner';
       el.textContent = 'Controllo regole disponibile dopo il caricamento dati';
+      el.onclick = null;
     }
   }
+
+  function escapeHtmlBanner(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function highlightWeekProblem(p) {
+    if (!p || !p.action) return;
+    var a = p.action;
+    if (a.type === 'day' && a.day != null) {
+      var day = Number(a.day);
+      document.querySelectorAll('[data-day="' + day + '"], .day-col-' + day + ', th[data-day="' + day + '"]').forEach(function(n){
+        n.classList.add('problem-highlight-day');
+      });
+      // card view day chips
+      document.querySelectorAll('.worker-day-card, .day-card, .shift-cell').forEach(function(n){
+        var d = n.getAttribute('data-day');
+        if (d != null && Number(d) === day) n.classList.add('problem-highlight-day');
+      });
+    }
+    if (a.type === 'worker' && a.workerId) {
+      document.querySelectorAll('[data-worker="' + a.workerId + '"], tr[data-worker-id="' + a.workerId + '"]').forEach(function(n){
+        n.classList.add('problem-highlight-worker');
+      });
+    }
+  }
+
+  function showWeekProblemsPanel(problems) {
+    var existing = document.getElementById('weekProblemsModal');
+    if (existing) existing.remove();
+    var list = problems || [];
+    var body = list.map(function(p, i) {
+      var sev = p.sev === 'danger' ? '🚨 Critico' : (p.sev === 'warn' ? '⚡ Avviso' : 'ℹ️ Info');
+      var color = p.sev === 'danger' ? '#fecaca' : (p.sev === 'warn' ? '#fde68a' : '#e2e8f0');
+      return '<div class="problem-item" data-idx="' + i + '" style="padding:12px;margin:0 0 8px;border-radius:12px;background:rgba(0,0,0,.2);border-left:4px solid ' + color + ';cursor:pointer;">' +
+        '<div style="font-weight:800;font-size:13px;">' + sev + ' · ' + escapeHtmlBanner(p.title || '') + '</div>' +
+        '<div style="font-size:12px;margin-top:4px;opacity:.95;">' + escapeHtmlBanner(p.detail || '') + '</div>' +
+        '</div>';
+    }).join('') || '<p style="opacity:.8;">Nessun problema.</p>';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'modal-backdrop';
+    wrap.id = 'weekProblemsModal';
+    wrap.style.cssText = 'display:flex;z-index:13000;';
+    wrap.onclick = function(e){ if (e.target === wrap) wrap.remove(); };
+    wrap.innerHTML =
+      '<div class="modal" style="max-width:480px;max-height:85vh;overflow:auto;" onclick="event.stopPropagation()">' +
+      '<h3 style="margin:0 0 8px;">Problemi della settimana</h3>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Tocca un problema per evidenziarlo in tabella/card.</p>' +
+      body +
+      '<div class="modal-actions" style="margin-top:12px;"><button type="button" class="alt" id="weekProblemsClose">Chiudi</button></div></div>';
+    document.body.appendChild(wrap);
+    document.getElementById('weekProblemsClose').onclick = function(){ wrap.remove(); };
+    wrap.querySelectorAll('.problem-item').forEach(function(node){
+      node.onclick = function(){
+        var idx = Number(node.getAttribute('data-idx'));
+        var p = list[idx];
+        try {
+          document.querySelectorAll('.problem-highlight-day, .problem-highlight-worker').forEach(function(n){
+            n.classList.remove('problem-highlight-day');
+            n.classList.remove('problem-highlight-worker');
+          });
+          highlightWeekProblem(p);
+        } catch (e) {}
+        wrap.remove();
+        try { switchView('turni'); } catch (e2) {}
+        showToast((p && p.title ? p.title + ' — ' : '') + (p && p.detail ? p.detail : ''), 'warn', 5000);
+      };
+    });
+  }
+  window.showWeekProblemsPanel = showWeekProblemsPanel;
+  window.updateRulesBanner = updateRulesBanner;
+
 
   function renderStatsView() {
     var cards = document.getElementById('statsCards');
