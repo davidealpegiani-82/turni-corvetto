@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.2.6</title>
+  <title>Turni Corvetto v8.2.7</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.2.6';
+    const APP_VERSION = '8.2.7';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1675,7 +1675,7 @@
     }
 
   
-    /* v8.2.6 top-nav mobile-safe */
+    /* v8.2.7 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1711,9 +1711,10 @@
       white-space: nowrap !important;
       flex: 0 0 auto !important;
       background: transparent !important;
-      color: var(--text-muted) !important;
+      color: var(--text-main) !important;
       border: 1px solid var(--border) !important;
       box-shadow: none !important;
+      font-weight: 600 !important;
     }
     .top-nav .nav-tabs button.active-tab {
       background: #eff6ff !important;
@@ -1726,6 +1727,37 @@
       color: #93c5fd !important;
       border-color: rgba(59,130,246,0.4) !important;
     }
+    /* Tema chiaro: tab barra in alto leggibili */
+    body.light-theme .top-nav .nav-tabs button,
+    body.light-theme .top-nav .view-tabs button {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      border: 1px solid rgba(15, 23, 42, 0.2) !important;
+      font-weight: 600 !important;
+      opacity: 1 !important;
+    }
+    body.light-theme .top-nav .nav-tabs button.active-tab,
+    body.light-theme .top-nav .view-tabs button.active-tab {
+      background: #1d4ed8 !important;
+      color: #ffffff !important;
+      border-color: #1e40af !important;
+      font-weight: 800 !important;
+    }
+    body.light-theme .top-nav {
+      background: #ffffff !important;
+      border-color: rgba(15, 23, 42, 0.12) !important;
+    }
+    body.light-theme .top-nav .brand h1,
+    body.light-theme .top-nav .brand,
+    body.light-theme #weekBadgeNum {
+      color: #0f172a !important;
+    }
+    body.light-theme #themeToggleBtn {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      border: 1px solid rgba(15, 23, 42, 0.2) !important;
+    }
+
     /* Nascondi header legacy ridondante se presente */
     .header .header-top { margin-bottom: 8px; }
     .header .app-title-area h1 { font-size: 15px; }
@@ -1761,7 +1793,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.7</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1779,7 +1811,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.2.6</small>
+          <small>CORVETTO · v8.2.7</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2047,7 +2079,7 @@
       <button type="button" class="alt" onclick="openHelpGuide()">❓ Guida</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Questa schermata unisce <strong>Impostazioni</strong> e <strong>Strumenti</strong> (team, regole, backup, diagnostica, export).</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.6 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.7 — Turni Corvetto</p>
   </div>
 </div>
 
