@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.2.9</title>
+  <title>Turni Corvetto v8.3.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.2.9';
+    const APP_VERSION = '8.3.0';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1675,7 +1675,7 @@
     }
 
   
-    /* v8.2.9 top-nav mobile-safe */
+    /* v8.3.0 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1793,7 +1793,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.2.9</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1811,7 +1811,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.2.9</small>
+          <small>CORVETTO · v8.3.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2078,7 +2078,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.2.9 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.0 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -5306,7 +5306,51 @@
     _ensuringBreaks = false;
   }
 
-  function annotateEventOnWeek(e,weekKey){
+  
+  /** Minuti di impegno fuori dal turno (straordinario potenziale). Non modifica gli orari. */
+  function computeEventOvertimeMinutes(cell, fromTime, toTime) {
+    if (!fromTime || !toTime) return 0;
+    const evA = timeToMin(fromTime), evB = timeToMin(toTime);
+    if (!(evB > evA)) return 0;
+    const intervals = (typeof workIntervals === 'function') ? workIntervals(cell) : [];
+    if (!intervals.length) {
+      // Nessun turno: tutto l'impegno è fuori orario
+      return evB - evA;
+    }
+    let covered = 0;
+    intervals.forEach(function(iv) {
+      const a = iv[0], b = iv[1];
+      const o0 = Math.max(a, evA), o1 = Math.min(b, evB);
+      if (o1 > o0) covered += (o1 - o0);
+    });
+    return Math.max(0, (evB - evA) - covered);
+  }
+
+  /** Proposta opzionale: prolungare pOut/mOut per coprire lo straordinario (solo suggerimento). */
+  function suggestShiftToCoverEvent(cell, fromTime, toTime) {
+    if (!cell || !fromTime || !toTime) return null;
+    const evA = timeToMin(fromTime), evB = timeToMin(toTime);
+    const out = { mIn: cell.mIn || '', mOut: cell.mOut || '', pIn: cell.pIn || '', pOut: cell.pOut || '' };
+    // Se evento dopo il turno pomeriggio, estendi pOut
+    if (out.pOut) {
+      const pOut = timeToMin(out.pOut);
+      if (evB > pOut) out.pOut = minToTime(evB);
+    } else if (out.mOut && !out.pIn) {
+      const mOut = timeToMin(out.mOut);
+      if (evB > mOut) out.mOut = minToTime(evB);
+    } else if (out.pIn) {
+      // ha pomeriggio ma pOut vuoto
+      out.pOut = minToTime(evB);
+    }
+    // Se evento prima di mIn
+    if (out.mIn) {
+      const mIn = timeToMin(out.mIn);
+      if (evA < mIn) out.mIn = minToTime(evA);
+    }
+    return out;
+  }
+
+function annotateEventOnWeek(e,weekKey){
     const dObj=new Date(e.date+'T12:00:00'), day=dateToDayIdx(dObj); if(day<0||day>5)return;
     const week=appData.weeks[weekKey]||(appData.weeks[weekKey]={});
     const dur=e.allDay?null:timeToMin(e.toTime)-timeToMin(e.fromTime);
@@ -5321,24 +5365,28 @@
       cell.eventId=e.id;
 
       if(e.allDay){
-        if(!isHardUnavailableCell(cell) && (cell.generated===true || !cell.mIn)){
+        // Solo annotazione: non azzerare turni già impostati (manuali o generati con orari)
+        if(!isHardUnavailableCell(cell) && cell.generated===true && !cell.mIn && !cell.pIn){
           const base=shiftMinutes(cell);
           cell.status='EVENTO'; cell.mIn='';cell.mOut='';cell.pIn='';cell.pOut='';
           cell.eventMinutes=Math.max(Number(cell.eventMinutes)||0,base||480);
+        } else {
+          if(!already && dur) cell.eventMinutes=(Number(cell.eventMinutes)||0)+(dur||0);
+          else if(!already) cell.eventMinutes=Math.max(Number(cell.eventMinutes)||0, 480);
         }
       } else {
-        // Anche su celle manuali: ricalcola pausa intorno all'impegno
-        if(!isHardUnavailableCell(cell) && (cell.mIn || cell.pIn || cell.generated===true)){
-          const before=JSON.stringify({mIn:cell.mIn,mOut:cell.mOut,pIn:cell.pIn,pOut:cell.pOut});
-          // Se generata, ritaglia il lavoro sull'evento; poi normalizza pausa
-          // Assorbi impegno nel turno (modifica orari se serve) + pausa 1h
-          Object.assign(cell, absorbEventsIntoShift(cell, wid, dObj));
-          const block=eventCoverageBlocks(e);
+        // NON modificare automaticamente gli orari del turno.
+        // Solo: collega impegno, blocca copertura se fuori sede, calcola straordinario.
+        if(!isHardUnavailableCell(cell)){
+          const block=typeof eventCoverageBlocks==='function' ? eventCoverageBlocks(e) : null;
           if(block) cell.coverageBlockedIntervals=mergeCoverageBlocks([...(cell.coverageBlockedIntervals||[]),block]);
           if(!already && dur) cell.eventMinutes=(Number(cell.eventMinutes)||0)+dur;
-          const after=JSON.stringify({mIn:cell.mIn,mOut:cell.mOut,pIn:cell.pIn,pOut:cell.pOut});
-          if(before!==after){
-            cell.breakAdjusted=true;
+          const ot = computeEventOvertimeMinutes(cell, e.fromTime, e.toTime);
+          if(ot > 0){
+            cell.overtimeMinutes = Math.max(Number(cell.overtimeMinutes)||0, ot);
+            cell.overtimeNote = 'Straordinario ~' + (ot/60).toFixed(1) + 'h per impegno «' + (e.title||'') + '» fuori turno';
+            const sug = suggestShiftToCoverEvent(cell, e.fromTime, e.toTime);
+            if(sug) cell.overtimeSuggestion = sug;
           }
         }
       }
@@ -6628,6 +6676,26 @@
         }
         if (total > 0 && total < 20 && total < 35) {
           // only flag if has some work but very low - skip soft
+        }
+      });
+    } catch (e) {}
+
+    // Straordinario da impegni fuori turno
+    try {
+      (appData.workers || []).filter(w => w.selected !== false).forEach(w => {
+        for (let d = 0; d < 6; d++) {
+          const cell = week[w.id] && (week[w.id][d] || week[w.id][String(d)]);
+          if (!cell) continue;
+          const ot = Number(cell.overtimeMinutes) || 0;
+          if (ot >= 15) {
+            const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+            problems.push({
+              sev: 'warn',
+              title: 'Straordinario / impegno fuori turno',
+              detail: (w.name || w.id) + ' · ' + dayNames[d] + ': ~' + (ot/60).toFixed(1) + 'h' + (cell.overtimeNote ? ' — ' + cell.overtimeNote : '') + (cell.overtimeSuggestion ? ' · Proposta orari: ' + [cell.overtimeSuggestion.mIn,cell.overtimeSuggestion.mOut].filter(Boolean).join('-') + (cell.overtimeSuggestion.pIn ? ' / ' + cell.overtimeSuggestion.pIn + '-' + cell.overtimeSuggestion.pOut : '') : ''),
+              action: { type: 'worker', workerId: w.id, day: d }
+            });
+          }
         }
       });
     } catch (e) {}
@@ -8722,12 +8790,18 @@
           return;
         }
         const evA=timeToMin(e.fromTime),evB=timeToMin(e.toTime);
-        if(cell.generated!==true){ if(shiftOverlapsWindow(cell,[evA,evB])) notes.push(`Conflitto evento ${e.title}: turno manuale di ${workerName(wid)} non modificato.`); return; }
-        const intervals=workIntervals(cell); const out=[];
-        intervals.forEach(([a,b])=>{if(evB<=a||evA>=b)out.push([a,b]);else{if(a<evA)out.push([a,evA]);if(evB<b)out.push([evB,b]);}});
-        let adjusted={...cell,mIn:out[0]?minToTime(out[0][0]):'',mOut:out[0]?minToTime(out[0][1]):'',pIn:out[1]?minToTime(out[1][0]):'',pOut:out[1]?minToTime(out[1][1]):'',eventMinutes:(Number(cell.eventMinutes)||0)+dur,eventIds:[...(cell.eventIds||[]),e.id],eventLabel:e.title,note:cell.note||'',generated:true};
-        const dObj=new Date(e.date+'T12:00:00');
-        adjusted=absorbEventsIntoShift(adjusted, wid, dObj);
+        // Non modificare il turno: solo annota impegno e segnala straordinario
+        let adjusted={...cell, eventMinutes:(Number(cell.eventMinutes)||0)+dur, eventIds:[...(cell.eventIds||[]),e.id], eventLabel:e.title, note:cell.note||''};
+        const ot=computeEventOvertimeMinutes(cell, e.fromTime, e.toTime);
+        if(ot>0){
+          adjusted.overtimeMinutes=Math.max(Number(cell.overtimeMinutes)||0, ot);
+          adjusted.overtimeNote='Straordinario ~'+(ot/60).toFixed(1)+'h («'+e.title+'» fuori turno)';
+          const sug=suggestShiftToCoverEvent(cell, e.fromTime, e.toTime);
+          if(sug) adjusted.overtimeSuggestion=sug;
+          notes.push('⚡ Straordinario '+workerName(wid)+' '+e.date+': ~'+(ot/60).toFixed(1)+'h per «'+e.title+'» — turno non modificato automaticamente.');
+        }
+        const block=typeof eventCoverageBlocks==='function'?eventCoverageBlocks(e):null;
+        if(block) adjusted.coverageBlockedIntervals=mergeCoverageBlocks([...(cell.coverageBlockedIntervals||[]),block]);
         const block=eventCoverageBlocks(e);
         if(block){
           adjusted.coverageBlockedIntervals=mergeCoverageBlocks([...(adjusted.coverageBlockedIntervals||[]),block]);
