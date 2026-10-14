@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.4</title>
+  <title>Turni Corvetto v8.7.5</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.4';
+    const APP_VERSION = '8.7.5';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1865,7 +1865,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.4</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.5</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1883,7 +1883,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.4</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.5</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4351,36 +4351,65 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     const isPartialVisual = !isFullLeave && !isRest && (
       isPartialLeave ||
       (!!d.rolFrom && !!d.rolTo) ||
-      (status && status!=='LAVORO' && status!=='RIPOSO' && !!(d.mIn || d.pIn))
+      (status && status!=='LAVORO' && status!=='RIPOSO' && !!(d.mIn || d.pIn || d.rolFrom))
     );
 
     let html=`<div class="${cls}">`;
     if (isPartialVisual) {
+      // Come gli impegni: prima solo ORE LAVORATE, poi riga permesso con fascia oraria
+      // es. 08:30-12:30
+      //     📌 Permesso retribuito 13:30-17:30
       const leaveLab = label || leaveDisplayLabel(d, leaveReq) || 'Permesso';
-      const leaveHtml = leaveLinkHtml(leaveReq, leaveLab, status || 'ROL');
       let leaveFrom = d.rolFrom || (leaveReq && leaveReq.fromTime) || '';
       let leaveTo = d.rolTo || (leaveReq && leaveReq.toTime) || '';
-      // Se manca finestra ROL, stima dal buco tra mattina e pomeriggio
-      if ((!leaveFrom || !leaveTo) && d.mOut && d.pIn) {
-        leaveFrom = d.mOut; leaveTo = d.pIn;
+
+      // Ore lavorate = blocchi turno che NON sovrappongono il permesso
+      const leaveA = leaveFrom ? timeToMin(leaveFrom) : null;
+      const leaveB = leaveTo ? timeToMin(leaveTo) : null;
+      function overlapsLeave(a, b) {
+        if (leaveA == null || leaveB == null) return false;
+        return a < leaveB && b > leaveA;
       }
-      const morning = (d.mIn && d.mOut) ? (d.mIn + '-' + d.mOut) : '';
-      const afternoon = (d.pIn && d.pOut) ? (d.pIn + '-' + d.pOut) : '';
-      // Ordine: lavoro mattina → permesso → lavoro pomeriggio
-      if (morning) {
-        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${escapeHtmlV47(morning)}</div>`;
+      const workBits = [];
+      if (d.mIn && d.mOut) {
+        const a = timeToMin(d.mIn), b = timeToMin(d.mOut);
+        // Se l'intero blocco coincide col permesso, non è lavoro
+        if (!(leaveA != null && Math.abs(a - leaveA) < 2 && Math.abs(b - leaveB) < 2)) {
+          if (!overlapsLeave(a, b) || (b - a) > 0) {
+            // Se sovrappone, taglia
+            if (overlapsLeave(a, b) && leaveA != null) {
+              if (a < leaveA) workBits.push(d.mIn + '-' + minToTime(Math.min(b, leaveA)));
+              if (b > leaveB) workBits.push(minToTime(Math.max(a, leaveB)) + '-' + d.mOut);
+            } else {
+              workBits.push(d.mIn + '-' + d.mOut);
+            }
+          }
+        }
       }
-      html += `<div class="cell-status-v47 cell-partial-leave-label" style="font-weight:700;text-decoration:underline;margin:2px 0;">${leaveHtml}</div>`;
-      if (leaveFrom && leaveTo) {
-        html += `<div class="cell-leave-hours-v47" style="font-size:10px;font-weight:600;color:var(--primary);line-height:1.3;">${escapeHtmlV47(leaveFrom + '-' + leaveTo)}</div>`;
+      if (d.pIn && d.pOut) {
+        const a = timeToMin(d.pIn), b = timeToMin(d.pOut);
+        if (!(leaveA != null && Math.abs(a - leaveA) < 2 && Math.abs(b - leaveB) < 2)) {
+          if (overlapsLeave(a, b) && leaveA != null) {
+            if (a < leaveA) workBits.push(d.pIn + '-' + minToTime(Math.min(b, leaveA)));
+            if (b > leaveB) workBits.push(minToTime(Math.max(a, leaveB)) + '-' + d.pOut);
+          } else {
+            workBits.push(d.pIn + '-' + d.pOut);
+          }
+        }
       }
-      if (afternoon) {
-        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;margin-top:2px;">${escapeHtmlV47(afternoon)}</div>`;
+      // Dedup e filtra vuoti
+      const workLine = [...new Set(workBits)].filter(function(x) {
+        const p = x.split('-');
+        return p.length === 2 && p[0] !== p[1];
+      }).join(' · ');
+
+      if (workLine) {
+        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${escapeHtmlV47(workLine)}</div>`;
       }
-      // Solo un blocco lavoro (es. solo pomeriggio dopo permesso mattina)
-      if (!morning && !afternoon && times) {
-        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${times}</div>`;
-      }
+      // Riga permesso stile impegno
+      const leaveTimeStr = (leaveFrom && leaveTo) ? (leaveFrom + '-' + leaveTo + ' ') : '';
+      const leaveHtml = leaveLinkHtml(leaveReq, leaveLab, status || 'ROL');
+      html += `<div class="event-link cell-event-v47 cell-partial-leave-label" data-leave-id="${leaveReq ? escapeHtmlV47(leaveReq.id) : ''}" style="color:var(--primary);font-weight:700;font-size:11px;margin-top:3px;cursor:pointer;">📌 ${leaveTimeStr ? escapeHtmlV47(leaveTimeStr) : ''}${leaveHtml}</div>`;
       if (h > 0) html += `<span class="hours-badge cell-hours-v47">${String(h).replace(/\.0$/,'')}h</span>`;
     } else {
       if (mainLabel) {
@@ -6000,7 +6029,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.4', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.5', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11289,14 +11318,28 @@ function minLunchBreakMinutes(wId) {
             const leaveLab = leaveDisplayLabel(dayData, cellLeaveReq);
             const isPartialPdf = !!(dayData.mIn || dayData.pIn) && !(dayData.leaveFullDay || (cellLeaveReq && (cellLeaveReq.fullDay || cellLeaveReq.mode === 'range')));
             if (isPartialPdf) {
-              const linesPdf = [];
-              if (dayData.mIn && dayData.mOut) linesPdf.push(dayData.mIn + '-' + dayData.mOut);
-              linesPdf.push(leaveLab || 'Permesso');
               let lf = dayData.rolFrom || (cellLeaveReq && cellLeaveReq.fromTime) || '';
               let lt = dayData.rolTo || (cellLeaveReq && cellLeaveReq.toTime) || '';
-              if ((!lf || !lt) && dayData.mOut && dayData.pIn) { lf = dayData.mOut; lt = dayData.pIn; }
-              if (lf && lt) linesPdf.push(lf + '-' + lt);
-              if (dayData.pIn && dayData.pOut) linesPdf.push(dayData.pIn + '-' + dayData.pOut);
+              const leaveA = lf ? timeToMin(lf) : null;
+              const leaveB = lt ? timeToMin(lt) : null;
+              function isLeaveBlock(a, b) {
+                return leaveA != null && Math.abs(a - leaveA) < 2 && Math.abs(b - leaveB) < 2;
+              }
+              const workBits = [];
+              if (dayData.mIn && dayData.mOut) {
+                const a = timeToMin(dayData.mIn), b = timeToMin(dayData.mOut);
+                if (!isLeaveBlock(a, b)) workBits.push(dayData.mIn + '-' + dayData.mOut);
+              }
+              if (dayData.pIn && dayData.pOut) {
+                const a = timeToMin(dayData.pIn), b = timeToMin(dayData.pOut);
+                if (!isLeaveBlock(a, b)) workBits.push(dayData.pIn + '-' + dayData.pOut);
+              }
+              const linesPdf = [];
+              if (workBits.length) linesPdf.push(workBits.join(' · '));
+              const leaveLine = (lf && lt)
+                ? ('* ' + lf + '-' + lt + ' ' + (leaveLab || 'Permesso'))
+                : ('* ' + (leaveLab || 'Permesso'));
+              linesPdf.push(leaveLine);
               textCell = linesPdf.join(String.fromCharCode(10));
             } else {
             textCell = leaveLab;
