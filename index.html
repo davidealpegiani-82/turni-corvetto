@@ -11105,6 +11105,12 @@ function balanceOfficeLunchCoverage(week) {
             if (hookData.column.index > 0) {
               const rowObj = matrixData.rows[hookData.row.index];
               const cellObj = rowObj && rowObj[hookData.column.index];
+              // Celle con impegni: testo gestito da didDrawCell (centrato + blu)
+              if (cellObj && cellObj.eventLines && cellObj.eventLines.length) {
+                hookData.cell.text = [''];
+                hookData.cell.styles.minCellHeight = Math.max(hookData.cell.styles.minCellHeight || 0, 14);
+              }
+
               if (cellObj && cellObj.rawData && cellObj.rawData.status && cellObj.rawData.status !== "LAVORO") {
                 const stUpper = String(cellObj.rawData.status).toUpperCase();
                 // Il RIPOSO nel PDF è volutamente neutro: niente riquadro colorato, solo "-".
