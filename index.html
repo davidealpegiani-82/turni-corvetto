@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.5</title>
+  <title>Turni Corvetto v8.7.6</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.5';
+    const APP_VERSION = '8.7.6';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1865,7 +1865,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.5</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1883,7 +1883,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.5</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.6</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4398,10 +4398,21 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
         }
       }
       // Dedup e filtra vuoti
-      const workLine = [...new Set(workBits)].filter(function(x) {
+      let workLine = [...new Set(workBits)].filter(function(x) {
         const p = x.split('-');
         return p.length === 2 && p[0] !== p[1];
       }).join(' · ');
+      // Se in cella non ci sono orari lavoro (permesso applicato a vuoto), ricostruisci da template
+      if (!workLine && leaveA != null && leaveB != null && typeof baselineShiftForWorkerDay === 'function') {
+        try {
+          const base = baselineShiftForWorkerDay(wId, day, d);
+          const split = subtractIntervalFromShiftV47(base, leaveA, leaveB);
+          const bits = [];
+          if (split.mIn && split.mOut) bits.push(split.mIn + '-' + split.mOut);
+          if (split.pIn && split.pOut) bits.push(split.pIn + '-' + split.pOut);
+          workLine = bits.join(' · ');
+        } catch (eRec) {}
+      }
 
       if (workLine) {
         html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${escapeHtmlV47(workLine)}</div>`;
@@ -6029,7 +6040,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.5', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.6', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11334,6 +11345,14 @@ function minLunchBreakMinutes(wId) {
                 const a = timeToMin(dayData.pIn), b = timeToMin(dayData.pOut);
                 if (!isLeaveBlock(a, b)) workBits.push(dayData.pIn + '-' + dayData.pOut);
               }
+              if (!workBits.length && lf && lt && typeof baselineShiftForWorkerDay === 'function') {
+                try {
+                  const base = baselineShiftForWorkerDay(w.id, day, dayData);
+                  const split = subtractIntervalFromShiftV47(base, timeToMin(lf), timeToMin(lt));
+                  if (split.mIn && split.mOut) workBits.push(split.mIn + '-' + split.mOut);
+                  if (split.pIn && split.pOut) workBits.push(split.pIn + '-' + split.pOut);
+                } catch (ePdf) {}
+              }
               const linesPdf = [];
               if (workBits.length) linesPdf.push(workBits.join(' · '));
               const leaveLine = (lf && lt)
@@ -12601,6 +12620,40 @@ function minLunchBreakMinutes(wId) {
     };
   }
 
+  function baselineShiftForWorkerDay(workerId, dayIdx, existing) {
+    // Turno di riferimento per permesso parziale: usa orari già in cella se validi,
+    // altrimenti template per ruolo (magazzino/ufficio/Severin).
+    if (existing && (existing.mIn || existing.pIn)) {
+      return {
+        mIn: existing.mIn || '', mOut: existing.mOut || '',
+        pIn: existing.pIn || '', pOut: existing.pOut || ''
+      };
+    }
+    const rules = (typeof R === 'function') ? R() : {};
+    const w = (typeof workerObj === 'function') ? workerObj(workerId) : null;
+    const name = (w && (w.name || w.nome)) || workerName(workerId) || '';
+    const role = String((w && (w.role || w.ruolo || w.job)) || '').toLowerCase();
+    const isMag = /magazzin/.test(role) || /magazzin|vartuca|caruso|rallo|drigo|ragone/i.test(name);
+    const isSev = (typeof SEVERIN_ID === 'function' && workerId === SEVERIN_ID()) || /severin/i.test(name);
+    const isOffice = !isMag && (/ufficio|vendit|store|banco|finitur/i.test(role + ' ' + name) ||
+      (typeof SABATO_UFFICIO_IDS === 'function' && SABATO_UFFICIO_IDS().includes(workerId)));
+    if (isSev && typeof getSeverinHours === 'function') {
+      const fixed = getSeverinHours(dayIdx);
+      if (fixed && fixed.mIn) return { mIn: fixed.mIn, mOut: fixed.mOut, pIn: fixed.pIn || '', pOut: fixed.pOut || '' };
+    }
+    if (dayIdx === 5) {
+      const sab = rules.turnoSabato || { mIn: '07:00', mOut: '12:00', pIn: '', pOut: '' };
+      return { mIn: sab.mIn, mOut: sab.mOut, pIn: sab.pIn || '', pOut: sab.pOut || '' };
+    }
+    if (isMag) {
+      const mag = rules.mag8h || { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
+      return { mIn: mag.mIn, mOut: mag.mOut, pIn: mag.pIn, pOut: mag.pOut };
+    }
+    // Ufficio default chiusura 8h
+    const uff = rules.ufficio2t || { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
+    return { mIn: uff.mIn, mOut: uff.mOut, pIn: uff.pIn, pOut: uff.pOut };
+  }
+
   function applyLeaveToTurns(req) {
     const statusName = LEAVE_STATUS_MAP[req.tipo] || 'FERIE';
     eachDateInRequest(req, (dateObj) => {
@@ -12629,17 +12682,17 @@ function minLunchBreakMinutes(wId) {
         return;
       }
 
-      // Assenza parziale: non sostituisce il turno. Lo interrompe nell'intervallo
-      // dell'assenza e conserva eventuali eventi/metadata già presenti.
+      // Assenza parziale: parte dal turno (esistente o template ruolo), poi toglie la fascia permesso.
       const fromMin=timeToMin(req.fromTime), toMin=timeToMin(req.toTime);
-      const split = (old.mIn || old.pIn) ? subtractIntervalFromShiftV47(old,fromMin,toMin) : {mIn:'',mOut:'',pIn:'',pOut:''};
+      const base = baselineShiftForWorkerDay(req.workerId, dayIdx, old);
+      const split = subtractIntervalFromShiftV47(base, fromMin, toMin);
       appData.weeks[weekKey][req.workerId][dayIdx] = {
         ...old,
         status: statusName,
         leaveType: req.tipo || statusName,
         leaveFullDay: false,
         leaveHours: Number(req.hours || 0),
-        ...split,
+        mIn: split.mIn, mOut: split.mOut, pIn: split.pIn, pOut: split.pOut,
         note: req.tipo + (req.hours ? ` ${req.hours}h` : '') + (req.note ? ' – ' + req.note : ''),
         leaveRequestId:req.id,
         generated:false,
