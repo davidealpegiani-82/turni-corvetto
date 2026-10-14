@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.5</title>
+  <title>Turni Corvetto v8.3.6</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.5';
+    const APP_VERSION = '8.3.6';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1693,7 +1693,7 @@
     }
 
   
-    /* v8.3.5 top-nav mobile-safe */
+    /* v8.3.6 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.5</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.5</small>
+          <small>CORVETTO · v8.3.6</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2096,7 +2096,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.5 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.6 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -5418,6 +5418,7 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     if (changed) {
       try { syncToCloud(); } catch (e) { console.warn('Salvataggio pausa evento non riuscito', e); }
     }
+    try { balanceOfficeLunchCoverage(week); } catch (e) {}
     _ensuringBreaks = false;
   }
 
@@ -6034,7 +6035,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.3.5):
+    // POLICY (v8.3.6):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -9737,6 +9738,182 @@ function minLunchBreakMinutes(wId) {
       return p;
     }
   }
+  
+  /** Pool pausa pranzo ufficio: Davide, Caregnato, Poppa, Severin. */
+  function getOfficeLunchPoolIds() {
+    return (appData.workers || []).filter(function(w) {
+      if (w.selected === false) return false;
+      const n = String(w.name || '').toLowerCase();
+      return /alpegiani|caregnato|poppa|severin/.test(n);
+    }).map(function(w) { return w.id; });
+  }
+
+  function setCellLunchBreak(cell, breakStart, breakEnd) {
+    if (!cell) return false;
+    const mIn = cell.mIn ? timeToMin(cell.mIn) : null;
+    let pOut = cell.pOut ? timeToMin(cell.pOut) : null;
+    if (pOut == null && cell.mOut && !cell.pIn) pOut = timeToMin(cell.mOut);
+    if (mIn == null || pOut == null || !(pOut > mIn)) return false;
+    if (breakStart <= mIn + 45) return false;
+    if (breakEnd >= pOut - 20) return false;
+    if (breakStart - mIn > 6.5 * 60 + 1) return false;
+    if (pOut - breakEnd > 6.5 * 60 + 1) return false;
+    cell.mOut = minToTime(breakStart);
+    cell.pIn = minToTime(breakEnd);
+    if (!cell.pOut) cell.pOut = minToTime(pOut);
+    cell.breakAdjusted = true;
+    return true;
+  }
+
+  /**
+   * Bilancia le pause 12:00–14:00 del pool ufficio.
+   * Target: ≥2 presenti 12–13 e ≥2 presenti 13–14 quando possibile.
+   * Con 3 disponibili (1h): scagliona 12:00 / 12:30 / 13:00.
+   * Severin: solo 30' alle 12:30–13:00 o 13:00–13:30.
+   */
+  function balanceOfficeLunchCoverage(week) {
+    if (!week) return [];
+    const notes = [];
+    const pool = getOfficeLunchPoolIds();
+    if (pool.length < 2) return notes;
+
+    const SLOT_A = [timeToMin('12:00'), timeToMin('13:00')];
+    const SLOT_B = [timeToMin('12:30'), timeToMin('13:30')];
+    const SLOT_C = [timeToMin('13:00'), timeToMin('14:00')];
+    const SEV1 = [timeToMin('12:30'), timeToMin('13:00')];
+    const SEV2 = [timeToMin('13:00'), timeToMin('13:30')];
+    const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+
+    function scoreAssignment(assignMap, ids, day) {
+      const samples = [timeToMin('12:00'), timeToMin('12:30'), timeToMin('13:00'), timeToMin('13:30')];
+      const counts = samples.map(function(t) {
+        return ids.reduce(function(n, id) {
+          const c = cellAt(week, id, day);
+          if (!c) return n;
+          const slot = assignMap[id];
+          if (slot && t >= slot[0] && t < slot[1]) return n;
+          const mIn = c.mIn ? timeToMin(c.mIn) : null;
+          let pOut = c.pOut ? timeToMin(c.pOut) : null;
+          if (pOut == null && c.mOut && !c.pIn) pOut = timeToMin(c.mOut);
+          if (mIn == null || pOut == null) return n;
+          if (t >= mIn && t < pOut) return n + 1;
+          return n;
+        }, 0);
+      });
+      const minC = Math.min.apply(null, counts);
+      const sumC = counts.reduce(function(a, b) { return a + b; }, 0);
+      const h12 = (counts[0] + counts[1]) / 2;
+      const h13 = (counts[2] + counts[3]) / 2;
+      const bonus = (h12 >= 2 ? 20 : 0) + (h13 >= 2 ? 20 : 0);
+      return minC * 100 + sumC + bonus;
+    }
+
+    for (let day = 0; day <= 4; day++) {
+      const present = [];
+      let sevId = null;
+      pool.forEach(function(id) {
+        const c = cellAt(week, id, day);
+        if (!c || isHardUnavailableCell(c)) return;
+        if (!c.mIn && !c.pIn) return;
+        const mIn = c.mIn ? timeToMin(c.mIn) : null;
+        let pOut = c.pOut ? timeToMin(c.pOut) : null;
+        if (pOut == null && c.mOut && !c.pIn) pOut = timeToMin(c.mOut);
+        if (mIn == null || pOut == null || (pOut - mIn) < 5 * 60) return;
+        if (typeof isSeverinWorker === 'function' && isSeverinWorker(id)) sevId = id;
+        else if (/severin/i.test(workerName(id) || '')) sevId = id;
+        else present.push(id);
+      });
+
+      const allIds = present.slice();
+      if (sevId) allIds.push(sevId);
+      if (allIds.length < 2) continue;
+
+      function mapsForPresent(ids) {
+        if (ids.length === 0) return [{ }];
+        if (ids.length === 1) {
+          const m = {}; m[ids[0]] = SLOT_A; return [m];
+        }
+        if (ids.length === 2) {
+          const m1 = {}; m1[ids[0]] = SLOT_A; m1[ids[1]] = SLOT_C;
+          const m2 = {}; m2[ids[0]] = SLOT_C; m2[ids[1]] = SLOT_A;
+          return [m1, m2];
+        }
+        if (ids.length === 3) {
+          const perms = [
+            [SLOT_A, SLOT_B, SLOT_C],
+            [SLOT_A, SLOT_C, SLOT_B],
+            [SLOT_B, SLOT_A, SLOT_C],
+            [SLOT_B, SLOT_C, SLOT_A],
+            [SLOT_C, SLOT_A, SLOT_B],
+            [SLOT_C, SLOT_B, SLOT_A]
+          ];
+          return perms.map(function(p) {
+            const m = {};
+            m[ids[0]] = p[0]; m[ids[1]] = p[1]; m[ids[2]] = p[2];
+            return m;
+          });
+        }
+        const half = Math.ceil(ids.length / 2);
+        const mA = {}; ids.forEach(function(id, i) { mA[id] = i < half ? SLOT_A : SLOT_C; });
+        const mC = {}; ids.forEach(function(id, i) { mC[id] = i < half ? SLOT_C : SLOT_A; });
+        return [mA, mC];
+      }
+
+      let maps = mapsForPresent(present);
+      if (sevId) {
+        const withSev = [];
+        maps.forEach(function(m) {
+          const a = Object.assign({}, m); a[sevId] = SEV1;
+          const b = Object.assign({}, m); b[sevId] = SEV2;
+          withSev.push(a, b);
+        });
+        maps = withSev;
+      }
+
+      let best = null, bestScore = -1;
+      maps.forEach(function(m) {
+        const sc = scoreAssignment(m, allIds, day);
+        if (sc > bestScore) { bestScore = sc; best = m; }
+      });
+      if (!best) continue;
+
+      let changed = false;
+      allIds.forEach(function(id) {
+        const slot = best[id];
+        if (!slot) return;
+        const cell = cellAt(week, id, day);
+        if (!cell) return;
+        const prev = String(cell.mOut) + '|' + String(cell.pIn);
+        if (setCellLunchBreak(cell, slot[0], slot[1])) {
+          if (prev !== String(cell.mOut) + '|' + String(cell.pIn)) changed = true;
+        }
+      });
+
+      if (changed) {
+        function countAt(t) {
+          return allIds.filter(function(id) {
+            const c = cellAt(week, id, day);
+            if (!c) return false;
+            const mIn = c.mIn ? timeToMin(c.mIn) : null;
+            let pOut = c.pOut ? timeToMin(c.pOut) : null;
+            if (pOut == null && c.mOut && !c.pIn) pOut = timeToMin(c.mOut);
+            if (mIn == null || pOut == null) return false;
+            if (c.mOut && c.pIn) {
+              const bs = timeToMin(c.mOut), be = timeToMin(c.pIn);
+              if (t >= bs && t < be) return false;
+            }
+            return t >= mIn && t < pOut;
+          }).length;
+        }
+        const n12 = Math.min(countAt(timeToMin('12:15')), countAt(timeToMin('12:45')));
+        const n13 = Math.min(countAt(timeToMin('13:15')), countAt(timeToMin('13:45')));
+        notes.push('Pausa ufficio ' + dayNames[day] + ': bilanciata (≈' + n12 + ' in 12–13, ≈' + n13 + ' in 13–14). Severin 30\'.');
+      }
+    }
+    return notes;
+  }
+
+
   function generateAutoProposal(){
     // exposed below
     // Percorso robusto: prima costruiamo sempre la proposta base M1-M45.
@@ -9851,6 +10028,25 @@ function minLunchBreakMinutes(wId) {
           appData.workers.forEach(worker=>{ if(worker.selected===false)return; const h=hoursForWeekProposal(w,worker.id); proposal.hoursSummary.push({id:worker.id,name:worker.name,hours:h}); if(h>40.01) proposal.overtime.push(`${worker.name}: ${h.toFixed(1)}h (+${(h-40).toFixed(1)}h)`); });
         }
       } catch(balanceErr) { console.warn('Controllo finale bilanciamento ufficio:', balanceErr); }
+
+      // Bilanciamento pause pranzo ufficio (Davide/Caregnato/Poppa/Severin)
+      try {
+        const lunchNotes = balanceOfficeLunchCoverage(proposal.week);
+        if (lunchNotes && lunchNotes.length) {
+          proposal.notes = [...(proposal.notes || []), ...lunchNotes];
+          try {
+            const dayNames=['Lun','Mar','Mer','Gio','Ven','Sab'];
+            const w = proposal.week;
+            const allIds=new Set([...Object.keys(appData.weeks[currentWeekKey]||{}),...Object.keys(w||{})]);
+            proposal.changes=[];
+            allIds.forEach(wid=>{ for(let day=0;day<6;day++) {
+              const before=cellAt(appData.weeks[currentWeekKey]||{},wid,day), after=cellAt(w,wid,day);
+              if(JSON.stringify(before)!==JSON.stringify(after)) proposal.changes.push({workerId:wid,name:workerName(wid),day,dayLabel:dayNames[day],before:formatCellShort(before),after:formatCellShort(after),generated:!!(after&&after.generated),moved:!!(after&&after.movedByEngine)});
+            }});
+            if (typeof analyzeCoverage === 'function') proposal.coverage=analyzeCoverage(w);
+          } catch (eUp) {}
+        }
+      } catch (lunchErr) { console.warn('Bilanciamento pause ufficio:', lunchErr); }
 
       window.pendingTurnProposal=proposal;
       window._proposalChoiceAnswers=null;
@@ -10144,6 +10340,7 @@ function minLunchBreakMinutes(wId) {
       showToast('Nessuna proposta da applicare', 'error');
       return;
     }
+    try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
 
     const blocking = validateProposalBeforeApply(p);
     if (blocking.length) {
