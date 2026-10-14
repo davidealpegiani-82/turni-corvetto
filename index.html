@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.4.0</title>
+  <title>Turni Corvetto v8.4.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.4.0';
+    const APP_VERSION = '8.4.1';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1693,7 +1693,7 @@
     }
 
   
-    /* v8.4.0 top-nav mobile-safe */
+    /* v8.4.1 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.4.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.4.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.4.0</small>
+          <small>CORVETTO · v8.4.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2096,7 +2096,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.4.0 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.4.1 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -6034,7 +6034,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.4.0):
+    // POLICY (v8.4.1):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -6897,19 +6897,20 @@ function minLunchBreakMinutes(wId) {
 
   function validateProposalWeek(week, meta) {
     const issues = [];
+    const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
     try {
       const sev = SEVERIN_ID();
       for (let day = 0; day <= 4; day++) {
         const c = cellAt(week, sev, day);
-        if (c && c.movedByEngine) {
-          issues.push('Severin risulta spostato dal motore il ' + ['Lun','Mar','Mer','Gio','Ven'][day] + ' (non dovrebbe).');
+        // Severin può essere su turno lungo (apre+chiude) quando servono 3 presenti
+        if (c && c.movedByEngine && c.mIn && timeToMin(c.mIn) > timeToMin('07:00')) {
+          issues.push('Severin risulta spostato dal motore il ' + dayNames[day] + ' (non dovrebbe perdere l\'apertura).');
         }
       }
       const nextId = meta && meta.nextUfficioId;
       if (nextId) {
         const sat = cellAt(week, nextId, 5);
         if (!sat || (String(sat.status||'').toUpperCase()==='RIPOSO')) {
-          // only if not hard unavailable
           if (!sat || !isHardUnavailableCell(sat)) {
             issues.push('Il sabatista di rotazione (' + workerName(nextId) + ') non risulta in servizio il sabato.');
           }
@@ -6921,6 +6922,31 @@ function minLunchBreakMinutes(wId) {
             issues.push(workerName(id) + ' lavora il sabato ma non è il di turno (' + workerName(nextId) + ').');
           }
         });
+      }
+
+      // Copertura ufficio apertura/chiusura (regole centralizzate)
+      const rules = (typeof R === 'function') ? R() : {};
+      const oc = rules.officeCoverage || { minOpen: 2, minClose: 2, maxClose: 2 };
+      const pool = (typeof getOfficeLunchPoolIds === 'function') ? getOfficeLunchPoolIds() : [];
+      for (let day = 0; day <= 4; day++) {
+        const present = pool.filter(function(id) {
+          const c = cellAt(week, id, day);
+          return c && !isHardUnavailableCell(c) && (c.mIn || c.pIn);
+        });
+        if (present.length < 2) continue;
+        let nOpen = 0, nClose = 0;
+        present.forEach(function(id) {
+          const c = cellAt(week, id, day);
+          if (c.mIn && timeToMin(c.mIn) <= timeToMin('07:00')) nOpen++;
+          const end = c.pOut ? timeToMin(c.pOut) : (c.mOut ? timeToMin(c.mOut) : 0);
+          if (end >= timeToMin('17:00')) nClose++;
+        });
+        if (nOpen < (oc.minOpen || 2) && present.length >= 3)
+          issues.push(dayNames[day] + ' ufficio: solo ' + nOpen + ' in apertura (obiettivo ' + (oc.minOpen||2) + ', presenti ' + present.length + ').');
+        if (nClose < (oc.minClose || 2) && present.length >= 2)
+          issues.push(dayNames[day] + ' ufficio: solo ' + nClose + ' in chiusura (obiettivo ' + (oc.minClose||2) + ').');
+        if (nClose > (oc.maxClose || 2) && present.length >= 3)
+          issues.push(dayNames[day] + ' ufficio: ' + nClose + ' in chiusura (max ' + (oc.maxClose||2) + '). Preferire più persone in apertura.');
       }
     } catch (e) {
       issues.push('Validazione proposta: ' + (e.message || e));
