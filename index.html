@@ -9775,10 +9775,6 @@ function minLunchBreakMinutes(wId) {
     if (!week) return [];
     const notes = [];
     const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
-
-    // Coppie fisse (richiesta operativa):
-    // - Davide + Caregnato → pausa 12:00–13:00
-    // - Andrea + Severin   → pausa dalle 13:00 (Andrea 13:00–14:00, Severin 13:00–13:30)
     function nameOf(id) {
       try { return String(workerName(id) || '').toLowerCase(); } catch (e) { return ''; }
     }
@@ -9789,7 +9785,6 @@ function minLunchBreakMinutes(wId) {
       if (typeof isSeverinWorker === 'function' && isSeverinWorker(id)) return true;
       return /severin/.test(nameOf(id));
     }
-
     const pool = (typeof getOfficeLunchPoolIds === 'function')
       ? getOfficeLunchPoolIds()
       : (appData.workers || []).filter(function(w) {
@@ -9813,40 +9808,76 @@ function minLunchBreakMinutes(wId) {
       });
       if (present.length < 2) continue;
 
-      present.forEach(function(id) {
+      const assignments = {};
+      const n = present.length;
+
+      if (n >= 4) {
+        present.forEach(function(id) {
+          if (isDavide(id) || isCaregnato(id)) assignments[id] = [timeToMin('12:00'), timeToMin('13:00')];
+          else if (isSev(id)) assignments[id] = [timeToMin('13:00'), timeToMin('13:30')];
+          else assignments[id] = [timeToMin('13:00'), timeToMin('14:00')];
+        });
+      } else if (n === 3) {
+        const ordered = present.slice().sort(function(a, b) {
+          function rank(id) {
+            if (isDavide(id)) return 0;
+            if (isCaregnato(id)) return 1;
+            if (isPoppa(id)) return 2;
+            if (isSev(id)) return 3;
+            return 4;
+          }
+          return rank(a) - rank(b);
+        });
+        ordered.forEach(function(id, i) {
+          if (isSev(id)) {
+            assignments[id] = (i <= 1)
+              ? [timeToMin('12:30'), timeToMin('13:00')]
+              : [timeToMin('13:00'), timeToMin('13:30')];
+          } else if (i === 0) {
+            assignments[id] = [timeToMin('12:00'), timeToMin('13:00')];
+          } else if (i === 1) {
+            assignments[id] = [timeToMin('12:30'), timeToMin('13:30')];
+          } else {
+            assignments[id] = [timeToMin('13:00'), timeToMin('14:00')];
+          }
+        });
+      } else {
+        const ordered = present.slice().sort(function(a, b) {
+          const early = function(id) { return (isDavide(id) || isCaregnato(id)) ? 0 : 1; };
+          return early(a) - early(b);
+        });
+        ordered.forEach(function(id, i) {
+          if (isSev(id)) {
+            assignments[id] = i === 0
+              ? [timeToMin('12:30'), timeToMin('13:00')]
+              : [timeToMin('13:00'), timeToMin('13:30')];
+          } else if (i === 0) {
+            assignments[id] = [timeToMin('12:00'), timeToMin('13:00')];
+          } else {
+            assignments[id] = [timeToMin('13:00'), timeToMin('14:00')];
+          }
+        });
+      }
+
+      Object.keys(assignments).forEach(function(id) {
         const cell = cellAt(week, id, day);
-        if (!cell) return;
-        let bStart, bEnd;
-        if (isDavide(id) || isCaregnato(id)) {
-          bStart = timeToMin('12:00');
-          bEnd = timeToMin('13:00');
-        } else if (isSev(id)) {
-          bStart = timeToMin('13:00');
-          bEnd = timeToMin('13:30');
-        } else if (isPoppa(id)) {
-          bStart = timeToMin('13:00');
-          bEnd = timeToMin('14:00');
-        } else {
-          // eventuali altri del pool: 13:00–14:00
-          bStart = timeToMin('13:00');
-          bEnd = timeToMin('14:00');
-        }
+        if (!cell || cell.manualEdit) return;
+        const slot = assignments[id];
         const prev = String(cell.mOut) + '|' + String(cell.pIn);
         if (typeof setCellLunchBreak === 'function') {
-          if (setCellLunchBreak(cell, bStart, bEnd) && prev !== String(cell.mOut) + '|' + String(cell.pIn))
+          if (setCellLunchBreak(cell, slot[0], slot[1]) && prev !== String(cell.mOut) + '|' + String(cell.pIn))
             changed = true;
         } else {
-          cell.mOut = minToTime(bStart);
-          cell.pIn = minToTime(bEnd);
+          cell.mOut = minToTime(slot[0]);
+          cell.pIn = minToTime(slot[1]);
           changed = true;
         }
       });
 
       if (changed) {
-        notes.push(
-          'Pausa ufficio ' + dayNames[day] +
-          ': Davide+Caregnato 12:00–13:00 · Andrea 13:00–14:00 · Severin 13:00–13:30'
-        );
+        if (n >= 4) notes.push('Pausa ufficio ' + dayNames[day] + ': Davide+Caregnato 12:00–13:00 · Andrea 13:00–14:00 · Severin 13:00–13:30');
+        else if (n === 3) notes.push('Pausa ufficio ' + dayNames[day] + ': scaglionate (3 presenti) 12:00 / 12:30 / 13:00');
+        else notes.push('Pausa ufficio ' + dayNames[day] + ': 2 presenti → 12:00–13:00 e 13:00–14:00');
       }
     }
     return notes;
