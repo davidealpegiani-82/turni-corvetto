@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.7</title>
+  <title>Turni Corvetto v8.3.8</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.7';
+    const APP_VERSION = '8.3.8';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1693,7 +1693,7 @@
     }
 
   
-    /* v8.3.7 top-nav mobile-safe */
+    /* v8.3.8 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.7</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.8</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.7</small>
+          <small>CORVETTO · v8.3.8</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2096,7 +2096,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.7 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.8 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -5418,7 +5418,6 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     if (changed) {
       try { syncToCloud(); } catch (e) { console.warn('Salvataggio pausa evento non riuscito', e); }
     }
-    try { balanceOfficeLunchCoverage(week); } catch (e) {}
     _ensuringBreaks = false;
   }
 
@@ -6035,7 +6034,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.3.7):
+    // POLICY (v8.3.8):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -9857,6 +9856,11 @@ function minLunchBreakMinutes(wId) {
     // Percorso robusto: prima costruiamo sempre la proposta base M1-M45.
     // Lo Smart Brain ottimizza solo se c'è realmente qualcosa da ottimizzare.
     currentWeekKey=getWeekKey(currentDate);
+    // Svuota automaticamente la settimana corrente prima di rigenerare
+    try {
+      if (!appData.weeks) appData.weeks = {};
+      appData.weeks[currentWeekKey] = {};
+    } catch (eClr) {}
     try{
       const base=generateAutoProposalLegacy({silent:true});
 
@@ -10814,20 +10818,20 @@ function minLunchBreakMinutes(wId) {
             }
           }
         } else if (dayData.mIn || dayData.pIn || ((getDayEventsForWorker(w.id, weekDates[day]) || []).length > 0)) {
-          const workLine = formatWorkHoursOnly(dayData);
-          const evLines = (getDayEventsForWorker(w.id, weekDates[day]) || [])
-            .map(function(ev) { return formatEventLine(ev); })
-            .filter(Boolean)
-            .map(function(line) { return '📌 ' + line; });
+          const workLine = formatWorkHoursOnly(dayData).replace(/ \| /g, ' · ');
+          const dayEvs = getDayEventsForWorker(w.id, weekDates[day]) || [];
+          const eventLines = dayEvs.map(function(ev) { return formatEventLine(ev); }).filter(Boolean);
           const lines = [];
           if (workLine) lines.push(workLine);
-          evLines.forEach(function(l) { lines.push(l); });
+          eventLines.forEach(function(l) { lines.push('* ' + l); });
           textCell = lines.length ? lines.join(String.fromCharCode(10)) : '—';
           if (dayData.note) {
             const n = String(dayData.note).trim();
             if (n && textCell.indexOf(n.slice(0, Math.min(10, n.length))) < 0)
               textCell += String.fromCharCode(10) + n;
           }
+          row.push({ text: textCell, rawData: dayData, workLine: workLine || '', eventLines: eventLines, noteColor: dayData.noteColor ? hexToRgb(dayData.noteColor) : null });
+          continue;
         } else if (dayData.note) {
           textCell = dayData.note;
         }
@@ -10965,9 +10969,54 @@ function minLunchBreakMinutes(wId) {
             }
           }
         },
-        // Nessun ridisegno manuale della cella: AutoTable stampa già il contenuto
-        // completo (causale + eventuale nota). Ridisegnarlo qui provocava duplicazioni
-        // come "Ricovero Ricovero" o "Ferie Ferie" nello stesso riquadro.
+        didDrawCell: function(data) {
+          // Ridisegna celle con impegni: orario lavoro (nero, 1 riga) + impegni (blu)
+          if (data.section !== 'body' || data.column.index === 0) return;
+          const rowObj = matrixData.rows[data.row.index];
+          const cellObj = rowObj && rowObj[data.column.index];
+          if (!cellObj || !cellObj.eventLines || !cellObj.eventLines.length) return;
+          const workLine = cellObj.workLine || '';
+          const evs = cellObj.eventLines;
+          // Pulisci testo autoTable e ridisegna
+          const doc = data.doc;
+          const x = data.cell.x + 1.2;
+          let y = data.cell.y + 3.2;
+          const maxW = data.cell.width - 2.4;
+          doc.setFillColor(255, 255, 255);
+          if (cellObj.rawData && cellObj.rawData.status && cellObj.rawData.status !== 'LAVORO' && !isRestStatus(cellObj.rawData.status)) {
+            // lascia sfondo status già impostato
+          } else {
+            doc.setFillColor(data.cell.styles.fillColor || [255,255,255]);
+            if (Array.isArray(data.cell.styles.fillColor)) {
+              doc.setFillColor.apply(doc, data.cell.styles.fillColor);
+            }
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            // ridisegna bordo
+            doc.setDrawColor(180);
+            doc.setLineWidth(0.15);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+          }
+          if (workLine) {
+            doc.setFontSize(Math.max(5.5, (cfg.cellTime || cfg.font) - 0.5));
+            doc.setTextColor(15, 23, 42);
+            doc.setFont(undefined, 'bold');
+            const wl = doc.splitTextToSize(workLine, maxW);
+            // preferisci 1 riga: se wrap, riduci font
+            if (wl.length > 1) {
+              doc.setFontSize(Math.max(5, (cfg.cellTime || cfg.font) - 1.5));
+            }
+            doc.text(workLine, x + data.cell.width/2 - 1.2, y, { align: 'center', maxWidth: maxW });
+            y += 3.6;
+          }
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(Math.max(5, (cfg.cellNote || 6) - 0.3));
+          doc.setTextColor(37, 99, 235); // blu
+          evs.forEach(function(line) {
+            const t = '* ' + line;
+            doc.text(t, x + data.cell.width/2 - 1.2, y, { align: 'center', maxWidth: maxW });
+            y += 3.2;
+          });
+        }
       });
 
       let finalY = doc.lastAutoTable.finalY || 150;
