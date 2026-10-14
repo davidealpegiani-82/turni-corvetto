@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.6</title>
+  <title>Turni Corvetto v8.3.7</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.6';
+    const APP_VERSION = '8.3.7';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1693,7 +1693,7 @@
     }
 
   
-    /* v8.3.6 top-nav mobile-safe */
+    /* v8.3.7 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.7</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.6</small>
+          <small>CORVETTO · v8.3.7</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2096,7 +2096,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.6 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.7 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -6035,7 +6035,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.3.6):
+    // POLICY (v8.3.7):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -9774,43 +9774,32 @@ function minLunchBreakMinutes(wId) {
   function balanceOfficeLunchCoverage(week) {
     if (!week) return [];
     const notes = [];
-    const pool = getOfficeLunchPoolIds();
-    if (pool.length < 2) return notes;
-
-    const SLOT_A = [timeToMin('12:00'), timeToMin('13:00')];
-    const SLOT_B = [timeToMin('12:30'), timeToMin('13:30')];
-    const SLOT_C = [timeToMin('13:00'), timeToMin('14:00')];
-    const SEV1 = [timeToMin('12:30'), timeToMin('13:00')];
-    const SEV2 = [timeToMin('13:00'), timeToMin('13:30')];
     const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
 
-    function scoreAssignment(assignMap, ids, day) {
-      const samples = [timeToMin('12:00'), timeToMin('12:30'), timeToMin('13:00'), timeToMin('13:30')];
-      const counts = samples.map(function(t) {
-        return ids.reduce(function(n, id) {
-          const c = cellAt(week, id, day);
-          if (!c) return n;
-          const slot = assignMap[id];
-          if (slot && t >= slot[0] && t < slot[1]) return n;
-          const mIn = c.mIn ? timeToMin(c.mIn) : null;
-          let pOut = c.pOut ? timeToMin(c.pOut) : null;
-          if (pOut == null && c.mOut && !c.pIn) pOut = timeToMin(c.mOut);
-          if (mIn == null || pOut == null) return n;
-          if (t >= mIn && t < pOut) return n + 1;
-          return n;
-        }, 0);
-      });
-      const minC = Math.min.apply(null, counts);
-      const sumC = counts.reduce(function(a, b) { return a + b; }, 0);
-      const h12 = (counts[0] + counts[1]) / 2;
-      const h13 = (counts[2] + counts[3]) / 2;
-      const bonus = (h12 >= 2 ? 20 : 0) + (h13 >= 2 ? 20 : 0);
-      return minC * 100 + sumC + bonus;
+    // Coppie fisse (richiesta operativa):
+    // - Davide + Caregnato → pausa 12:00–13:00
+    // - Andrea + Severin   → pausa dalle 13:00 (Andrea 13:00–14:00, Severin 13:00–13:30)
+    function nameOf(id) {
+      try { return String(workerName(id) || '').toLowerCase(); } catch (e) { return ''; }
+    }
+    function isDavide(id) { return /alpegiani/.test(nameOf(id)); }
+    function isCaregnato(id) { return /caregnato/.test(nameOf(id)); }
+    function isPoppa(id) { return /poppa/.test(nameOf(id)); }
+    function isSev(id) {
+      if (typeof isSeverinWorker === 'function' && isSeverinWorker(id)) return true;
+      return /severin/.test(nameOf(id));
     }
 
+    const pool = (typeof getOfficeLunchPoolIds === 'function')
+      ? getOfficeLunchPoolIds()
+      : (appData.workers || []).filter(function(w) {
+          if (w.selected === false) return false;
+          return /alpegiani|caregnato|poppa|severin/i.test(w.name || '');
+        }).map(function(w) { return w.id; });
+
     for (let day = 0; day <= 4; day++) {
+      let changed = false;
       const present = [];
-      let sevId = null;
       pool.forEach(function(id) {
         const c = cellAt(week, id, day);
         if (!c || isHardUnavailableCell(c)) return;
@@ -9819,95 +9808,44 @@ function minLunchBreakMinutes(wId) {
         let pOut = c.pOut ? timeToMin(c.pOut) : null;
         if (pOut == null && c.mOut && !c.pIn) pOut = timeToMin(c.mOut);
         if (mIn == null || pOut == null || (pOut - mIn) < 5 * 60) return;
-        if (typeof isSeverinWorker === 'function' && isSeverinWorker(id)) sevId = id;
-        else if (/severin/i.test(workerName(id) || '')) sevId = id;
-        else present.push(id);
+        present.push(id);
       });
+      if (present.length < 2) continue;
 
-      const allIds = present.slice();
-      if (sevId) allIds.push(sevId);
-      if (allIds.length < 2) continue;
-
-      function mapsForPresent(ids) {
-        if (ids.length === 0) return [{ }];
-        if (ids.length === 1) {
-          const m = {}; m[ids[0]] = SLOT_A; return [m];
-        }
-        if (ids.length === 2) {
-          const m1 = {}; m1[ids[0]] = SLOT_A; m1[ids[1]] = SLOT_C;
-          const m2 = {}; m2[ids[0]] = SLOT_C; m2[ids[1]] = SLOT_A;
-          return [m1, m2];
-        }
-        if (ids.length === 3) {
-          const perms = [
-            [SLOT_A, SLOT_B, SLOT_C],
-            [SLOT_A, SLOT_C, SLOT_B],
-            [SLOT_B, SLOT_A, SLOT_C],
-            [SLOT_B, SLOT_C, SLOT_A],
-            [SLOT_C, SLOT_A, SLOT_B],
-            [SLOT_C, SLOT_B, SLOT_A]
-          ];
-          return perms.map(function(p) {
-            const m = {};
-            m[ids[0]] = p[0]; m[ids[1]] = p[1]; m[ids[2]] = p[2];
-            return m;
-          });
-        }
-        const half = Math.ceil(ids.length / 2);
-        const mA = {}; ids.forEach(function(id, i) { mA[id] = i < half ? SLOT_A : SLOT_C; });
-        const mC = {}; ids.forEach(function(id, i) { mC[id] = i < half ? SLOT_C : SLOT_A; });
-        return [mA, mC];
-      }
-
-      let maps = mapsForPresent(present);
-      if (sevId) {
-        const withSev = [];
-        maps.forEach(function(m) {
-          const a = Object.assign({}, m); a[sevId] = SEV1;
-          const b = Object.assign({}, m); b[sevId] = SEV2;
-          withSev.push(a, b);
-        });
-        maps = withSev;
-      }
-
-      let best = null, bestScore = -1;
-      maps.forEach(function(m) {
-        const sc = scoreAssignment(m, allIds, day);
-        if (sc > bestScore) { bestScore = sc; best = m; }
-      });
-      if (!best) continue;
-
-      let changed = false;
-      allIds.forEach(function(id) {
-        const slot = best[id];
-        if (!slot) return;
+      present.forEach(function(id) {
         const cell = cellAt(week, id, day);
         if (!cell) return;
+        let bStart, bEnd;
+        if (isDavide(id) || isCaregnato(id)) {
+          bStart = timeToMin('12:00');
+          bEnd = timeToMin('13:00');
+        } else if (isSev(id)) {
+          bStart = timeToMin('13:00');
+          bEnd = timeToMin('13:30');
+        } else if (isPoppa(id)) {
+          bStart = timeToMin('13:00');
+          bEnd = timeToMin('14:00');
+        } else {
+          // eventuali altri del pool: 13:00–14:00
+          bStart = timeToMin('13:00');
+          bEnd = timeToMin('14:00');
+        }
         const prev = String(cell.mOut) + '|' + String(cell.pIn);
-        if (setCellLunchBreak(cell, slot[0], slot[1])) {
-          if (prev !== String(cell.mOut) + '|' + String(cell.pIn)) changed = true;
+        if (typeof setCellLunchBreak === 'function') {
+          if (setCellLunchBreak(cell, bStart, bEnd) && prev !== String(cell.mOut) + '|' + String(cell.pIn))
+            changed = true;
+        } else {
+          cell.mOut = minToTime(bStart);
+          cell.pIn = minToTime(bEnd);
+          changed = true;
         }
       });
 
       if (changed) {
-        function countAt(t) {
-          return allIds.filter(function(id) {
-            const c = cellAt(week, id, day);
-            if (!c) return false;
-            const mIn = c.mIn ? timeToMin(c.mIn) : null;
-            let pOut = c.pOut ? timeToMin(c.pOut) : null;
-            if (pOut == null && c.mOut && !c.pIn) pOut = timeToMin(c.mOut);
-            if (mIn == null || pOut == null) return false;
-            if (c.mOut && c.pIn) {
-              const bs = timeToMin(c.mOut), be = timeToMin(c.pIn);
-              if (t >= bs && t < be) return false;
-            }
-            return t >= mIn && t < pOut;
-          }).length;
-        }
-        const n12 = Math.min(countAt(timeToMin('12:15')), countAt(timeToMin('12:45')));
-        const n13 = Math.min(countAt(timeToMin('13:15')), countAt(timeToMin('13:45')));
-        notes.push('Pausa ufficio ' + dayNames[day] + ': bilanciata (≈' + n12 + ' in 12–13, ≈' + n13 + ' in 13–14). Severin 30\'.');
+        notes.push(
+          'Pausa ufficio ' + dayNames[day] +
+          ': Davide+Caregnato 12:00–13:00 · Andrea 13:00–14:00 · Severin 13:00–13:30'
+        );
       }
     }
     return notes;
