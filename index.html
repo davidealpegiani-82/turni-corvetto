@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.5.0</title>
+  <title>Turni Corvetto v8.6.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.5.0';
+    const APP_VERSION = '8.6.0';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -2815,7 +2815,7 @@
     branchMonFriClose: '17:30',
     minSabatoImp: 1,
     branchHours: { monFri: { open: "06:30", close: "17:30" }, sat: { open: "07:00", close: "12:00" } },
-    intelligentRulesVersion: "M1-M45 + OFFICE_BRAIN v8.5.0",
+    intelligentRulesVersion: "M1-M45 + OFFICE_BRAIN v8.6.0",
     warehouseRules: JSON.parse(JSON.stringify(intelligentRulePack.warehouse)),
     generalCoverageRules: JSON.parse(JSON.stringify(intelligentRulePack.general)),
     officeCoverage: {
@@ -2825,7 +2825,16 @@
       threePresentMode: "full+open+close",
       lunchEarly: ["alpegiani", "caregnato"],
       lunchLate: ["poppa", "severin"]
-    }
+    },
+    // Priorità globali del motore (ordine decrescente di importanza)
+    rulePriorities: [
+      "copertura_minima",   // apertura/chiusura filiale
+      "assenze_e_impegni",  // non contare chi è fuori
+      "nastro_settimanale", // 7h/8h e sabatista
+      "pause_pranzo",       // 1h (30' Severin) + scaglione
+      "preferenze_ruolo",   // Severin fisso, Sandrini fisso
+      "equita_carichi"      // rotazioni sabato, apertura/chiusura
+    ]
   };
 
   let appData = {
@@ -5280,6 +5289,27 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     // 3) Ensure lunch breaks
     try { ensureLunchBreaksForCurrentWeek(); } catch (e) {}
 
+    // 4) Cervello ufficio: ribilancia apertura/chiusura sulle settimane toccate
+    //    (senza rigenerare tutta la settimana: solo celle non manualEdit)
+    targetWeeks.forEach(function(targetWeekKey) {
+      try {
+        const week = appData.weeks[targetWeekKey];
+        if (!week) return;
+        if (typeof rebalanceOfficeOpenClose === 'function') {
+          const n1 = rebalanceOfficeOpenClose(week) || [];
+          n1.forEach(function(msg) {
+            changes.push({ who: 'Ufficio', day: targetWeekKey, before: '—', after: msg, cause: reason });
+          });
+        }
+        if (typeof balanceOfficeLunchCoverage === 'function') {
+          const n2 = balanceOfficeLunchCoverage(week) || [];
+          n2.forEach(function(msg) {
+            changes.push({ who: 'Pause', day: targetWeekKey, before: '—', after: msg, cause: reason });
+          });
+        }
+      } catch (eBal) { console.warn('Rebalance post-variazione', targetWeekKey, eBal); }
+    });
+
     syncToCloud();
     if (typeof renderWeek === 'function') renderWeek();
     if (typeof renderEventsView === 'function') renderEventsView();
@@ -5287,7 +5317,7 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
 
     showChangeReport('Turni aggiornati automaticamente', reason + (detail ? ' — ' + detail : ''), changes);
     if (changes.length) {
-      showToast('Turni aggiornati: ' + changes.length + ' modifica/e', 'success', 3500);
+      showToast('Turni aggiornati: ' + changes.length + ' modifica/e · ' + reason, 'success', 4000);
     } else {
       showToast('Dati salvati. Nessun orario da ricalcolare.', 'info', 2800);
     }
@@ -8048,6 +8078,20 @@ function minLunchBreakMinutes(wId) {
     note: 'Regola officeCoverage.threePresentMode = full+open+close. Non accettare 1 sola persona in apertura se chiusura ha già 2.'
   };
 
+  
+  ruleTestScenarios.M49 = {
+    title: 'M49 — priorità: copertura prima del nastro',
+    rows: [['Scenario','copertura apertura sotto minimo','spostamento in apertura anche se nastro 8h']],
+    result: 'Il motore privilegia copertura_minima rispetto a preferenze orario.',
+    note: 'rulePriorities[0] = copertura_minima'
+  };
+  ruleTestScenarios.M50 = {
+    title: 'M50 — alternativa turno lungo con 3 presenti',
+    rows: [['Caregnato','Poppa','candidati full'],['Davide','apertura 7h','sabatista']],
+    result: 'In proposta compare la scelta «chi fa il turno lungo».',
+    note: 'choices kind=turno_lungo'
+  };
+
   function openRulesTestModal(){ document.getElementById('rulesTestModal').style.display='flex'; runRulesTest(); }
 
   // Audit regressions aggiuntive: scelte equivalenti e assenza donazione sangue.
@@ -9168,9 +9212,46 @@ function minLunchBreakMinutes(wId) {
             else { roles[a] = 'open'; roles[b] = 'close'; }
           } else if (n === 3) {
             let fullId = ordered.find(isSev);
+            // Se Severin non c'è, più candidati 8h → scelta esplicita (alternativa)
+            const fullCands = ordered.filter(id => !isSev(id) && nastro(id) >= 7.9 && id !== nextUfficio);
+            if (!fullId && fullCands.length > 1 && choices) {
+              const dayNames = ['Lun','Mar','Mer','Gio','Ven'];
+              const OPEN7x = rules.ufficio7h || { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '14:30' };
+              const OPEN8x = rules.ufficio8h || { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '15:30' };
+              const CLOSEx = rules.ufficio2t || { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
+              const FULLx = { mIn: '06:30', mOut: '12:30', pIn: '13:00', pOut: '17:30' };
+              const choiceId = 'imp-full-' + day;
+              if (!choices.some(c => c.id === choiceId)) {
+                choices.push({
+                  id: choiceId,
+                  area: 'ufficio',
+                  kind: 'turno_lungo',
+                  day: day,
+                  userRequired: true,
+                  label: 'Ufficio ' + dayNames[day] + ' — chi fa il turno lungo (apre e chiude)?',
+                  options: fullCands.map(function(id) {
+                    return {
+                      id: id,
+                      name: workerName(id),
+                      shift: FULLx,
+                      hint: 'Apre 06:30 e chiude 17:30 · gli altri: 1 apre + 1 chiude'
+                    };
+                  }).concat([{ id: '__auto__', name: 'Scegli automaticamente', shift: null, hint: 'Il motore sceglie', auto: true }]),
+                  selected: null
+                });
+              }
+              // Default temporaneo: primo candidato finché l'utente non sceglie
+              fullId = fullCands[0];
+              notes.push('Ufficio ' + dayNames[day] + ': alternativa turno lungo tra ' + fullCands.map(workerName).join(' / ') + ' (scegli in proposta).');
+            }
             if (!fullId) fullId = ordered.find(id => nastro(id) >= 7.9 && id !== nextUfficio);
             if (!fullId) fullId = ordered.find(id => nastro(id) >= 7.9);
             if (!fullId) fullId = ordered[ordered.length - 1];
+            // Rispetta scelta utente se presente
+            if (choices) {
+              const ch = choices.find(c => c.id === 'imp-full-' + day && c.selected && c.selected !== '__auto__');
+              if (ch && ordered.includes(ch.selected)) fullId = ch.selected;
+            }
             roles[fullId] = 'full';
             const rest = ordered.filter(id => id !== fullId);
             rest.sort((a, b) => {
@@ -10267,6 +10348,9 @@ function minLunchBreakMinutes(wId) {
           'chiusura <strong>' + (oc.minClose||2) + '–' + (oc.maxClose||2) + '</strong>' +
           (oc.threePresentMode ? ', con 3 presenti: <strong>' + oc.threePresentMode + '</strong>' : '') + '.'
         );
+      }
+      if (Array.isArray(rules.rulePriorities) && rules.rulePriorities.length) {
+        lines.push('Priorità motore: <strong>' + rules.rulePriorities.join(' → ') + '</strong>.');
       }
     } catch (e) {}
 
@@ -12326,6 +12410,23 @@ function minLunchBreakMinutes(wId) {
         rolTo:req.toTime
       };
     }, false);
+
+    // Reazione automatica: ribilancia turni dopo ferie/permesso
+    try {
+      const weekKeys = [];
+      eachDateInRequest(req, function(dateObj) {
+        weekKeys.push(getWeekKey(dateObj));
+      });
+      if (typeof autoUpdateShiftsAfterChange === 'function') {
+        autoUpdateShiftsAfterChange({
+          reason: 'Assenza ' + (req.tipo || 'ferie/permesso'),
+          detail: (typeof workerName === 'function' ? workerName(req.workerId) : req.workerId) +
+            (req.day ? ' il ' + req.day : (req.fromDay ? ' dal ' + req.fromDay : '')),
+          weekKeys: weekKeys,
+          changes: []
+        });
+      }
+    } catch (eAuto) { console.warn('Auto-update dopo assenza', eAuto); }
   }
 
   /** Rimuove dalle celle i giorni legati a una richiesta (per annullamento). */
@@ -12353,6 +12454,18 @@ function minLunchBreakMinutes(wId) {
         appData.weeks[weekKey][req.workerId][dayIdx] = { mIn:'', mOut:'', pIn:'', pOut:'', status:'', note:'', generated:true };
       }
     }, false);
+    try {
+      const weekKeys = [];
+      eachDateInRequest(req, function(dateObj) { weekKeys.push(getWeekKey(dateObj)); });
+      if (typeof autoUpdateShiftsAfterChange === 'function') {
+        autoUpdateShiftsAfterChange({
+          reason: 'Assenza annullata',
+          detail: (typeof workerName === 'function' ? workerName(req.workerId) : '') + ' · ' + (req.tipo || ''),
+          weekKeys: weekKeys,
+          changes: []
+        });
+      }
+    } catch (e) {}
     return changes;
   }
 
