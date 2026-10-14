@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.6.1</title>
+  <title>Turni Corvetto v8.7.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.6.1';
+    const APP_VERSION = '8.7.0';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1693,7 +1693,7 @@
     }
 
   
-    /* v8.6.1 top-nav mobile-safe */
+    /* v8.7.0 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.6.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.6.1</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2096,7 +2096,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.6.1 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.7.0 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -5907,7 +5907,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.6.1b', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -6097,7 +6097,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.6.1):
+    // POLICY (v8.7.0):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -9194,133 +9194,27 @@ function minLunchBreakMinutes(wId) {
       }
     }
 
-    // ===== CERVELLO UFFICIO (officeCoverage) =====
-    // Con N presenti assegna ruoli in modo da rispettare minOpen/minClose/maxClose.
-    // Caso critico N=3: 1 FULL (apre+chiude) + 1 OPEN + 1 CLOSE → 2 e 2.
+    // ===== CONTROLLO UFFICIO (rispetta rotazione sabatista) =====
+    // Non riassegna ruoli. Solo note se copertura sotto minimo.
     try {
-      const oc = (rules.officeCoverage) || { minOpen: 2, minClose: 2, maxClose: 2 };
       const dayNames = ['Lun','Mar','Mer','Gio','Ven'];
-      const pool = coverageIds.filter(id => !isHardUnavailableCell(cellAt(week, id, day)) && (() => {
-        const c = cellAt(week, id, day);
-        return c && (c.mIn || c.pIn);
-      })());
-      const n = pool.length;
-      if (n >= 2) {
-        const nOpen = pool.filter(id => coveredAt(cellAt(week, id, day), timeToMin('06:45'))).length;
-        const nClose = pool.filter(id => coveredAt(cellAt(week, id, day), timeToMin('17:15'))).length;
-        const needFix = (nOpen < (oc.minOpen || 2) && n >= 3) || (nClose > (oc.maxClose || 2)) || (nClose < (oc.minClose || 2) && n >= 3);
-
-        if (needFix) {
-          const OPEN7 = rules.ufficio7h || { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '14:30' };
-          const OPEN8 = rules.ufficio8h || { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '15:30' };
-          const CLOSE = rules.ufficio2t || { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
-          const FULL = { mIn: '06:30', mOut: '12:30', pIn: '13:00', pOut: '17:30' };
-          const FULL_SEV = { mIn: '06:30', mOut: '13:00', pIn: '13:30', pOut: '17:30' };
-
-          const isSev = id => id === SEVERIN_ID() || /severin/i.test(workerName(id) || '');
-          const isDav = id => id === nextUfficio || /alpegiani/i.test(workerName(id) || '');
-          const nastro = id => {
-            try { return getNastroHoursForDay(id, day, getWeekKey(currentDate)) || 8; } catch (e) { return 8; }
-          };
-
-          const ordered = pool.slice().sort((a, b) => {
-            const ra = isSev(a) ? 0 : (isDav(a) ? 1 : 2);
-            const rb = isSev(b) ? 0 : (isDav(b) ? 1 : 2);
-            return ra - rb;
-          });
-
-          const roles = {};
-          if (n === 2) {
-            const a = ordered[0], b = ordered[1];
-            if (nastro(a) <= 7.1) { roles[a] = 'open'; roles[b] = 'close'; }
-            else if (nastro(b) <= 7.1) { roles[b] = 'open'; roles[a] = 'close'; }
-            else { roles[a] = 'open'; roles[b] = 'close'; }
-          } else if (n === 3) {
-            let fullId = ordered.find(isSev);
-            // Se Severin non c'è, più candidati 8h → scelta esplicita (alternativa)
-            const fullCands = ordered.filter(id => !isSev(id) && nastro(id) >= 7.9 && id !== nextUfficio);
-            if (!fullId && fullCands.length > 1 && choices) {
-              const dayNames = ['Lun','Mar','Mer','Gio','Ven'];
-              const OPEN7x = rules.ufficio7h || { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '14:30' };
-              const OPEN8x = rules.ufficio8h || { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '15:30' };
-              const CLOSEx = rules.ufficio2t || { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
-              const FULLx = { mIn: '06:30', mOut: '12:30', pIn: '13:00', pOut: '17:30' };
-              const choiceId = 'imp-full-' + day;
-              if (!choices.some(c => c.id === choiceId)) {
-                choices.push({
-                  id: choiceId,
-                  area: 'ufficio',
-                  kind: 'turno_lungo',
-                  day: day,
-                  userRequired: true,
-                  label: 'Ufficio ' + dayNames[day] + ' — chi fa il turno lungo (apre e chiude)?',
-                  options: fullCands.map(function(id) {
-                    return {
-                      id: id,
-                      name: workerName(id),
-                      shift: FULLx,
-                      hint: 'Apre 06:30 e chiude 17:30 · gli altri: 1 apre + 1 chiude'
-                    };
-                  }).concat([{ id: '__auto__', name: 'Scegli automaticamente', shift: null, hint: 'Il motore sceglie', auto: true }]),
-                  selected: null
-                });
-              }
-              // Default temporaneo: primo candidato finché l'utente non sceglie
-              fullId = fullCands[0];
-              notes.push('Ufficio ' + dayNames[day] + ': alternativa turno lungo tra ' + fullCands.map(workerName).join(' / ') + ' (scegli in proposta).');
-            }
-            if (!fullId) fullId = ordered.find(id => nastro(id) >= 7.9 && id !== nextUfficio);
-            if (!fullId) fullId = ordered.find(id => nastro(id) >= 7.9);
-            if (!fullId) fullId = ordered[ordered.length - 1];
-            // Rispetta scelta utente se presente
-            if (choices) {
-              const ch = choices.find(c => c.id === 'imp-full-' + day && c.selected && c.selected !== '__auto__');
-              if (ch && ordered.includes(ch.selected)) fullId = ch.selected;
-            }
-            roles[fullId] = 'full';
-            const rest = ordered.filter(id => id !== fullId);
-            rest.sort((a, b) => {
-              const sa = (nastro(a) <= 7.1 || a === nextUfficio) ? 0 : 1;
-              const sb = (nastro(b) <= 7.1 || b === nextUfficio) ? 0 : 1;
-              return sa - sb;
-            });
-            roles[rest[0]] = 'open';
-            roles[rest[1]] = 'close';
-          } else {
-            // 4+: maxClose in chiusura, resto apertura
-            const closeNeed = Math.min(oc.maxClose || 2, 2);
-            const closeFirst = ordered.slice().sort((a, b) => {
-              const sa = isDav(a) || nastro(a) <= 7.1 ? 5 : (isSev(a) ? 1 : 0);
-              const sb = isDav(b) || nastro(b) <= 7.1 ? 5 : (isSev(b) ? 1 : 0);
-              return sa - sb;
-            });
-            closeFirst.forEach((id, i) => { roles[id] = i < closeNeed ? 'close' : 'open'; });
-          }
-
-          Object.keys(roles).forEach(id => {
-            if (typeof isEngineLockedWorker === 'function' && isEngineLockedWorker(id) && roles[id] !== 'full') return;
-            const c = cellAt(week, id, day);
-            if (!c || c.manualEdit) return;
-            let shift;
-            if (roles[id] === 'full') shift = isSev(id) ? FULL_SEV : FULL;
-            else if (roles[id] === 'open') shift = (nastro(id) <= 7.1 || id === nextUfficio) ? OPEN7 : OPEN8;
-            else shift = CLOSE;
-            if (typeof applyMove === 'function') applyMove(week, id, day, shift);
-            else {
-              week[id][day] = { ...c, ...shift, generated: true, movedByEngine: true };
-            }
-          });
-
-          const nO2 = pool.filter(id => coveredAt(cellAt(week, id, day), timeToMin('06:45'))).length;
-          const nC2 = pool.filter(id => coveredAt(cellAt(week, id, day), timeToMin('17:15'))).length;
-          notes.push(
-            'Ufficio ' + dayNames[day] + ' · cervello copertura: ' + n + ' presenti → apertura ' + nO2 +
-            ', chiusura ' + nC2 + (n === 3 ? ' (1 lungo + 1 apre + 1 chiude)' : '')
-          );
-        }
+      const openMin = rules.minAperturaImp ?? 2;
+      const nOpen = countCovered(week, coverageIds, day, timeToMin('06:45'));
+      const nClose = countCovered(week, coverageIds, day, timeToMin('17:15'));
+      if (nOpen < openMin) {
+        notes.push('Ufficio ' + dayNames[day] + ': apertura con ' + nOpen + ' (min ' + openMin + ') — verificare assenze; rotazione sabatista non viene alterata.');
+      }
+      if (nClose < 1) {
+        notes.push('Ufficio ' + dayNames[day] + ': chiusura scoperta — verificare assenze.');
+      }
+      // Annota ruoli attesi
+      if (nextUfficio && !isHardUnavailableCell(cellAt(week, nextUfficio, day))) {
+        notes.push('Ufficio ' + dayNames[day] + ': sabatista ' + workerName(nextUfficio) + ' → apertura 7h; ' +
+          (prevUfficio ? 'ex-sabatista ' + workerName(prevUfficio) + ' → apertura 8h; ' : '') +
+          'altri → chiusura 8h; Severin orario fisso.');
       }
     } catch (brainErr) {
-      notes.push('Ufficio: errore cervello copertura — ' + (brainErr && brainErr.message ? brainErr.message : brainErr));
+      notes.push('Ufficio: controllo copertura — ' + (brainErr && brainErr.message ? brainErr.message : brainErr));
     }
   }
 
@@ -10022,152 +9916,71 @@ function minLunchBreakMinutes(wId) {
    * Severin: preferito lasciarlo; non toccare celle manualEdit.
    */
   function rebalanceOfficeOpenClose(week) {
+    // POLICY v8.7: NON sovrascrivere la rotazione sabatista.
+    // Ruoli non negoziabili (Lun–Ven):
+    //   nextUfficio (sabatista settimana) → ufficio7h (apertura 7h)
+    //   prevUfficio (sabatista sett. prec.) → ufficio8h (apertura 8h)
+    //   altri ufficio (Davide se non sab/prev) → ufficio2t (chiusura 8h)
+    //   Severin → orari fissi getSeverinHours (solo pausa regolabile)
+    // Questo passaggio NON riassegna i ruoli; al massimo segnala anomalie.
     if (!week) return [];
     const notes = [];
     const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
-    const pool = (typeof getOfficeLunchPoolIds === 'function')
-      ? getOfficeLunchPoolIds()
-      : (appData.workers || []).filter(function(w) {
-          if (w.selected === false) return false;
-          return /alpegiani|caregnato|poppa|severin/i.test(w.name || '');
-        }).map(function(w) { return w.id; });
+    try {
+      const rules = (typeof R === 'function') ? R() : {};
+      let prevDate = new Date(currentDate); prevDate.setDate(prevDate.getDate() - 7);
+      const prevKey = getWeekKey(prevDate);
+      const lastSat = (typeof getLastSaturdayInfo === 'function') ? getLastSaturdayInfo(prevKey) : {};
+      const nextUfficio = (typeof nextInRotation === 'function')
+        ? nextInRotation(SABATO_UFFICIO_IDS(), lastSat.ufficio)
+        : null;
+      const prevUfficio = lastSat.ufficio || null;
 
-    // Turni tipo
-    const OPEN7 = { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '14:30' }; // ~7h apertura
-    const OPEN8 = { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '15:30' }; // ~8h apertura
-    const CLOSE = { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' }; // chiusura
-    const FULL8 = { mIn: '06:30', mOut: '12:30', pIn: '13:00', pOut: '17:30' }; // apertura+chiusura ~8h
-    const FULL_SEV = { mIn: '06:30', mOut: '13:00', pIn: '13:30', pOut: '17:30' }; // Severin 30' pausa
-
-    function isSev(id) {
-      if (typeof isSeverinWorker === 'function' && isSeverinWorker(id)) return true;
-      return /severin/i.test(workerName(id) || '');
-    }
-    function isDavide(id) { return /alpegiani/i.test(workerName(id) || ''); }
-    function nastroFor(id, day) {
-      try { return getNastroHoursForDay(id, day, getWeekKey(currentDate)) || 8; }
-      catch (e) { return 8; }
-    }
-    function applyShift(cell, shift) {
-      if (!cell || cell.manualEdit) return false;
-      cell.mIn = shift.mIn; cell.mOut = shift.mOut;
-      cell.pIn = shift.pIn; cell.pOut = shift.pOut;
-      cell.movedByEngine = true;
-      return true;
-    }
-    function coversOpen(cell) {
-      if (!cell || isHardUnavailableCell(cell)) return false;
-      return cell.mIn && timeToMin(cell.mIn) <= timeToMin('07:00');
-    }
-    function coversClose(cell) {
-      if (!cell || isHardUnavailableCell(cell)) return false;
-      const end = cell.pOut ? timeToMin(cell.pOut) : (cell.mOut ? timeToMin(cell.mOut) : 0);
-      return end >= timeToMin('17:00');
-    }
-
-    /**
-     * Regola:
-     * - Chiusura: obiettivo 2 (mai >2 salvo n=1)
-     * - Apertura: più persone possibili se chiusura è a 2
-     * - Con 3 presenti: 1 FULL (apre+chiude) + 1 OPEN + 1 CLOSE → 2 in apertura e 2 in chiusura
-     * - Con 4+: 2 OPEN + 2 CLOSE
-     * - Con 2: 1 OPEN + 1 CLOSE
-     * Severin preferito come FULL; non toccare manualEdit.
-     */
-    for (let day = 0; day <= 4; day++) {
-      const present = [];
-      pool.forEach(function(id) {
-        const c = cellAt(week, id, day);
-        if (!c || isHardUnavailableCell(c)) return;
-        if (!c.mIn && !c.pIn) return;
-        present.push(id);
-      });
-      if (present.length === 0) continue;
-
-      const n = present.length;
-      // Ordine: Severin, Davide, Caregnato, Poppa, altri
-      const ordered = present.slice().sort(function(a, b) {
-        function rank(id) {
-          if (isSev(id)) return 0;
-          if (isDavide(id)) return 1;
-          if (/caregnato/i.test(workerName(id) || '')) return 2;
-          if (/poppa/i.test(workerName(id) || '')) return 3;
-          return 4;
-        }
-        return rank(a) - rank(b);
-      });
-
-      const roles = {}; // id -> 'open'|'close'|'full'
-
-      if (n === 1) {
-        roles[ordered[0]] = 'full';
-      } else if (n === 2) {
-        // 1 apre, 1 chiude (chi ha nastro 7h preferisce open)
-        const a = ordered[0], b = ordered[1];
-        if (nastroFor(a, day) <= 7.1) { roles[a] = 'open'; roles[b] = 'close'; }
-        else if (nastroFor(b, day) <= 7.1) { roles[b] = 'open'; roles[a] = 'close'; }
-        else { roles[a] = 'open'; roles[b] = 'close'; }
-      } else if (n === 3) {
-        // FULL + OPEN + CLOSE → 2 copertura apertura e 2 chiusura
-        // FULL: Severin se presente, altrimenti chi ha 8h (non Davide se 7h)
-        let fullId = ordered.find(isSev);
-        if (!fullId) fullId = ordered.find(function(id) { return nastroFor(id, day) >= 7.9 && !isDavide(id); });
-        if (!fullId) fullId = ordered.find(function(id) { return nastroFor(id, day) >= 7.9; });
-        if (!fullId) fullId = ordered[0];
-        roles[fullId] = 'full';
-        const rest = ordered.filter(function(id) { return id !== fullId; });
-        // OPEN: preferisci chi ha nastro 7h / Davide
-        rest.sort(function(a, b) {
-          const sa = (nastroFor(a, day) <= 7.1 || isDavide(a)) ? 0 : 1;
-          const sb = (nastroFor(b, day) <= 7.1 || isDavide(b)) ? 0 : 1;
-          return sa - sb;
-        });
-        roles[rest[0]] = 'open';
-        roles[rest[1]] = 'close';
-      } else {
-        // 4+: 2 open + 2 close (nessun full salvo Severin se già lungo)
-        // Open: Davide e chi ha 7h; Close: gli altri
-        const openSlots = 2, closeSlots = 2;
-        const openFirst = ordered.slice().sort(function(a, b) {
-          function s(id) {
-            if (isDavide(id)) return 0;
-            if (nastroFor(id, day) <= 7.1) return 1;
-            if (isSev(id)) return 3; // Severin meglio in close/full
-            return 2;
+      for (let day = 0; day <= 4; day++) {
+        // Ripristina turni standard se una cella generata è stata storpiata dal vecchio brain
+        SABATO_UFFICIO_IDS().forEach(function(id) {
+          const c = cellAt(week, id, day);
+          if (!c || isHardUnavailableCell(c)) return;
+          if (c.manualEdit) return;
+          // Solo celle generate / movedByEngine: riallinea al ruolo di rotazione
+          if (!(c.generated || c.movedByEngine)) return;
+          let target = null;
+          if (id === nextUfficio) target = rules.ufficio7h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' };
+          else if (id === prevUfficio) target = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+          else target = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+          const before = [c.mIn,c.mOut,c.pIn,c.pOut].join('|');
+          c.mIn = target.mIn; c.mOut = target.mOut; c.pIn = target.pIn; c.pOut = target.pOut;
+          c.movedByEngine = false; // riallineato a regola rotazione, non "spostamento"
+          c.generated = true;
+          const after = [c.mIn,c.mOut,c.pIn,c.pOut].join('|');
+          if (before !== after) {
+            const role = id === nextUfficio ? 'sabatista 7h apertura' : (id === prevUfficio ? 'ex-sabatista 8h apertura' : 'chiusura 8h');
+            notes.push('Ufficio ' + dayNames[day] + ': ' + workerName(id) + ' riallineato → ' + role);
           }
-          return s(a) - s(b);
         });
-        openFirst.forEach(function(id, i) {
-          if (i < openSlots) roles[id] = 'open';
-          else roles[id] = 'close';
-        });
-      }
 
-      // Applica
-      let changed = false;
-      Object.keys(roles).forEach(function(id) {
-        const cell = cellAt(week, id, day);
-        if (!cell || cell.manualEdit) return;
-        const role = roles[id];
-        let shift;
-        if (role === 'full') {
-          shift = isSev(id) ? FULL_SEV : FULL8;
-        } else if (role === 'open') {
-          shift = nastroFor(id, day) <= 7.1 ? OPEN7 : OPEN8;
-        } else {
-          shift = CLOSE;
+        // Severin: forza orari fissi
+        const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
+        if (sev) {
+          const sc = cellAt(week, sev, day);
+          if (sc && !sc.manualEdit && !isHardUnavailableCell(sc) && (sc.generated || sc.movedByEngine || sc.mIn)) {
+            const fixed = (typeof getSeverinHours === 'function') ? getSeverinHours(day) : null;
+            if (fixed && fixed.mIn) {
+              const before = [sc.mIn,sc.mOut,sc.pIn,sc.pOut].join('|');
+              // Mantieni solo una pausa 30' eventualmente già ok, altrimenti template
+              sc.mIn = fixed.mIn; sc.mOut = fixed.mOut; sc.pIn = fixed.pIn; sc.pOut = fixed.pOut;
+              sc.generated = true;
+              sc.movedByEngine = false;
+              const after = [sc.mIn,sc.mOut,sc.pIn,sc.pOut].join('|');
+              if (before !== after) notes.push('Severin ' + dayNames[day] + ': ripristinato orario fisso');
+            } else if (day === 4 && (!sc.status || sc.status === 'LAVORO')) {
+              // Venerdì: spesso riposo se non serve
+            }
+          }
         }
-        const before = cell.mIn + '|' + cell.mOut + '|' + cell.pIn + '|' + cell.pOut;
-        applyShift(cell, shift);
-        const after = cell.mIn + '|' + cell.mOut + '|' + cell.pIn + '|' + cell.pOut;
-        if (before !== after) changed = true;
-      });
-
-      if (changed) {
-        const o = Object.keys(roles).filter(function(id) { return roles[id] === 'open' || roles[id] === 'full'; }).length;
-        const c = Object.keys(roles).filter(function(id) { return roles[id] === 'close' || roles[id] === 'full'; }).length;
-        notes.push('Ufficio ' + dayNames[day] + ': ' + n + ' presenti → ≈' + o + ' in apertura, ≈' + c + ' in chiusura' + (n === 3 ? ' (1 turno lungo apre+chiude)' : ''));
       }
+    } catch (e) {
+      notes.push('Riallineamento ufficio: ' + (e.message || e));
     }
     return notes;
   }
