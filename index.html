@@ -6813,7 +6813,8 @@ function minLunchBreakMinutes(wId) {
         pOut: pOut,
         note: note,
         generated: false,
-        movedByEngine: false
+        movedByEngine: false,
+        manualEdit: true
       };
       // Applica pausa pranzo (min 1h, 30' Severin) considerando impegni del giorno
       if (!dayData.status || dayData.status === 'LAVORO' || dayData.status === 'ROL') {
@@ -9802,6 +9803,7 @@ function minLunchBreakMinutes(wId) {
       pool.forEach(function(id) {
         const c = cellAt(week, id, day);
         if (!c || isHardUnavailableCell(c)) return;
+        if (c.manualEdit) return;
         if (!c.mIn && !c.pIn) return;
         const mIn = c.mIn ? timeToMin(c.mIn) : null;
         let pOut = c.pOut ? timeToMin(c.pOut) : null;
