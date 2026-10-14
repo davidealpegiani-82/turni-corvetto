@@ -2815,9 +2815,17 @@
     branchMonFriClose: '17:30',
     minSabatoImp: 1,
     branchHours: { monFri: { open: "06:30", close: "17:30" }, sat: { open: "07:00", close: "12:00" } },
-    intelligentRulesVersion: "M1-M45 + ROL/SERVERIN FIX",
+    intelligentRulesVersion: "M1-M45 + OFFICE_COVERAGE v8.4.1",
     warehouseRules: JSON.parse(JSON.stringify(intelligentRulePack.warehouse)),
-    generalCoverageRules: JSON.parse(JSON.stringify(intelligentRulePack.general))
+    generalCoverageRules: JSON.parse(JSON.stringify(intelligentRulePack.general)),
+    officeCoverage: {
+      minOpen: 2,
+      minClose: 2,
+      maxClose: 2,
+      threePresentMode: "full+open+close",
+      lunchEarly: ["alpegiani", "caregnato"],
+      lunchLate: ["poppa", "severin"]
+    }
   };
 
   let appData = {
@@ -6902,7 +6910,6 @@ function minLunchBreakMinutes(wId) {
       const sev = SEVERIN_ID();
       for (let day = 0; day <= 4; day++) {
         const c = cellAt(week, sev, day);
-        // Severin può essere su turno lungo (apre+chiude) quando servono 3 presenti
         if (c && c.movedByEngine && c.mIn && timeToMin(c.mIn) > timeToMin('07:00')) {
           issues.push('Severin risulta spostato dal motore il ' + dayNames[day] + ' (non dovrebbe perdere l\'apertura).');
         }
@@ -6924,7 +6931,7 @@ function minLunchBreakMinutes(wId) {
         });
       }
 
-      // Copertura ufficio apertura/chiusura (regole centralizzate)
+      // Copertura ufficio (regole centralizzate, stile v7 + officeCoverage)
       const rules = (typeof R === 'function') ? R() : {};
       const oc = rules.officeCoverage || { minOpen: 2, minClose: 2, maxClose: 2 };
       const pool = (typeof getOfficeLunchPoolIds === 'function') ? getOfficeLunchPoolIds() : [];
@@ -6942,9 +6949,9 @@ function minLunchBreakMinutes(wId) {
           if (end >= timeToMin('17:00')) nClose++;
         });
         if (nOpen < (oc.minOpen || 2) && present.length >= 3)
-          issues.push(dayNames[day] + ' ufficio: solo ' + nOpen + ' in apertura (obiettivo ' + (oc.minOpen||2) + ', presenti ' + present.length + ').');
+          issues.push(dayNames[day] + ' ufficio: solo ' + nOpen + ' in apertura (obiettivo ≥' + (oc.minOpen||2) + ', presenti ' + present.length + '). Con 3 usate 1 turno lungo + 1 apre + 1 chiude.');
         if (nClose < (oc.minClose || 2) && present.length >= 2)
-          issues.push(dayNames[day] + ' ufficio: solo ' + nClose + ' in chiusura (obiettivo ' + (oc.minClose||2) + ').');
+          issues.push(dayNames[day] + ' ufficio: solo ' + nClose + ' in chiusura (obiettivo ≥' + (oc.minClose||2) + ').');
         if (nClose > (oc.maxClose || 2) && present.length >= 3)
           issues.push(dayNames[day] + ' ufficio: ' + nClose + ' in chiusura (max ' + (oc.maxClose||2) + '). Preferire più persone in apertura.');
       }
