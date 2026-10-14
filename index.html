@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.3</title>
+  <title>Turni Corvetto v8.7.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.3';
+    const APP_VERSION = '8.7.4';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1865,7 +1865,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.3</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.4</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1883,7 +1883,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.3</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4345,18 +4345,56 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     } else {
       mainLabel='—';
     }
+
+    // Assenza/permesso PARZIALE: mostra lavoro + causale + lavoro (ordine cronologico)
+    // es. 08:30-12:30 / Permesso retribuito / 13:30-17:30
+    const isPartialVisual = !isFullLeave && !isRest && (
+      isPartialLeave ||
+      (!!d.rolFrom && !!d.rolTo) ||
+      (status && status!=='LAVORO' && status!=='RIPOSO' && !!(d.mIn || d.pIn))
+    );
+
     let html=`<div class="${cls}">`;
-    if (mainLabel) {
-      const mainLabelHtml = (status && status!=='LAVORO' && status!=='RIPOSO')
-        ? leaveLinkHtml(leaveReq, mainLabel, status)
-        : escapeHtmlV47(mainLabel);
-      html += `<div class="cell-status-v47">${mainLabelHtml}</div>`;
+    if (isPartialVisual) {
+      const leaveLab = label || leaveDisplayLabel(d, leaveReq) || 'Permesso';
+      const leaveHtml = leaveLinkHtml(leaveReq, leaveLab, status || 'ROL');
+      let leaveFrom = d.rolFrom || (leaveReq && leaveReq.fromTime) || '';
+      let leaveTo = d.rolTo || (leaveReq && leaveReq.toTime) || '';
+      // Se manca finestra ROL, stima dal buco tra mattina e pomeriggio
+      if ((!leaveFrom || !leaveTo) && d.mOut && d.pIn) {
+        leaveFrom = d.mOut; leaveTo = d.pIn;
+      }
+      const morning = (d.mIn && d.mOut) ? (d.mIn + '-' + d.mOut) : '';
+      const afternoon = (d.pIn && d.pOut) ? (d.pIn + '-' + d.pOut) : '';
+      // Ordine: lavoro mattina → permesso → lavoro pomeriggio
+      if (morning) {
+        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${escapeHtmlV47(morning)}</div>`;
+      }
+      html += `<div class="cell-status-v47 cell-partial-leave-label" style="font-weight:700;text-decoration:underline;margin:2px 0;">${leaveHtml}</div>`;
+      if (leaveFrom && leaveTo) {
+        html += `<div class="cell-leave-hours-v47" style="font-size:10px;font-weight:600;color:var(--primary);line-height:1.3;">${escapeHtmlV47(leaveFrom + '-' + leaveTo)}</div>`;
+      }
+      if (afternoon) {
+        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;margin-top:2px;">${escapeHtmlV47(afternoon)}</div>`;
+      }
+      // Solo un blocco lavoro (es. solo pomeriggio dopo permesso mattina)
+      if (!morning && !afternoon && times) {
+        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${times}</div>`;
+      }
+      if (h > 0) html += `<span class="hours-badge cell-hours-v47">${String(h).replace(/\.0$/,'')}h</span>`;
+    } else {
+      if (mainLabel) {
+        const mainLabelHtml = (status && status!=='LAVORO' && status!=='RIPOSO')
+          ? leaveLinkHtml(leaveReq, mainLabel, status)
+          : escapeHtmlV47(mainLabel);
+        html += `<div class="cell-status-v47">${mainLabelHtml}</div>`;
+      }
+      if (times) {
+        html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${times}</div>`;
+      }
+      if (h>0 && !isRest) html += `<span class="hours-badge cell-hours-v47">${String(h).replace(/\.0$/,'')}h</span>`;
+      if (note && status!=='LAVORO') html += `<div class="cell-note-v47" title="${escapeHtmlV47(note)}">${escapeHtmlV47(note)}</div>`;
     }
-    if (times) {
-      html += `<div class="cell-times-v47" style="font-weight:800;font-size:11px;line-height:1.35;">${times}</div>`;
-    }
-    if (h>0 && !isRest) html += `<span class="hours-badge cell-hours-v47">${String(h).replace(/\.0$/,'')}h</span>`;
-    if (note && status!=='LAVORO') html += `<div class="cell-note-v47" title="${escapeHtmlV47(note)}">${escapeHtmlV47(note)}</div>`;
     html += `</div>`;
 
     const hardUnavailable = isHardUnavailableCell(d);
@@ -5962,7 +6000,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.3', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.4', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11248,7 +11286,20 @@ function minLunchBreakMinutes(wId) {
             textCell = "-" + (dayData.note ? `\n${dayData.note}` : "");
           } else {
             const cellLeaveReq = findLeaveRequestForCell(w.id, weekDates[day], dayData);
-            textCell = leaveDisplayLabel(dayData, cellLeaveReq);
+            const leaveLab = leaveDisplayLabel(dayData, cellLeaveReq);
+            const isPartialPdf = !!(dayData.mIn || dayData.pIn) && !(dayData.leaveFullDay || (cellLeaveReq && (cellLeaveReq.fullDay || cellLeaveReq.mode === 'range')));
+            if (isPartialPdf) {
+              const linesPdf = [];
+              if (dayData.mIn && dayData.mOut) linesPdf.push(dayData.mIn + '-' + dayData.mOut);
+              linesPdf.push(leaveLab || 'Permesso');
+              let lf = dayData.rolFrom || (cellLeaveReq && cellLeaveReq.fromTime) || '';
+              let lt = dayData.rolTo || (cellLeaveReq && cellLeaveReq.toTime) || '';
+              if ((!lf || !lt) && dayData.mOut && dayData.pIn) { lf = dayData.mOut; lt = dayData.pIn; }
+              if (lf && lt) linesPdf.push(lf + '-' + lt);
+              if (dayData.pIn && dayData.pOut) linesPdf.push(dayData.pIn + '-' + dayData.pOut);
+              textCell = linesPdf.join(String.fromCharCode(10));
+            } else {
+            textCell = leaveLab;
             if (/^(malattia|ricovero|ferie)$/i.test(String(textCell || '').trim())) textCell = String(textCell).trim().toUpperCase();
             // Ricovero a tempo indeterminato: nel PDF deve essere chiaro e pulito,
             // senza il doppio "(in corso)" generato dalla nota interna.
@@ -11284,6 +11335,7 @@ function minLunchBreakMinutes(wId) {
                 textCell += `\n${cleanNote}`;
               }
             }
+            } // fine else !isPartialPdf
           }
         } else if (dayData.mIn || dayData.pIn || ((getDayEventsForWorker(w.id, weekDates[day]) || []).length > 0)) {
           const workLine = formatWorkHoursOnly(dayData).replace(/ \| /g, ' · ');
