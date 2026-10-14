@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.8</title>
+  <title>Turni Corvetto v8.7.9</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.8';
+    const APP_VERSION = '8.7.9';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -707,7 +707,7 @@
     .cell-event-v47:hover{text-decoration:underline!important;}
     .cell-conflict-v47{font-size:9px;font-weight:850;color:#f59e0b;}
     .cell-rest-v47{font-size:13px;font-weight:800;color:var(--text-muted);}
-    .cell-partial-leave-v47{border-left:3px solid currentColor;padding-left:4px;}
+    .cell-partial-leave-v47{/* no bg — solo layout come impegno */}
     .cell-medical-v47{letter-spacing:.015em;}
     .cell-fullleave-v47 .cell-hours-v47{opacity:.9;}
     .cell-event-only-v47 .cell-status-v47{color:#a78bfa;}
@@ -1865,7 +1865,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.8</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.9</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1883,7 +1883,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.8</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.9</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4574,7 +4574,9 @@ function renderWeek() {
           const dayModelV47 = getDayDisplayModelV47(w.id, day, weekDates[day], dayData);
           td.innerHTML = dayModelV47.html;
           const stObjV47 = appData.statuses.find(s => s.name.toUpperCase() === String(dayData.status||'').toUpperCase());
-          if (stObjV47 && !dayModelV47.isRest) {
+          // Sfondo colorato SOLO per assenza giornata intera (ferie/malattia/permesso full-day)
+          // Permesso parziale = come impegno: cella normale + riga 📌
+          if (stObjV47 && !dayModelV47.isRest && dayModelV47.isFullLeave) {
             td.style.backgroundColor = stObjV47.color + '1F';
             td.style.color = stObjV47.color;
           }
@@ -6032,7 +6034,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.8', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.9', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
