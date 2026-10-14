@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.0</title>
+  <title>Turni Corvetto v8.7.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.0';
+    const APP_VERSION = '8.7.1';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.0</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5907,7 +5907,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -9986,6 +9986,213 @@ function minLunchBreakMinutes(wId) {
   }
 
 
+  /**
+   * Se chiusura < 2 e apertura > 2: sposta in chiusura chi non è sabatista né Severin.
+   * Preferenza: prevUfficio (ex-sabatista 8h), poi altri. MAI nextUfficio / Severin.
+   * Caso tipico: collega assente → 3 in apertura e solo Severin in chiusura.
+   */
+  function ensureOfficeCloseCoverage(week) {
+    if (!week) return [];
+    const notes = [];
+    const dayNames = ['Lun','Mar','Mer','Gio','Ven'];
+    const rules = (typeof R === 'function') ? R() : {};
+    const CLOSE = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+    let prevDate = new Date(currentDate); prevDate.setDate(prevDate.getDate() - 7);
+    const lastSat = (typeof getLastSaturdayInfo === 'function') ? getLastSaturdayInfo(getWeekKey(prevDate)) : {};
+    const nextUfficio = (typeof nextInRotation === 'function') ? nextInRotation(SABATO_UFFICIO_IDS(), lastSat.ufficio) : null;
+    const prevUfficio = lastSat.ufficio || null;
+    const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
+    const pool = SABATO_UFFICIO_IDS().concat(sev ? [sev] : []).filter(function(id, i, a) {
+      return id && a.indexOf(id) === i && !!workerObj(id);
+    });
+
+    for (let day = 0; day <= 4; day++) {
+      const present = pool.filter(function(id) {
+        const c = cellAt(week, id, day);
+        return c && !isHardUnavailableCell(c) && (c.mIn || c.pIn);
+      });
+      if (present.length < 3) continue;
+
+      const nOpen = present.filter(function(id) {
+        return coveredAt(cellAt(week, id, day), timeToMin('06:45'));
+      }).length;
+      const nClose = present.filter(function(id) {
+        return coveredAt(cellAt(week, id, day), timeToMin('17:15'));
+      }).length;
+
+      if (nClose >= 2) continue;
+      if (nOpen < 3) continue; // solo se apertura "in eccesso"
+
+      // Candidati da spostare in chiusura (non sabatista, non Severin)
+      const cands = present.filter(function(id) {
+        if (id === nextUfficio) return false;
+        if (id === sev) return false;
+        if (typeof isEngineLockedWorker === 'function' && isEngineLockedWorker(id)) return false;
+        const c = cellAt(week, id, day);
+        if (!c || c.manualEdit) return false;
+        if (coveredAt(c, timeToMin('17:15'))) return false; // già chiude
+        return true;
+      }).sort(function(a, b) {
+        // Preferisci prevUfficio (ex-sabatista) come primo da spostare in chiusura in anomalia
+        if (a === prevUfficio) return -1;
+        if (b === prevUfficio) return 1;
+        return 0;
+      });
+
+      for (let i = 0; i < cands.length && nClose + i < 2; i++) {
+        const id = cands[i];
+        // Dopo lo spostamento apertura deve restare >= 2
+        const stillOpen = present.filter(function(x) {
+          if (x === id) return false;
+          return coveredAt(cellAt(week, x, day), timeToMin('06:45'));
+        }).length;
+        // Severin conta in apertura se mIn <= 07:00
+        if (stillOpen < 2) continue;
+
+        const c = cellAt(week, id, day);
+        const before = [c.mIn,c.mOut,c.pIn,c.pOut].join('|');
+        if (typeof applyMove === 'function') {
+          applyMove(week, id, day, CLOSE);
+        } else {
+          c.mIn = CLOSE.mIn; c.mOut = CLOSE.mOut; c.pIn = CLOSE.pIn; c.pOut = CLOSE.pOut;
+          c.movedByEngine = true;
+        }
+        notes.push(
+          'Ufficio ' + dayNames[day] + ': ' + workerName(id) +
+          ' spostato in chiusura 8h (anomalia: solo ' + nClose + ' in chiusura, ' + nOpen + ' in apertura).'
+        );
+      }
+    }
+    return notes;
+  }
+
+  /**
+   * Pausa pranzo ufficio: tra 12:00 e 14:00 almeno 2 presenti in ogni slot da 30'.
+   * Severin: solo 12:30-13:00 oppure 13:00-13:30.
+   * Altri: preferenza Davide+Caregnato 12-13, Andrea 13-14; poi aggiustamenti minimi.
+   */
+  function balanceOfficeLunchCoverage(week) {
+    if (!week) return [];
+    const notes = [];
+    const dayNames = ['Lun','Mar','Mer','Gio','Ven'];
+    const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
+    const pool = (typeof getOfficeLunchPoolIds === 'function')
+      ? getOfficeLunchPoolIds()
+      : SABATO_UFFICIO_IDS().concat(sev ? [sev] : []);
+
+    function isSev(id) { return id === sev || /severin/i.test(workerName(id) || ''); }
+    function isDav(id) { return /alpegiani/i.test(workerName(id) || ''); }
+    function isCar(id) { return /caregnato/i.test(workerName(id) || ''); }
+    function isPop(id) { return /poppa/i.test(workerName(id) || ''); }
+
+    function presentAt(cell, t) {
+      if (!cell || isHardUnavailableCell(cell)) return false;
+      return coveredAt(cell, t);
+    }
+
+    for (let day = 0; day <= 4; day++) {
+      const workers = pool.map(function(id) {
+        const c = cellAt(week, id, day);
+        if (!c || isHardUnavailableCell(c) || !(c.mIn || c.pIn)) return null;
+        return { id: id, cell: c };
+      }).filter(Boolean);
+      if (workers.length < 2) continue;
+
+      // Slot 12:00, 12:30, 13:00, 13:30 (inizio mezz'ora)
+      const slots = [12*60, 12*60+30, 13*60, 13*60+30];
+      function countSlot(t) {
+        return workers.filter(function(w) { return presentAt(w.cell, t + 1); }).length; // +1 min dentro lo slot
+      }
+
+      // 1) Severin: se lo slot 12:30 è debole e 13:00 è più coperto, usa 13:00-13:30
+      const sevW = workers.find(function(w) { return isSev(w.id); });
+      if (sevW && !sevW.cell.manualEdit) {
+        const at1230 = countSlot(12*60+30);
+        // Se Severin è in pausa 12:30-13:00 e in quel slot restano < 2
+        const sevBreakStart = sevW.cell.mOut ? timeToMin(sevW.cell.mOut) : null;
+        if (sevBreakStart != null) {
+          // prova 13:00-13:30 se 12:30 ha meno di 2 con lui in pausa
+          const withoutSev1230 = workers.filter(function(w) {
+            if (isSev(w.id)) return false;
+            return presentAt(w.cell, 12*60+30+1);
+          }).length;
+          if (withoutSev1230 < 2 && sevBreakStart <= 12*60+30) {
+            // Sposta pausa Severin a 13:00-13:30 se il turno lo permette
+            if (typeof setCellLunchBreak === 'function') {
+              if (setCellLunchBreak(sevW.cell, 13*60, 13*60+30)) {
+                notes.push('Pausa Severin ' + dayNames[day] + ': 13:00–13:30 (copertura 12:30–13:00).');
+              }
+            } else {
+              sevW.cell.mOut = '13:00';
+              sevW.cell.pIn = '13:30';
+              notes.push('Pausa Severin ' + dayNames[day] + ': 13:00–13:30 (copertura 12:30–13:00).');
+            }
+          }
+        }
+      }
+
+      // 2) Assegna pause preferite se generate e non manuali
+      workers.forEach(function(w) {
+        if (isSev(w.id)) return;
+        if (w.cell.manualEdit) return;
+        if (!(w.cell.generated || w.cell.movedByEngine)) return;
+        let bStart, bEnd;
+        if (isDav(w.id) || isCar(w.id)) {
+          bStart = 12*60; bEnd = 13*60;
+        } else if (isPop(w.id)) {
+          bStart = 13*60; bEnd = 14*60;
+        } else {
+          return;
+        }
+        if (typeof setCellLunchBreak === 'function') {
+          setCellLunchBreak(w.cell, bStart, bEnd);
+        } else if (w.cell.mIn && w.cell.pOut) {
+          w.cell.mOut = minToTime(bStart);
+          w.cell.pIn = minToTime(bEnd);
+        }
+      });
+
+      // 3) Verifica finale slot: se ancora < 2, prova a spostare una pausa non-Severin
+      slots.forEach(function(t) {
+        let cnt = workers.filter(function(w) { return presentAt(cellAt(week, w.id, day), t + 1); }).length;
+        if (cnt >= 2) return;
+        // Trova qualcuno in pausa in questo slot e spostane la pausa
+        for (let wi = 0; wi < workers.length; wi++) {
+          const w = workers[wi];
+          const c = cellAt(week, w.id, day);
+          if (!c || c.manualEdit || isSev(w.id)) continue;
+          if (presentAt(c, t + 1)) continue; // già presente
+          // è in pausa se mOut <= t < pIn
+          const mOut = c.mOut ? timeToMin(c.mOut) : null;
+          const pIn = c.pIn ? timeToMin(c.pIn) : null;
+          if (mOut == null || pIn == null) continue;
+          if (!(mOut <= t && t < pIn)) continue;
+          // Sposta pausa: se era 12-13 → prova 13-14; se 13-14 → prova 12-13
+          let ns, ne;
+          if (mOut <= 12*60) { ns = 13*60; ne = 14*60; }
+          else { ns = 12*60; ne = 13*60; }
+          if (typeof setCellLunchBreak === 'function' && setCellLunchBreak(c, ns, ne)) {
+            notes.push('Pausa ' + workerName(w.id) + ' ' + dayNames[day] + ': spostata per copertura ' + minToTime(t) + '.');
+            break;
+          }
+        }
+      });
+
+      // Annota copertura pranzo
+      const summary = slots.map(function(t) {
+        const n = workers.filter(function(w) { return presentAt(cellAt(week, w.id, day), t + 1); }).length;
+        return minToTime(t) + '=' + n;
+      }).join(' · ');
+      if (slots.some(function(t) {
+        return workers.filter(function(w) { return presentAt(cellAt(week, w.id, day), t + 1); }).length < 2;
+      })) {
+        notes.push('⚠ Pranzo ufficio ' + dayNames[day] + ': ' + summary + ' (obiettivo ≥2 per slot).');
+      }
+    }
+    return notes;
+  }
+
+
   function generateAutoProposal(){
     // exposed below
     // Percorso robusto: prima costruiamo sempre la proposta base M1-M45.
@@ -10111,6 +10318,12 @@ function minLunchBreakMinutes(wId) {
         const ocNotes = rebalanceOfficeOpenClose(proposal.week);
         if (ocNotes && ocNotes.length) proposal.notes = [...(proposal.notes || []), ...ocNotes];
       } catch (ocErr) { console.warn('Rebalance open/close:', ocErr); }
+
+      // Anomalie chiusura: se troppi in apertura e pochi in chiusura (es. assenza)
+      try {
+        const closeNotes = ensureOfficeCloseCoverage(proposal.week);
+        if (closeNotes && closeNotes.length) proposal.notes = [...(proposal.notes || []), ...closeNotes];
+      } catch (clErr) { console.warn('Ensure close:', clErr); }
 
       // Bilanciamento pause pranzo ufficio (Davide/Caregnato/Poppa/Severin)
       try {
@@ -10446,6 +10659,7 @@ function minLunchBreakMinutes(wId) {
       return;
     }
     try { rebalanceOfficeOpenClose(p.week); } catch (e) {}
+    try { ensureOfficeCloseCoverage(p.week); } catch (e) {}
     try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
 
     const blocking = validateProposalBeforeApply(p);
