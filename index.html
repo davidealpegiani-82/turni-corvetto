@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.3.8</title>
+  <title>Turni Corvetto v8.3.9</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.3.8';
+    const APP_VERSION = '8.3.9';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1693,7 +1693,7 @@
     }
 
   
-    /* v8.3.8 top-nav mobile-safe */
+    /* v8.3.9 top-nav mobile-safe */
     .top-nav {
       position: sticky; top: 0; z-index: 40;
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1811,7 +1811,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.8</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong>v8.3.9</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1829,7 +1829,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small>CORVETTO · v8.3.8</small>
+          <small>CORVETTO · v8.3.9</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2096,7 +2096,7 @@
       <button type="button" class="alt" onclick="exportBackupJSON()">💾 Backup file</button>
     </div>
     <p style="margin-top:14px;font-size:12px;color:var(--text-muted);">Team, regole, backup e diagnostica. Esporta è in Tabella; Guida è nella barra in alto.</p>
-    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.8 — Turni Corvetto</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--text-muted);">v8.3.9 — Turni Corvetto</p>
   </div>
 </div>
 
@@ -6034,7 +6034,7 @@ function annotateEventOnWeek(e,weekKey){
    * Se l'impegno non rientra nel nastro, le ore extra restano (calcHours le unisce).
    */
   function absorbEventsIntoShift(cell, wId, dateObj) {
-    // POLICY (v8.3.8):
+    // POLICY (v8.3.9):
     // - Impegno FUORI dall'orario di lavoro → solo straordinario (niente modifica orari).
     // - Impegno DENTRO/sovrapposto al turno → blocca copertura filiale; non allungare la fine turno.
     // - Sposta la pausa SOLO se l'impegno interseca la fascia pranzo e lo slot è tra quelli ammessi.
@@ -9771,7 +9771,123 @@ function minLunchBreakMinutes(wId) {
    * Con 3 disponibili (1h): scagliona 12:00 / 12:30 / 13:00.
    * Severin: solo 30' alle 12:30–13:00 o 13:00–13:30.
    */
-  function balanceOfficeLunchCoverage(week) {
+  
+  /**
+   * Ufficio: max 2 in chiusura (fino 17:30), min 2 se possibile.
+   * Se la chiusura è coperta, preferisci più persone in apertura.
+   * Severin: preferito lasciarlo; non toccare celle manualEdit.
+   */
+  function rebalanceOfficeOpenClose(week) {
+    if (!week) return [];
+    const notes = [];
+    const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+    const pool = (typeof getOfficeLunchPoolIds === 'function')
+      ? getOfficeLunchPoolIds()
+      : (appData.workers || []).filter(function(w) {
+          if (w.selected === false) return false;
+          return /alpegiani|caregnato|poppa|severin/i.test(w.name || '');
+        }).map(function(w) { return w.id; });
+
+    const OPEN_SHIFT = { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '14:30' }; // tipico apertura ~7h
+    const OPEN_SHIFT_8 = { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '15:30' };
+    const CLOSE_SHIFT = { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
+
+    function coversClose(cell) {
+      if (!cell || isHardUnavailableCell(cell)) return false;
+      const end = cell.pOut ? timeToMin(cell.pOut) : (cell.mOut ? timeToMin(cell.mOut) : 0);
+      return end >= timeToMin('17:00');
+    }
+    function coversOpen(cell) {
+      if (!cell || isHardUnavailableCell(cell)) return false;
+      const start = cell.mIn ? timeToMin(cell.mIn) : 99*60;
+      return start <= timeToMin('07:00');
+    }
+    function isSev(id) {
+      if (typeof isSeverinWorker === 'function' && isSeverinWorker(id)) return true;
+      return /severin/i.test(workerName(id) || '');
+    }
+    function nastroFor(id, day) {
+      try {
+        return getNastroHoursForDay(id, day, getWeekKey(currentDate)) || 8;
+      } catch (e) { return 8; }
+    }
+
+    for (let day = 0; day <= 4; day++) {
+      const present = [];
+      pool.forEach(function(id) {
+        const c = cellAt(week, id, day);
+        if (!c || isHardUnavailableCell(c)) return;
+        if (!c.mIn && !c.pIn) return;
+        present.push(id);
+      });
+      if (present.length < 2) continue;
+
+      let closers = present.filter(function(id) { return coversClose(cellAt(week, id, day)); });
+      let openers = present.filter(function(id) { return coversOpen(cellAt(week, id, day)); });
+
+      // Troppi in chiusura (>2): sposta i meno prioritari in apertura
+      if (closers.length > 2) {
+        // Priorità a restare in chiusura: Severin, poi chi già chiudeva, evita Davide se sabatista/7h
+        const ranked = closers.slice().sort(function(a, b) {
+          // higher = more likely to MOVE away from close
+          function moveScore(id) {
+            if (isSev(id)) return -10; // keep Severin
+            if (/alpegiani/i.test(workerName(id) || '')) return 5;
+            if (cellAt(week, id, day).manualEdit) return -20;
+            return 0;
+          }
+          return moveScore(b) - moveScore(a);
+        });
+        while (closers.length > 2 && ranked.length) {
+          const id = ranked.shift();
+          const cell = cellAt(week, id, day);
+          if (!cell || cell.manualEdit) continue;
+          if (isSev(id)) continue; // non spostare Severin
+          const nastro = nastroFor(id, day);
+          const target = nastro <= 7.1 ? Object.assign({}, OPEN_SHIFT) : Object.assign({}, OPEN_SHIFT_8);
+          const prev = JSON.stringify({ mIn: cell.mIn, mOut: cell.mOut, pIn: cell.pIn, pOut: cell.pOut });
+          cell.mIn = target.mIn; cell.mOut = target.mOut; cell.pIn = target.pIn; cell.pOut = target.pOut;
+          cell.movedByEngine = true;
+          closers = present.filter(function(x) { return coversClose(cellAt(week, x, day)); });
+          if (JSON.stringify({ mIn: cell.mIn, mOut: cell.mOut, pIn: cell.pIn, pOut: cell.pOut }) !== prev) {
+            notes.push('Ufficio ' + dayNames[day] + ': ' + workerName(id) + ' spostato in apertura (max 2 in chiusura).');
+          }
+        }
+      }
+
+      // Pochi in chiusura (<2): promuovi qualcuno dall'apertura
+      closers = present.filter(function(id) { return coversClose(cellAt(week, id, day)); });
+      if (closers.length < 2) {
+        const candidates = present.filter(function(id) {
+          const c = cellAt(week, id, day);
+          if (!c || c.manualEdit) return false;
+          if (coversClose(c)) return false;
+          if (isSev(id)) return false; // Severin gestito a parte se serve
+          return true;
+        }).sort(function(a, b) {
+          // preferisci Poppa/Caregnato per chiusura rispetto a Davide
+          function pref(id) {
+            if (/poppa|caregnato/i.test(workerName(id) || '')) return 0;
+            return 1;
+          }
+          return pref(a) - pref(b);
+        });
+        while (closers.length < 2 && candidates.length) {
+          const id = candidates.shift();
+          const cell = cellAt(week, id, day);
+          if (!cell) continue;
+          cell.mIn = CLOSE_SHIFT.mIn; cell.mOut = CLOSE_SHIFT.mOut;
+          cell.pIn = CLOSE_SHIFT.pIn; cell.pOut = CLOSE_SHIFT.pOut;
+          cell.movedByEngine = true;
+          closers = present.filter(function(x) { return coversClose(cellAt(week, x, day)); });
+          notes.push('Ufficio ' + dayNames[day] + ': ' + workerName(id) + ' spostato in chiusura (min 2).');
+        }
+      }
+    }
+    return notes;
+  }
+
+function balanceOfficeLunchCoverage(week) {
     if (!week) return [];
     const notes = [];
     const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
@@ -10003,6 +10119,12 @@ function minLunchBreakMinutes(wId) {
           appData.workers.forEach(worker=>{ if(worker.selected===false)return; const h=hoursForWeekProposal(w,worker.id); proposal.hoursSummary.push({id:worker.id,name:worker.name,hours:h}); if(h>40.01) proposal.overtime.push(`${worker.name}: ${h.toFixed(1)}h (+${(h-40).toFixed(1)}h)`); });
         }
       } catch(balanceErr) { console.warn('Controllo finale bilanciamento ufficio:', balanceErr); }
+
+      // Apertura/chiusura ufficio: max 2 in chiusura, preferenza apertura se chiusura ok
+      try {
+        const ocNotes = rebalanceOfficeOpenClose(proposal.week);
+        if (ocNotes && ocNotes.length) proposal.notes = [...(proposal.notes || []), ...ocNotes];
+      } catch (ocErr) { console.warn('Rebalance open/close:', ocErr); }
 
       // Bilanciamento pause pranzo ufficio (Davide/Caregnato/Poppa/Severin)
       try {
@@ -10315,6 +10437,7 @@ function minLunchBreakMinutes(wId) {
       showToast('Nessuna proposta da applicare', 'error');
       return;
     }
+    try { rebalanceOfficeOpenClose(p.week); } catch (e) {}
     try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
 
     const blocking = validateProposalBeforeApply(p);
@@ -11003,51 +11126,45 @@ function minLunchBreakMinutes(wId) {
           }
         },
         didDrawCell: function(data) {
-          // Ridisegna celle con impegni: orario lavoro (nero, 1 riga) + impegni (blu)
+          // Celle con impegni: contenuto centrato (orizz. + vert.), lavoro nero, impegni blu
           if (data.section !== 'body' || data.column.index === 0) return;
           const rowObj = matrixData.rows[data.row.index];
           const cellObj = rowObj && rowObj[data.column.index];
           if (!cellObj || !cellObj.eventLines || !cellObj.eventLines.length) return;
           const workLine = cellObj.workLine || '';
-          const evs = cellObj.eventLines;
-          // Pulisci testo autoTable e ridisegna
+          const evs = cellObj.eventLines || [];
           const doc = data.doc;
-          const x = data.cell.x + 1.2;
-          let y = data.cell.y + 3.2;
           const maxW = data.cell.width - 2.4;
-          doc.setFillColor(255, 255, 255);
-          if (cellObj.rawData && cellObj.rawData.status && cellObj.rawData.status !== 'LAVORO' && !isRestStatus(cellObj.rawData.status)) {
-            // lascia sfondo status già impostato
+          const cx = data.cell.x + data.cell.width / 2;
+          const lineH = 3.3;
+          const nLines = (workLine ? 1 : 0) + evs.length;
+          const blockH = nLines * lineH;
+          let y = data.cell.y + (data.cell.height - blockH) / 2 + 2.4;
+
+          // sfondo
+          if (Array.isArray(data.cell.styles.fillColor)) {
+            doc.setFillColor.apply(doc, data.cell.styles.fillColor);
           } else {
-            doc.setFillColor(data.cell.styles.fillColor || [255,255,255]);
-            if (Array.isArray(data.cell.styles.fillColor)) {
-              doc.setFillColor.apply(doc, data.cell.styles.fillColor);
-            }
-            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-            // ridisegna bordo
-            doc.setDrawColor(180);
-            doc.setLineWidth(0.15);
-            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+            doc.setFillColor(255, 255, 255);
           }
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          doc.setDrawColor(200);
+          doc.setLineWidth(0.12);
+          doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
+
           if (workLine) {
-            doc.setFontSize(Math.max(5.5, (cfg.cellTime || cfg.font) - 0.5));
+            doc.setFontSize(Math.max(5.5, (cfg.cellTime || cfg.font) - 0.3));
             doc.setTextColor(15, 23, 42);
             doc.setFont(undefined, 'bold');
-            const wl = doc.splitTextToSize(workLine, maxW);
-            // preferisci 1 riga: se wrap, riduci font
-            if (wl.length > 1) {
-              doc.setFontSize(Math.max(5, (cfg.cellTime || cfg.font) - 1.5));
-            }
-            doc.text(workLine, x + data.cell.width/2 - 1.2, y, { align: 'center', maxWidth: maxW });
-            y += 3.6;
+            doc.text(workLine, cx, y, { align: 'center', maxWidth: maxW });
+            y += lineH;
           }
           doc.setFont(undefined, 'normal');
-          doc.setFontSize(Math.max(5, (cfg.cellNote || 6) - 0.3));
-          doc.setTextColor(37, 99, 235); // blu
+          doc.setFontSize(Math.max(5, (cfg.cellNote || 6) - 0.2));
+          doc.setTextColor(37, 99, 235);
           evs.forEach(function(line) {
-            const t = '* ' + line;
-            doc.text(t, x + data.cell.width/2 - 1.2, y, { align: 'center', maxWidth: maxW });
-            y += 3.2;
+            doc.text('* ' + line, cx, y, { align: 'center', maxWidth: maxW });
+            y += lineH;
           });
         }
       });
