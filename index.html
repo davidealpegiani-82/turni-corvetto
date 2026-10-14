@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.6.0</title>
+  <title>Turni Corvetto v8.6.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.6.0';
+    const APP_VERSION = '8.6.1';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -5907,11 +5907,36 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.6.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
+        // Nuovo SW in attesa → attiva subito
+        if (reg.waiting) {
+          try { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
+        }
+        reg.addEventListener('updatefound', function() {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('Nuova versione pronta');
+            }
+          });
+        });
       }).catch(function(err) {
         console.warn('SW register fail', err);
+      });
+      // Ricarica quando il nuovo SW prende controllo
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+      navigator.serviceWorker.addEventListener('message', function(ev) {
+        if (ev.data && ev.data.type === 'SW_UPDATED') {
+          console.log('SW_UPDATED', ev.data.version);
+        }
       });
     } catch (e) {
       console.warn(e);

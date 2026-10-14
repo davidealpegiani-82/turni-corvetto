@@ -1,11 +1,8 @@
-/* Turni Corvetto PWA SW v8.2.1 — GitHub Pages compatible */
-const CACHE_CORE = 'corvetto-core-v8.2.1';
-const CACHE_CDN = 'corvetto-cdn-v8.2.1';
+/* Turni Corvetto PWA SW v8.6.1 — force update */
+const CACHE_CORE = 'corvetto-core-v8.6.1';
+const CACHE_CDN = 'corvetto-cdn-v8.6.1';
 
-// Relative paths work under /turni-corvetto/ on GitHub Pages
 const CORE_ASSETS = [
-  './',
-  './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png'
@@ -29,7 +26,7 @@ self.addEventListener('install', (event) => {
     for (const url of CDN_ASSETS) {
       try { await cdn.add(url); } catch (err) { console.warn('cdn skip', url); }
     }
-    self.skipWaiting();
+    await self.skipWaiting();
   })());
 });
 
@@ -40,6 +37,9 @@ self.addEventListener('activate', (event) => {
       if (k !== CACHE_CORE && k !== CACHE_CDN) return caches.delete(k);
     }));
     await self.clients.claim();
+    // Avvisa le pagine aperte di ricaricare
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: '8.6.1' }));
   })());
 });
 
@@ -48,7 +48,22 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // CDN: cache-first
+  // HTML / navigazione: SEMPRE network-first, non usare cache se la rete risponde
+  const isHTML = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/') ||
+    (req.headers.get('accept') || '').includes('text/html');
+  if (url.origin === self.location.origin && isHTML) {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(req, { cache: 'no-store' });
+        return res;
+      } catch (e) {
+        const cache = await caches.open(CACHE_CORE);
+        return (await cache.match('./index.html')) || (await cache.match('./')) || Response.error();
+      }
+    })());
+    return;
+  }
+
   if (CDN_ASSETS.some((u) => req.url.startsWith(u.split('?')[0]) || req.url.includes('cdnjs.cloudflare.com') || req.url.includes('gstatic.com/firebasejs'))) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_CDN);
@@ -65,12 +80,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Same-origin: network-first, fallback cache
   if (url.origin === self.location.origin) {
     event.respondWith((async () => {
       try {
         const res = await fetch(req);
-        if (res && res.ok) {
+        if (res && res.ok && !url.pathname.endsWith('sw.js')) {
           const cache = await caches.open(CACHE_CORE);
           cache.put(req, res.clone());
         }
@@ -78,11 +92,7 @@ self.addEventListener('fetch', (event) => {
       } catch (e) {
         const cache = await caches.open(CACHE_CORE);
         const hit = await cache.match(req);
-        if (hit) return hit;
-        if (req.mode === 'navigate') {
-          return (await cache.match('./index.html')) || (await cache.match('./')) || Response.error();
-        }
-        return Response.error();
+        return hit || Response.error();
       }
     })());
   }
