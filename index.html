@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.7</title>
+  <title>Turni Corvetto v8.7.8</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.7';
+    const APP_VERSION = '8.7.8';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1865,7 +1865,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.7</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.8</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1883,7 +1883,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.7</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.8</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4310,7 +4310,7 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
       || (!!leaveReq && leaveReq.mode === 'range')
       || (leaveTipo.includes('donazione') && !d.mIn && !d.pIn)
       || (leaveTipo.includes('donazione') && !!d.leaveFullDay);
-    const isPartialLeave = !!leaveReq && !isFullLeave && ['ROL','FERIE','MALATTIA','ASSENTE','EVENTO'].includes(status) && !!(d.mIn || d.pIn);
+    const isPartialLeave = !isFullLeave && ( (!!leaveReq && leaveReq.fullDay !== true && leaveReq.mode !== 'range' && !!(leaveReq.fromTime || leaveReq.toTime || d.rolFrom)) || !!(d.rolFrom && d.rolTo) || (['ROL','PERMESSO'].includes(status) && !!(d.mIn || d.pIn || d.rolFrom)) );
     let label = leaveDisplayLabel(d, leaveReq) || status || '';
     const medical = status === 'MALATTIA' || String(d.leaveType || '').toLowerCase() === 'malattia' || String(d.leaveType || '').toLowerCase() === 'ricovero' || /^(Malattia|Ricovero)$/i.test(label);
     if (medical && (!label || label === 'MALATTIA' || label === '—')) label = d.leaveType || leaveReq?.tipo || 'Malattia';
@@ -4409,8 +4409,49 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     }
   }
 
-  function renderWeek() {
+  
+  function repairPartialLeaveWorkHours(weekKey) {
+    if (!weekKey || !appData.weeks || !appData.weeks[weekKey]) return;
+    const week = appData.weeks[weekKey];
+    let changed = false;
+    Object.keys(week).forEach(function(wid) {
+      const days = week[wid];
+      if (!days) return;
+      for (let day = 0; day <= 5; day++) {
+        const c = days[day];
+        if (!c) continue;
+        const hasLeave = !!(c.rolFrom && c.rolTo) || (c.leaveRequestId && c.leaveFullDay === false);
+        if (!hasLeave) continue;
+        if (c.leaveFullDay) continue;
+        const st = String(c.status || '').toUpperCase();
+        if (st === 'FERIE' && c.leaveFullDay) continue;
+        // Se non ci sono ore lavoro utili, ricostruisci e scrivi in cella
+        const info = workHoursAfterPartialLeave(wid, day, c, findLeaveRequestForCell(wid, null, c));
+        if (info && info.split && (info.split.mIn || info.split.pIn)) {
+          const before = [c.mIn,c.mOut,c.pIn,c.pOut].join('|');
+          const after = [info.split.mIn,info.split.mOut,info.split.pIn,info.split.pOut].join('|');
+          if (before !== after && !(c.mIn && c.mOut && !info.leaveFrom)) {
+            // Scrivi solo se cella senza lavoro o lavoro = solo permesso
+            const onlyLeave = c.mIn && c.rolFrom && Math.abs(timeToMin(c.mIn) - timeToMin(c.rolFrom)) < 5;
+            if (!c.mIn || onlyLeave || !(c.mIn || c.pIn)) {
+              c.mIn = info.split.mIn || '';
+              c.mOut = info.split.mOut || '';
+              c.pIn = info.split.pIn || '';
+              c.pOut = info.split.pOut || '';
+              changed = true;
+            }
+          }
+        }
+      }
+    });
+    if (changed) {
+      try { if (typeof scheduleSave === 'function') scheduleSave(); else if (typeof saveLocal === 'function') saveLocal(); } catch (e) {}
+    }
+  }
+
+function renderWeek() {
     currentWeekKey = getWeekKey(currentDate);
+    try { if (typeof repairPartialLeaveWorkHours === 'function') repairPartialLeaveWorkHours(currentWeekKey); } catch (eRep) {}
     try { if (typeof refreshCoverageBlocksForWeek === "function") refreshCoverageBlocksForWeek(currentWeekKey); } catch (e) {}
     document.getElementById('weekLabel').innerText = getWeekDisplayLabel(currentDate);
 
@@ -5991,7 +6032,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.7', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.8', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -12554,49 +12595,72 @@ function minLunchBreakMinutes(wId) {
   }
 
   function workHoursAfterPartialLeave(workerId, dayIdx, dayData, leaveReq) {
-    // Restituisce { workLine, leaveFrom, leaveTo, leaveLab } per UI/PDF.
     const d = dayData || {};
     const leaveLab = (typeof leaveDisplayLabel === 'function')
       ? (leaveDisplayLabel(d, leaveReq) || d.leaveType || 'Permesso')
       : (d.leaveType || 'Permesso');
     let leaveFrom = d.rolFrom || (leaveReq && (leaveReq.fromTime || leaveReq.from)) || '';
     let leaveTo = d.rolTo || (leaveReq && (leaveReq.toTime || leaveReq.to)) || '';
-    // Fallback: orari nella nota "13:30-17:30"
     if ((!leaveFrom || !leaveTo) && d.note) {
       const m = String(d.note).match(/(\d{1,2}:\d{2})\s*[–\-]\s*(\d{1,2}:\d{2})/);
-      if (m) { leaveFrom = m[1]; leaveTo = m[2]; }
+      if (m) { leaveFrom = m[1].length === 4 ? '0'+m[1] : m[1]; leaveTo = m[2].length === 4 ? '0'+m[2] : m[2]; }
     }
+    // Normalizza HH:MM
+    function norm(t) {
+      if (!t) return '';
+      const p = String(t).trim().match(/(\d{1,2}):(\d{2})/);
+      if (!p) return '';
+      return String(p[1]).padStart(2,'0') + ':' + p[2];
+    }
+    leaveFrom = norm(leaveFrom); leaveTo = norm(leaveTo);
     const leaveA = leaveFrom ? timeToMin(leaveFrom) : null;
     const leaveB = leaveTo ? timeToMin(leaveTo) : null;
 
     function isExactLeaveBlock(a, b) {
-      return leaveA != null && leaveB != null && Math.abs(a - leaveA) < 3 && Math.abs(b - leaveB) < 3;
+      return leaveA != null && leaveB != null && Math.abs(a - leaveA) < 5 && Math.abs(b - leaveB) < 5;
     }
 
-    // Candidati lavoro dalla cella (escludi blocco = permesso)
+    // 1) Prova orari già in cella (se non sono solo il permesso)
     let base = { mIn: '', mOut: '', pIn: '', pOut: '' };
-    let hasCellWork = false;
+    let hasWork = false;
     if (d.mIn && d.mOut && !isExactLeaveBlock(timeToMin(d.mIn), timeToMin(d.mOut))) {
-      base.mIn = d.mIn; base.mOut = d.mOut; hasCellWork = true;
+      base.mIn = norm(d.mIn); base.mOut = norm(d.mOut); hasWork = true;
     }
     if (d.pIn && d.pOut && !isExactLeaveBlock(timeToMin(d.pIn), timeToMin(d.pOut))) {
-      base.pIn = d.pIn; base.pOut = d.pOut; hasCellWork = true;
+      base.pIn = norm(d.pIn); base.pOut = norm(d.pOut); hasWork = true;
     }
 
-    // Se non c'è lavoro in cella, usa template ruolo
-    if (!hasCellWork && typeof baselineShiftForWorkerDay === 'function') {
-      base = baselineShiftForWorkerDay(workerId, dayIdx, d);
+    // 2) Template ruolo se manca lavoro
+    if (!hasWork) {
+      if (typeof baselineShiftForWorkerDay === 'function') {
+        base = baselineShiftForWorkerDay(workerId, dayIdx, d);
+      } else {
+        // Fallback fisso magazzino/ufficio 8h
+        base = { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
+      }
+      // Se baseline torna vuoto, forza template
+      if (!(base.mIn || base.pIn)) {
+        base = { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30' };
+      }
     }
 
-    // Sottrai fascia permesso
-    let split = base;
+    // 3) Sottrai permesso
+    let split = { mIn: base.mIn || '', mOut: base.mOut || '', pIn: base.pIn || '', pOut: base.pOut || '' };
     if (leaveA != null && leaveB != null && leaveB > leaveA && typeof subtractIntervalFromShiftV47 === 'function') {
-      split = subtractIntervalFromShiftV47(base, leaveA, leaveB);
+      split = subtractIntervalFromShiftV47(split, leaveA, leaveB);
     }
 
     const bits = [];
-    if (split.mIn && split.mOut && split.mIn !== split.mOut) bits.push(split.mIn + '-' + split.mOut);
-    if (split.pIn && split.pOut && split.pIn !== split.pOut) bits.push(split.pIn + '-' + split.pOut);
+    if (split.mIn && split.mOut && timeToMin(split.mOut) > timeToMin(split.mIn)) {
+      bits.push(norm(split.mIn) + '-' + norm(split.mOut));
+    }
+    if (split.pIn && split.pOut && timeToMin(split.pOut) > timeToMin(split.pIn)) {
+      bits.push(norm(split.pIn) + '-' + norm(split.pOut));
+    }
+    // 4) Ultimo fallback: se ancora vuoto ma c'è permesso pomeridiano, mostra mattina standard
+    if (!bits.length && leaveA != null && leaveA >= timeToMin('12:00')) {
+      bits.push('08:30-13:00');
+    }
     return {
       workLine: bits.join(' · '),
       leaveFrom: leaveFrom,
@@ -12605,6 +12669,7 @@ function minLunchBreakMinutes(wId) {
       split: split
     };
   }
+
 
   function baselineShiftForWorkerDay(workerId, dayIdx, existing) {
     // Turno di riferimento per permesso parziale: usa orari già in cella se validi,
