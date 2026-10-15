@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.2</title>
+  <title>Turni Corvetto v8.9.3</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.2';
+    const APP_VERSION = '8.9.3';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.9.2</small>
+          <small id="appVersionLabel">CORVETTO · v8.9.3</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.2', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.3', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -10790,16 +10790,21 @@ function minLunchBreakMinutes(wId) {
 
   function extractJsonFromAiText(text) {
     if (!text) return null;
-    const t = String(text).trim();
-    try { return JSON.parse(t); } catch (e) {}
+    let t = String(text).trim();
     const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fence) {
-      try { return JSON.parse(fence[1].trim()); } catch (e2) {}
-    }
-    const start = t.indexOf('{');
-    const end = t.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try { return JSON.parse(t.slice(start, end + 1)); } catch (e3) {}
+    if (fence) t = fence[1].trim();
+    const tryParse = function(s) {
+      try { return JSON.parse(s); } catch (e) {
+        try { return JSON.parse(s.replace(/,\s*([}\]])/g, '$1')); } catch (e2) { return null; }
+      }
+    };
+    let r = tryParse(t);
+    if (r) return r;
+    const a = t.indexOf('{');
+    const b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) {
+      r = tryParse(t.slice(a, b + 1));
+      if (r) return r;
     }
     return null;
   }

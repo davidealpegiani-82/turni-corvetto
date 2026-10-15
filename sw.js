@@ -1,6 +1,6 @@
 /* Turni Corvetto PWA SW v8.7.0 — force update */
-const CACHE_CORE = 'corvetto-core-v8.9.2';
-const CACHE_CDN = 'corvetto-cdn-v8.9.2';
+const CACHE_CORE = 'corvetto-core-v8.9.3';
+const CACHE_CDN = 'corvetto-cdn-v8.9.3';
 
 const CORE_ASSETS = [
   './manifest.webmanifest',
@@ -39,7 +39,7 @@ self.addEventListener('activate', (event) => {
     await self.clients.claim();
     // Avvisa le pagine aperte di ricaricare
     const clients = await self.clients.matchAll({ type: 'window' });
-    clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: '8.9.2' }));
+    clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: '8.9.3' }));
   })());
 });
 
