@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.10</title>
+  <title>Turni Corvetto v8.8.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,8 +38,9 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.10';
+    const APP_VERSION = '8.8.0';
   const APP_CHANGELOG = [
+    '8.8.0 — Assistente AI nel report proposta (modifiche in linguaggio naturale)',
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
     '8.0.0 — Hybrid UI Turni Manager + motore Corvetto',
@@ -1867,7 +1868,17 @@
     .header .app-title-area { display: none !important; }
     .header .header-top { justify-content: flex-end; }
     .header { padding: 10px 14px !important; margin-bottom: 10px; }
-  </style>
+  
+    body:not(.light-theme) #proposalAiSection {
+      background: linear-gradient(135deg,#1e1b4b 0%,#0f172a 100%) !important;
+      border-color: #818cf8 !important;
+    }
+    body:not(.light-theme) #proposalAiSection h4 { color: #c7d2fe !important; }
+    body:not(.light-theme) #proposalAiSection p { color: #cbd5e1 !important; }
+    body:not(.light-theme) #proposalAiInput {
+      background: #1e293b; color: #f8fafc; border-color: #475569;
+    }
+</style>
 </head>
 <body>
 
@@ -1889,7 +1900,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.10</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.8.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1907,7 +1918,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.10</small>
+          <small id="appVersionLabel">CORVETTO · v8.8.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2307,6 +2318,29 @@
     <div class="proposal-section" id="proposalLogSection" style="display:none;">
       <h4>Log decisioni motore</h4>
       <div class="proposal-list" id="proposalLog"></div>
+    </div>
+    <div class="proposal-section" id="proposalAiSection" style="margin-top:14px;border:2px solid #6366f1;border-radius:14px;padding:12px 14px;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);">
+      <h4 style="margin:0 0 8px;color:#3730a3;display:flex;align-items:center;gap:8px;">🤖 Assistente AI proposta</h4>
+      <p style="font-size:11px;color:#475569;margin:0 0 10px;line-height:1.4;">Descrivi anomalie o modifiche in italiano. L'AI aggiorna la <strong>bozza</strong> della proposta; tu controlli e poi premi «Applica proposta».</p>
+      <div id="proposalAiChat" style="max-height:160px;overflow-y:auto;margin-bottom:8px;font-size:12px;line-height:1.45;"></div>
+      <textarea id="proposalAiInput" rows="3" placeholder="Es. Martedì sposta Andrea in chiusura; in apertura magazzino scegli Pino; non toccare Severin…" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #c7d2fe;padding:10px;font-size:13px;resize:vertical;min-height:72px;"></textarea>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center;">
+        <button type="button" class="success" id="btnProposalAiSend" onclick="sendProposalAiMessage()" style="background:#4f46e5!important;">Invia all'AI</button>
+        <button type="button" class="alt" onclick="toggleProposalAiSettings()" style="font-size:12px;">⚙️ API</button>
+        <span id="proposalAiStatus" style="font-size:11px;color:#64748b;"></span>
+      </div>
+      <div id="proposalAiSettings" style="display:none;margin-top:10px;padding:10px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;font-size:12px;">
+        <label style="display:block;margin-bottom:6px;font-weight:700;">Chiave API (xAI / OpenAI-compatible)</label>
+        <input type="password" id="aiApiKey" placeholder="xai-… oppure sk-…" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;" autocomplete="off"/>
+        <label style="display:block;margin-bottom:6px;font-weight:700;">Endpoint base</label>
+        <input type="text" id="aiApiBase" placeholder="https://api.x.ai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+        <label style="display:block;margin-bottom:6px;font-weight:700;">Modello</label>
+        <input type="text" id="aiApiModel" placeholder="grok-3-mini" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+        <label style="display:block;margin-bottom:6px;font-weight:700;">Proxy CORS (opzionale)</label>
+        <input type="text" id="aiApiProxy" placeholder="https://tuo-proxy.example/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+        <p style="margin:0 0 8px;color:#64748b;font-size:11px;line-height:1.35;">Chiave salvata solo su questo dispositivo. Per xAI: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>. Se il browser blocca la chiamata (CORS), indica un proxy OpenAI-compatible.</p>
+        <button type="button" class="alt" onclick="saveProposalAiSettings()">Salva impostazioni AI</button>
+      </div>
     </div>
     <div class="modal-actions" style="justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
       <button class="alt" onclick="closeModal('proposalModal')">Annulla</button>
@@ -6058,7 +6092,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.10', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.8.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -10605,6 +10639,314 @@ function minLunchBreakMinutes(wId) {
     if ((p.overtime || []).length) lines.push('Alcune persone superano le 40h (segnalato, non bloccato).');
     if (!(p.changes || []).length) lines.push('Nessuna modifica: la settimana rispetta gia le regole principali.');
     return lines;
+  }
+
+  
+  // ========== ASSISTENTE AI PROPOSTA ==========
+  const AI_SETTINGS_KEY = 'turni_corvetto_ai_settings_v1';
+
+  function loadProposalAiSettings() {
+    try {
+      const raw = localStorage.getItem(AI_SETTINGS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { apiKey: '', apiBase: 'https://api.x.ai/v1', model: 'grok-3-mini', proxy: '' };
+  }
+
+  function saveProposalAiSettings() {
+    const s = {
+      apiKey: (document.getElementById('aiApiKey') || {}).value || '',
+      apiBase: ((document.getElementById('aiApiBase') || {}).value || 'https://api.x.ai/v1').replace(/\/$/, ''),
+      model: (document.getElementById('aiApiModel') || {}).value || 'grok-3-mini',
+      proxy: ((document.getElementById('aiApiProxy') || {}).value || '').replace(/\/$/, '')
+    };
+    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(s));
+    showToast('Impostazioni AI salvate su questo dispositivo', 'success');
+    const box = document.getElementById('proposalAiSettings');
+    if (box) box.style.display = 'none';
+  }
+
+  function toggleProposalAiSettings() {
+    const box = document.getElementById('proposalAiSettings');
+    if (!box) return;
+    const open = box.style.display !== 'none' && box.style.display !== '';
+    if (!open) {
+      const s = loadProposalAiSettings();
+      const k = document.getElementById('aiApiKey'); if (k) k.value = s.apiKey || '';
+      const b = document.getElementById('aiApiBase'); if (b) b.value = s.apiBase || 'https://api.x.ai/v1';
+      const m = document.getElementById('aiApiModel'); if (m) m.value = s.model || 'grok-3-mini';
+      const p = document.getElementById('aiApiProxy'); if (p) p.value = s.proxy || '';
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  function appendProposalAiChat(role, text) {
+    const chat = document.getElementById('proposalAiChat');
+    if (!chat) return;
+    const div = document.createElement('div');
+    div.style.marginBottom = '8px';
+    div.style.padding = '8px 10px';
+    div.style.borderRadius = '10px';
+    div.style.background = role === 'user' ? '#e0e7ff' : '#f1f5f9';
+    div.style.color = '#0f172a';
+    const who = role === 'user' ? 'Tu' : 'Assistente';
+    div.innerHTML = '<strong style="font-size:11px;color:#4338ca;">' + who + '</strong><div style="margin-top:4px;white-space:pre-wrap;">' + escapeHtmlV47(text) + '</div>';
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function buildProposalAiContext(p) {
+    const weekKey = p.weekKey || currentWeekKey;
+    const workers = (appData.workers || []).map(function(w) {
+      return { id: w.id, name: w.name, role: w.role || w.ruolo || '' };
+    });
+    const days = [];
+    for (let day = 0; day <= 5; day++) {
+      const dayRows = [];
+      workers.forEach(function(w) {
+        const c = (p.week && p.week[w.id] && p.week[w.id][day]) || {};
+        if (!c || (!c.mIn && !c.status && !c.rolFrom)) return;
+        dayRows.push({
+          id: w.id,
+          name: w.name,
+          status: c.status || 'LAVORO',
+          mIn: c.mIn || '', mOut: c.mOut || '', pIn: c.pIn || '', pOut: c.pOut || '',
+          leaveType: c.leaveType || '',
+          rolFrom: c.rolFrom || '', rolTo: c.rolTo || '',
+          note: (c.note || '').slice(0, 80),
+          manualEdit: !!c.manualEdit
+        });
+      });
+      days.push({ dayIndex: day, dayName: ['Lun','Mar','Mer','Gio','Ven','Sab'][day], cells: dayRows });
+    }
+    const choices = (p.choices || []).map(function(c) {
+      return {
+        id: c.id,
+        label: c.label,
+        selected: c.selected,
+        options: (c.options || []).map(function(o) { return { id: o.id, name: o.name, hint: o.hint }; })
+      };
+    });
+    return {
+      weekKey: weekKey,
+      rulesHint: [
+        'Sabatista settimana → apertura 7h; ex-sabatista → apertura 8h; altri ufficio → chiusura 8h',
+        'Severin: orari fissi, solo pausa 30 min spostabile (12:30-13:00 o 13:00-13:30)',
+        'Pausa sabatista fissa 12-13; chiusura fissa 13-14',
+        'Non estendere i turni per gli impegni: gli impegni sono annotazioni',
+        'Celle manualEdit=true non vanno modificate',
+        'Assenze full-day e malattia non vanno sovrascritte'
+      ],
+      workers: workers,
+      days: days,
+      notes: (p.notes || []).slice(0, 40),
+      choices: choices,
+      changesCount: (p.changes || []).length
+    };
+  }
+
+  function extractJsonFromAiText(text) {
+    if (!text) return null;
+    const t = String(text).trim();
+    try { return JSON.parse(t); } catch (e) {}
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) {
+      try { return JSON.parse(fence[1].trim()); } catch (e2) {}
+    }
+    const start = t.indexOf('{');
+    const end = t.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try { return JSON.parse(t.slice(start, end + 1)); } catch (e3) {}
+    }
+    return null;
+  }
+
+  async function callProposalAiApi(userMessage, contextObj) {
+    const s = loadProposalAiSettings();
+    if (!s.apiKey) {
+      throw new Error('Configura la chiave API (pulsante ⚙️ API). Per Grok/xAI: console.x.ai');
+    }
+    const base = (s.proxy || s.apiBase || 'https://api.x.ai/v1').replace(/\/$/, '');
+    const url = base + '/chat/completions';
+    const system = [
+      'Sei l\'assistente AI dell\'app Gestione Turni Corvetto.',
+      'Modifichi SOLO la bozza proposta turni secondo le istruzioni dell\'utente.',
+      'Rispondi SEMPRE con un unico JSON valido (niente markdown fuori dal JSON) con questa forma:',
+      '{',
+      '  "summary": "riepilogo breve in italiano",',
+      '  "changes": [',
+      '    {"workerId":"id","day":0,"mIn":"08:30","mOut":"13:00","pIn":"14:00","pOut":"17:30","status":"LAVORO","reason":"..."}',
+      '  ],',
+      '  "choices": [{"choiceId":"mag-open-0","selected":"workerId oppure __leave__"}],',
+      '  "notes": ["nota opzionale"]',
+      '}',
+      'day: 0=Lun … 5=Sab. Usa workerId dal contesto. Non inventare id.',
+      'Non modificare manualEdit=true, ferie/malattia full-day, Severin salvo pausa.',
+      'Se non puoi soddisfare una richiesta, spiega in summary e leaves changes vuoto.',
+      'Contesto proposta:',
+      JSON.stringify(contextObj)
+    ].join('\n');
+
+    const body = {
+      model: s.model || 'grok-3-mini',
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage }
+      ]
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + s.apiKey
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(function() { return ''; });
+      throw new Error('API ' + resp.status + ': ' + (errText || resp.statusText).slice(0, 300));
+    }
+    const data = await resp.json();
+    const content = data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content
+      : '';
+    return content;
+  }
+
+  function applyAiPatchToProposal(patch) {
+    const p = window.pendingTurnProposal;
+    if (!p || !p.week || !patch) return { applied: 0, messages: ['Nessuna proposta'] };
+    let applied = 0;
+    const messages = [];
+
+    (patch.changes || []).forEach(function(ch) {
+      if (!ch) return;
+      let wid = ch.workerId;
+      if (!wid && ch.workerName) {
+        const w = (appData.workers || []).find(function(x) {
+          return String(x.name || '').toLowerCase().includes(String(ch.workerName).toLowerCase());
+        });
+        if (w) wid = w.id;
+      }
+      if (!wid || p.week[wid] == null) {
+        messages.push('Ignorato: worker non trovato (' + (ch.workerName || ch.workerId || '?') + ')');
+        return;
+      }
+      const day = Number(ch.day);
+      if (!(day >= 0 && day <= 5)) {
+        messages.push('Ignorato: giorno non valido');
+        return;
+      }
+      if (!p.week[wid][day]) p.week[wid][day] = {};
+      const cell = p.week[wid][day];
+      if (cell.manualEdit) {
+        messages.push('Saltato ' + workerName(wid) + ' giorno ' + day + ' (modifica manuale)');
+        return;
+      }
+      if (cell.leaveFullDay || ['FERIE','MALATTIA','RICOVERO'].includes(String(cell.status || '').toUpperCase())) {
+        messages.push('Saltato ' + workerName(wid) + ' giorno ' + day + ' (assenza intera)');
+        return;
+      }
+      if (ch.mIn != null) cell.mIn = ch.mIn;
+      if (ch.mOut != null) cell.mOut = ch.mOut;
+      if (ch.pIn != null) cell.pIn = ch.pIn;
+      if (ch.pOut != null) cell.pOut = ch.pOut;
+      if (ch.status) cell.status = ch.status;
+      cell.generated = true;
+      cell.movedByEngine = true;
+      applied++;
+      messages.push((ch.reason || 'OK') + ' → ' + workerName(wid) + ' d' + day);
+      (p.changes = p.changes || []).push({
+        workerId: wid,
+        day: day,
+        label: 'AI: ' + (ch.reason || 'modifica'),
+        after: [cell.mIn, cell.mOut, cell.pIn, cell.pOut].filter(Boolean).join(' | ')
+      });
+    });
+
+    (patch.choices || []).forEach(function(ch) {
+      if (!ch || !ch.choiceId) return;
+      const target = (p.choices || []).find(function(c) { return c.id === ch.choiceId; });
+      if (target) {
+        target.selected = ch.selected;
+        messages.push('Scelta ' + ch.choiceId + ' → ' + ch.selected);
+        applied++;
+      }
+    });
+
+    if (patch.notes && patch.notes.length) {
+      p.notes = [...(p.notes || []), ...patch.notes.map(function(n) { return 'AI: ' + n; })];
+    }
+    if (patch.summary) {
+      p.notes = [...(p.notes || []), 'AI: ' + patch.summary];
+    }
+
+    try {
+      if (typeof rebalanceOfficeOpenClose === 'function') rebalanceOfficeOpenClose(p.week);
+    } catch (e) {}
+    try {
+      if (typeof ensureOfficeCloseCoverage === 'function') ensureOfficeCloseCoverage(p.week);
+    } catch (e) {}
+    try {
+      if (typeof balanceOfficeLunchCoverage === 'function') balanceOfficeLunchCoverage(p.week);
+    } catch (e) {}
+
+    return { applied: applied, messages: messages };
+  }
+
+  async function sendProposalAiMessage() {
+    const input = document.getElementById('proposalAiInput');
+    const status = document.getElementById('proposalAiStatus');
+    const btn = document.getElementById('btnProposalAiSend');
+    const msg = (input && input.value || '').trim();
+    if (!msg) {
+      showToast('Scrivi cosa vuoi modificare', 'error');
+      return;
+    }
+    const p = window.pendingTurnProposal;
+    if (!p || !p.week) {
+      showToast('Nessuna proposta aperta', 'error');
+      return;
+    }
+    appendProposalAiChat('user', msg);
+    if (input) input.value = '';
+    if (status) status.textContent = 'L\'assistente sta pensando…';
+    if (btn) btn.disabled = true;
+
+    try {
+      const ctx = buildProposalAiContext(p);
+      const raw = await callProposalAiApi(msg, ctx);
+      const patch = extractJsonFromAiText(raw);
+      if (!patch) {
+        appendProposalAiChat('assistant', 'Non sono riuscito a interpretare la risposta. Riprova con istruzioni più precise.\\n\\n' + String(raw).slice(0, 500));
+        if (status) status.textContent = 'Risposta non strutturata';
+        return;
+      }
+      const result = applyAiPatchToProposal(patch);
+      const summary = patch.summary || ('Applicate ' + result.applied + ' modifiche');
+      appendProposalAiChat('assistant', summary + (result.messages.length ? '\\n· ' + result.messages.slice(0, 8).join('\\n· ') : ''));
+      if (status) status.textContent = result.applied ? ('Bozza aggiornata (' + result.applied + ')') : 'Nessuna modifica applicata';
+      // Ricarica UI proposta
+      try { showProposalReviewModal(); } catch (eR) {}
+      showToast(result.applied ? 'Bozza aggiornata dall\'AI — controlla e applica' : 'AI senza modifiche', result.applied ? 'success' : 'info');
+    } catch (err) {
+      console.warn('AI proposta', err);
+      const m = (err && err.message) ? err.message : String(err);
+      appendProposalAiChat('assistant', 'Errore: ' + m);
+      if (status) status.textContent = 'Errore';
+      if (/Failed to fetch|NetworkError|CORS/i.test(m)) {
+        showToast('Chiamata API bloccata (CORS). Imposta un proxy in ⚙️ API oppure usa un endpoint che consente il browser.', 'error', 6000);
+      } else {
+        showToast('AI: ' + m.slice(0, 120), 'error', 5000);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   function showProposalReviewModal() {
