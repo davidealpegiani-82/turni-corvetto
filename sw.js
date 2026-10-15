@@ -1,6 +1,6 @@
 /* Turni Corvetto PWA SW v8.7.0 — force update */
-const CACHE_CORE = 'corvetto-core-v8.8.1';
-const CACHE_CDN = 'corvetto-cdn-v8.8.1';
+const CACHE_CORE = 'corvetto-core-v8.9.0';
+const CACHE_CDN = 'corvetto-cdn-v8.9.0';
 
 const CORE_ASSETS = [
   './manifest.webmanifest',

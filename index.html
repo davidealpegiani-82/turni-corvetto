@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.8.1</title>
+  <title>Turni Corvetto v8.9.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,8 +38,9 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.8.1';
+    const APP_VERSION = '8.9.0';
   const APP_CHANGELOG = [
+    '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
     '8.8.0 — Assistente AI nel report proposta (modifiche in linguaggio naturale)',
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
@@ -1901,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.8.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.9.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1919,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.8.1</small>
+          <small id="appVersionLabel">CORVETTO · v8.9.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -1945,6 +1946,7 @@
       <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
       <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
       <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
+      <button class="alt" onclick="openGlobalAiAssistant()" title="Assistente AI — turni, ferie, malattia, impegni" style="border-color:#059669;color:#065f46;font-weight:800;">🧠 Assistente</button>
       <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
     </div>
     <div class="leave-toolbar toolbar-secondary" style="margin-bottom:0;">
@@ -2354,6 +2356,44 @@
 </div>
 
 
+
+<div class="modal-backdrop" id="globalAiModal">
+  <div class="modal" style="max-width:560px;">
+    <h3 style="margin:0 0 6px;">🧠 Assistente intelligente</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
+      Gestisci <strong>turni, ferie, permessi, malattia e impegni</strong> in italiano.
+      Le modifiche vengono proposte e applicate solo dopo conferma. Gratis con Groq.
+    </p>
+    <div id="globalAiChat" style="max-height:240px;overflow-y:auto;margin-bottom:10px;font-size:12px;line-height:1.45;min-height:80px;"></div>
+    <textarea id="globalAiInput" rows="3" placeholder="Es. Ferie Massimo 20-22 ottobre · Malattia Caruso da mercoledì · Riunione Davide martedì 18:00-19:30 · Martedì Andrea in chiusura" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #a7f3d0;padding:10px;font-size:13px;resize:vertical;"></textarea>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;">
+      <button type="button" class="success" id="btnGlobalAiSend" onclick="sendGlobalAiMessage()">Invia</button>
+      <button type="button" class="alt" onclick="toggleGlobalAiSettings()" style="font-size:12px;">⚙️ API</button>
+      <button type="button" class="alt" onclick="closeModal('globalAiModal')">Chiudi</button>
+      <span id="globalAiStatus" style="font-size:11px;color:#64748b;"></span>
+    </div>
+    <div id="globalAiSettings" style="display:none;margin-top:12px;padding:10px;border-radius:10px;background:var(--bg-elevated,#f8fafc);border:1px solid var(--border);font-size:12px;">
+      <label style="display:block;margin-bottom:4px;font-weight:700;">Chiave API Groq</label>
+      <input type="password" id="globalAiApiKey" placeholder="gsk_…" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;" autocomplete="off"/>
+      <label style="display:block;margin-bottom:4px;font-weight:700;">Endpoint</label>
+      <input type="text" id="globalAiApiBase" value="https://api.groq.com/openai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+      <label style="display:block;margin-bottom:4px;font-weight:700;">Modello</label>
+      <input type="text" id="globalAiApiModel" value="llama-3.1-8b-instant" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+      <label style="display:block;margin-bottom:4px;font-weight:700;">Proxy CORS (opzionale)</label>
+      <input type="text" id="globalAiApiProxy" placeholder="lascia vuoto" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+      <p style="margin:0 0 8px;color:#64748b;font-size:11px;">Chiave gratis su <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> (senza carta). Salvata solo su questo dispositivo.</p>
+      <button type="button" class="alt" onclick="saveGlobalAiSettings()">Salva</button>
+    </div>
+    <div id="globalAiPending" style="display:none;margin-top:12px;padding:10px;border-radius:10px;border:2px solid #f59e0b;background:#fffbeb;font-size:12px;">
+      <div style="font-weight:800;margin-bottom:6px;color:#92400e;">Conferma modifiche proposte</div>
+      <div id="globalAiPendingList" style="margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="success" onclick="confirmGlobalAiActions()">✅ Conferma e applica</button>
+        <button type="button" class="alt" onclick="cancelGlobalAiActions()">Annulla</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal-backdrop" id="changeReportModal">
   <div class="modal" style="max-width:560px;">
     <h3 id="changeReportTitle">Aggiornamento turni</h3>
@@ -6093,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.8.1', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -10950,7 +10990,459 @@ function minLunchBreakMinutes(wId) {
     }
   }
 
-  function showProposalReviewModal() {
+  
+  // ========== ASSISTENTE GLOBALE (tutta l'app) ==========
+  window._pendingGlobalAiActions = null;
+
+  function openGlobalAiAssistant() {
+    const modal = document.getElementById('globalAiModal');
+    if (!modal) { showToast('Modale assistente non trovata', 'error'); return; }
+    // sync settings fields from shared storage
+    const s = loadProposalAiSettings();
+    const k = document.getElementById('globalAiApiKey'); if (k) k.value = s.apiKey || '';
+    const b = document.getElementById('globalAiApiBase'); if (b) b.value = s.apiBase || 'https://api.groq.com/openai/v1';
+    const m = document.getElementById('globalAiApiModel'); if (m) m.value = s.model || 'llama-3.1-8b-instant';
+    const p = document.getElementById('globalAiApiProxy'); if (p) p.value = s.proxy || '';
+    openModal('globalAiModal');
+  }
+
+  function toggleGlobalAiSettings() {
+    const box = document.getElementById('globalAiSettings');
+    if (!box) return;
+    box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+  }
+
+  function saveGlobalAiSettings() {
+    const s = {
+      apiKey: (document.getElementById('globalAiApiKey') || {}).value || '',
+      apiBase: ((document.getElementById('globalAiApiBase') || {}).value || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
+      model: (document.getElementById('globalAiApiModel') || {}).value || 'llama-3.1-8b-instant',
+      proxy: ((document.getElementById('globalAiApiProxy') || {}).value || '').replace(/\/$/, '')
+    };
+    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(s));
+    showToast('Impostazioni AI salvate', 'success');
+    const box = document.getElementById('globalAiSettings');
+    if (box) box.style.display = 'none';
+  }
+
+  function appendGlobalAiChat(role, text) {
+    const chat = document.getElementById('globalAiChat');
+    if (!chat) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'margin-bottom:8px;padding:8px 10px;border-radius:10px;color:#0f172a;' +
+      (role === 'user' ? 'background:#e0e7ff;' : 'background:#ecfdf5;');
+    div.innerHTML = '<strong style="font-size:11px;">' + (role === 'user' ? 'Tu' : 'Assistente') +
+      '</strong><div style="margin-top:4px;white-space:pre-wrap;">' + escapeHtmlV47(String(text || '')) + '</div>';
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function resolveWorkerIdByName(nameOrText) {
+    const t = String(nameOrText || '').toLowerCase();
+    const workers = appData.workers || [];
+    // exact-ish
+    for (const w of workers) {
+      const n = String(w.name || '').toLowerCase();
+      if (n === t || n.includes(t) || t.includes(n)) return w.id;
+    }
+    // token match
+    for (const w of workers) {
+      const parts = String(w.name || '').toLowerCase().split(/\s+/).filter(Boolean);
+      if (parts.some(function(p) { return p.length > 2 && t.includes(p); })) return w.id;
+    }
+    return null;
+  }
+
+  function buildGlobalAiContext() {
+    const workers = (appData.workers || []).map(function(w) {
+      return { id: w.id, name: w.name, role: w.role || w.ruolo || '' };
+    });
+    const weekKey = (typeof currentWeekKey !== 'undefined') ? currentWeekKey : '';
+    const leaves = (appData.leaveRequests || []).slice(-15).map(function(r) {
+      return {
+        id: r.id, workerId: r.workerId, tipo: r.tipo,
+        day: r.day || r.fromDay, toDay: r.toDay || '', status: r.status,
+        fullDay: !!r.fullDay, fromTime: r.fromTime || '', toTime: r.toTime || '',
+        isMalattia: !!r.isMalattia, openEnded: !!r.openEnded
+      };
+    });
+    const events = (appData.events || []).slice(-15).map(function(e) {
+      return {
+        id: e.id, title: e.title, date: e.date, from: e.from || '', to: e.to || '',
+        allDay: !!e.allDay, participants: e.participants || e.participantIds || []
+      };
+    });
+    return {
+      today: (typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0,10),
+      weekKey: weekKey,
+      workers: workers,
+      recentLeaves: leaves,
+      recentEvents: events,
+      rulesHint: [
+        'Tipi leave: Ferie, Permesso, ROL, Donazione sangue, Malattia, Ricovero',
+        'status leave: approvata | in_attesa | rifiutata',
+        'Malattia può essere openEnded (senza data fine)',
+        'Impegni: title, date YYYY-MM-DD, from/to HH:MM, participants worker ids',
+        'Turni: day 0=Lun..5=Sab, mIn mOut pIn pOut',
+        'Non inventare workerId: usa solo quelli del contesto'
+      ]
+    };
+  }
+
+  async function callGlobalAiApi(userMessage) {
+    const s = loadProposalAiSettings();
+    if (!s.apiKey) throw new Error('Configura la chiave Groq (⚙️ API). Gratis su console.groq.com/keys');
+    const base = (s.proxy || s.apiBase || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
+    const url = base + '/chat/completions';
+    const ctx = buildGlobalAiContext();
+    const system = [
+      'Sei l\'assistente dell\'app Gestione Turni Corvetto.',
+      'Puoi creare/modificare: turni, ferie, permessi, malattia, ricovero, impegni.',
+      'Rispondi SEMPRE con un unico JSON valido (niente testo fuori dal JSON):',
+      '{',
+      '  "summary": "riepilogo in italiano",',
+      '  "actions": [',
+      '    {"type":"leave","workerId":"id","tipo":"Ferie","status":"approvata","mode":"single","day":"2026-10-20","fullDay":true,"fromTime":"","toTime":"","note":""},',
+      '    {"type":"leave","workerId":"id","tipo":"Permesso","status":"approvata","mode":"single","day":"2026-10-20","fullDay":false,"fromTime":"13:30","toTime":"17:30"},',
+      '    {"type":"leave","workerId":"id","tipo":"Malattia","status":"approvata","mode":"range","fromDay":"2026-10-15","toDay":"","openEnded":true,"isMalattia":true},',
+      '    {"type":"event","title":"Riunione","date":"2026-10-20","from":"18:00","to":"19:30","allDay":false,"participantIds":["id"],"type":"riunione"},',
+      '    {"type":"shift","workerId":"id","weekKey":"2026-W42","day":1,"mIn":"08:30","mOut":"13:00","pIn":"14:00","pOut":"17:30"}',
+      '  ]',
+      '}',
+      'Se non puoi, summary spiega perché e actions=[].',
+      'Contesto:',
+      JSON.stringify(ctx)
+    ].join('\n');
+
+    const body = {
+      model: s.model || 'llama-3.1-8b-instant',
+      temperature: 0.15,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage }
+      ]
+    };
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.apiKey },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(function() { return ''; });
+      throw new Error('API ' + resp.status + ': ' + (errText || resp.statusText).slice(0, 280));
+    }
+    const data = await resp.json();
+    return (data.choices && data.choices[0] && data.choices[0].message)
+      ? data.choices[0].message.content
+      : '';
+  }
+
+  function describeGlobalActions(actions) {
+    return (actions || []).map(function(a, i) {
+      if (!a || !a.type) return (i+1) + '. (azione non valida)';
+      if (a.type === 'leave') {
+        const who = workerName(a.workerId) || a.workerId;
+        const when = a.day || ((a.fromDay || '') + (a.toDay ? ' → ' + a.toDay : (a.openEnded ? ' → in corso' : '')));
+        const ore = a.fullDay ? 'giornata intera' : ((a.fromTime || '') + '-' + (a.toTime || ''));
+        return (i+1) + '. ' + (a.tipo || 'Leave') + ' · ' + who + ' · ' + when + ' · ' + ore;
+      }
+      if (a.type === 'event') {
+        const who = (a.participantIds || []).map(workerName).join(', ');
+        return (i+1) + '. Impegno «' + (a.title || '') + '» · ' + (a.date || '') + ' ' + (a.from || '') + '-' + (a.to || '') + ' · ' + who;
+      }
+      if (a.type === 'shift') {
+        return (i+1) + '. Turno ' + (workerName(a.workerId) || a.workerId) + ' giorno ' + a.day + ' → ' + [a.mIn,a.mOut,a.pIn,a.pOut].filter(Boolean).join(' | ');
+      }
+      return (i+1) + '. ' + a.type;
+    }).join('\n');
+  }
+
+  function applyGlobalAiActions(actions) {
+    if (!appData.leaveRequests) appData.leaveRequests = [];
+    if (!appData.events) appData.events = [];
+    let applied = 0;
+    const messages = [];
+
+    (actions || []).forEach(function(a) {
+      if (!a || !a.type) return;
+      try {
+        if (a.type === 'leave') {
+          let wid = a.workerId;
+          if (!wid && a.workerName) wid = resolveWorkerIdByName(a.workerName);
+          if (!wid) { messages.push('Leave: collaboratore non trovato'); return; }
+          const req = {
+            id: 'lr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            workerId: wid,
+            tipo: a.tipo || 'Ferie',
+            mode: a.mode || (a.fromDay ? 'range' : 'single'),
+            status: a.status || 'approvata',
+            note: a.note || ('Inserito da assistente AI'),
+            place: a.place || 'Milano',
+            requestDate: (typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0,10),
+            syncTurns: true,
+            createdAt: new Date().toISOString(),
+            fullDay: a.fullDay !== false && !a.fromTime,
+            fromTime: a.fromTime || '',
+            toTime: a.toTime || '',
+            isMalattia: !!(a.isMalattia || /malattia|ricovero/i.test(a.tipo || '')),
+            openEnded: !!a.openEnded
+          };
+          if (req.mode === 'range' || a.fromDay) {
+            req.fromDay = a.fromDay || a.day || '';
+            req.toDay = a.toDay || '';
+            req.day = req.fromDay;
+          } else {
+            req.day = a.day || a.fromDay || '';
+          }
+          if (!req.day && !req.fromDay) { messages.push('Leave: data mancante'); return; }
+          appData.leaveRequests.push(req);
+          if (req.status === 'approvata' && typeof applyLeaveToTurns === 'function') {
+            try { applyLeaveToTurns(req); } catch (e1) {}
+          }
+          applied++;
+          messages.push((req.tipo) + ' per ' + workerName(wid));
+        } else if (a.type === 'event') {
+          const ids = (a.participantIds || []).map(function(x) {
+            return resolveWorkerIdByName(x) || x;
+          }).filter(Boolean);
+          if (!ids.length && a.workerId) ids.push(a.workerId);
+          if (!ids.length) { messages.push('Impegno: nessun partecipante'); return; }
+          const ev = {
+            id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            type: a.eventType || a.typeLabel || 'impegno',
+            title: a.title || 'Impegno',
+            date: a.date,
+            from: a.from || '',
+            to: a.to || '',
+            allDay: !!a.allDay,
+            participants: ids,
+            participantIds: ids,
+            note: a.note || '',
+            createdAt: new Date().toISOString()
+          };
+          if (!ev.date) { messages.push('Impegno: data mancante'); return; }
+          appData.events.push(ev);
+          applied++;
+          messages.push('Impegno «' + ev.title + '»');
+        } else if (a.type === 'shift') {
+          let wid = a.workerId || resolveWorkerIdByName(a.workerName);
+          const day = Number(a.day);
+          const wk = a.weekKey || currentWeekKey;
+          if (!wid || !(day >= 0 && day <= 5)) { messages.push('Turno: dati incompleti'); return; }
+          if (!appData.weeks[wk]) appData.weeks[wk] = {};
+          if (!appData.weeks[wk][wid]) appData.weeks[wk][wid] = {};
+          if (!appData.weeks[wk][wid][day]) appData.weeks[wk][wid][day] = {};
+          const cell = appData.weeks[wk][wid][day];
+          if (cell.manualEdit) { messages.push('Turno saltato (modifica manuale)'); return; }
+          if (a.mIn != null) cell.mIn = a.mIn;
+          if (a.mOut != null) cell.mOut = a.mOut;
+          if (a.pIn != null) cell.pIn = a.pIn;
+          if (a.pOut != null) cell.pOut = a.pOut;
+          if (a.status) cell.status = a.status;
+          cell.generated = true;
+          applied++;
+          messages.push('Turno ' + workerName(wid) + ' d' + day);
+        }
+      } catch (err) {
+        messages.push('Errore azione: ' + (err.message || err));
+      }
+    });
+
+    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
+    try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
+    try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
+    try { if (typeof autoUpdateShiftsAfterChange === 'function') autoUpdateShiftsAfterChange({ reason: 'Assistente AI', detail: messages.join('; ') }); } catch (e) {}
+
+    return { applied: applied, messages: messages };
+  }
+
+  async function sendGlobalAiMessage() {
+    const input = document.getElementById('globalAiInput');
+    const status = document.getElementById('globalAiStatus');
+    const btn = document.getElementById('btnGlobalAiSend');
+    const msg = (input && input.value || '').trim();
+    if (!msg) { showToast('Scrivi una richiesta', 'error'); return; }
+
+    appendGlobalAiChat('user', msg);
+    if (input) input.value = '';
+    if (status) status.textContent = 'Elaborazione…';
+    if (btn) btn.disabled = true;
+    document.getElementById('globalAiPending').style.display = 'none';
+    window._pendingGlobalAiActions = null;
+
+    try {
+      // local quick path for common phrases without API
+      const local = interpretGlobalCommandLocal(msg);
+      if (local && local.actions && local.actions.length) {
+        window._pendingGlobalAiActions = local.actions;
+        appendGlobalAiChat('assistant', (local.summary || 'Ho preparato delle modifiche.') + '\n\n' + describeGlobalActions(local.actions) + '\n\nConferma sotto per applicare.');
+        document.getElementById('globalAiPendingList').textContent = describeGlobalActions(local.actions);
+        document.getElementById('globalAiPending').style.display = 'block';
+        if (status) status.textContent = 'In attesa di conferma';
+        return;
+      }
+
+      const raw = await callGlobalAiApi(msg);
+      const patch = extractJsonFromAiText(raw);
+      if (!patch) {
+        appendGlobalAiChat('assistant', 'Non ho capito la risposta. Riprova con date e nomi più chiari.\n' + String(raw).slice(0, 400));
+        if (status) status.textContent = 'Risposta non strutturata';
+        return;
+      }
+      const actions = patch.actions || [];
+      if (!actions.length) {
+        appendGlobalAiChat('assistant', patch.summary || 'Nessuna modifica proposta.');
+        if (status) status.textContent = 'Nessuna azione';
+        return;
+      }
+      window._pendingGlobalAiActions = actions;
+      appendGlobalAiChat('assistant', (patch.summary || 'Modifiche proposte:') + '\n\n' + describeGlobalActions(actions) + '\n\nConferma sotto per applicare.');
+      document.getElementById('globalAiPendingList').textContent = describeGlobalActions(actions);
+      document.getElementById('globalAiPending').style.display = 'block';
+      if (status) status.textContent = 'In attesa di conferma';
+    } catch (err) {
+      console.warn('global AI', err);
+      const m = (err && err.message) ? err.message : String(err);
+      appendGlobalAiChat('assistant', 'Errore: ' + m);
+      if (status) status.textContent = 'Errore';
+      if (/Failed to fetch|NetworkError|CORS/i.test(m)) {
+        showToast('Chiamata bloccata (CORS). Imposta un proxy in ⚙️ API.', 'error', 5000);
+      } else {
+        showToast(m.slice(0, 120), 'error', 4000);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function confirmGlobalAiActions() {
+    const actions = window._pendingGlobalAiActions;
+    if (!actions || !actions.length) {
+      showToast('Nessuna azione da applicare', 'error');
+      return;
+    }
+    const result = applyGlobalAiActions(actions);
+    appendGlobalAiChat('assistant', 'Applicato: ' + result.applied + (result.messages.length ? '\n· ' + result.messages.join('\n· ') : ''));
+    window._pendingGlobalAiActions = null;
+    const box = document.getElementById('globalAiPending');
+    if (box) box.style.display = 'none';
+    const st = document.getElementById('globalAiStatus');
+    if (st) st.textContent = 'Applicato';
+    showToast(result.applied ? ('Applicate ' + result.applied + ' modifiche') : 'Nessuna modifica', result.applied ? 'success' : 'info');
+  }
+
+  function cancelGlobalAiActions() {
+    window._pendingGlobalAiActions = null;
+    const box = document.getElementById('globalAiPending');
+    if (box) box.style.display = 'none';
+    appendGlobalAiChat('assistant', 'Modifiche annullate.');
+    const st = document.getElementById('globalAiStatus');
+    if (st) st.textContent = '';
+  }
+
+  function interpretGlobalCommandLocal(text) {
+    const t = String(text || '').toLowerCase();
+    const actions = [];
+    const summaryParts = [];
+
+    // Ferie / permesso / malattia patterns
+    // "ferie massimo 20-22 ottobre" / "ferie massimo il 20"
+    const leaveMatch = t.match(/\b(ferie|permesso|rol|malattia|ricovero)\b/);
+    if (leaveMatch) {
+      const tipoMap = { ferie: 'Ferie', permesso: 'Permesso', rol: 'ROL', malattia: 'Malattia', ricovero: 'Ricovero' };
+      const tipo = tipoMap[leaveMatch[1]] || 'Ferie';
+      const wid = resolveWorkerIdByName(t);
+      // dates YYYY-MM-DD or day numbers with month
+      let day = null, fromDay = null, toDay = null;
+      const iso = t.match(/(\d{4}-\d{2}-\d{2})/g);
+      if (iso && iso.length >= 2) { fromDay = iso[0]; toDay = iso[1]; }
+      else if (iso && iso.length === 1) { day = iso[0]; }
+      // partial time
+      const times = t.match(/(\d{1,2}[:\.]\d{2})/g);
+      const fullDay = !times || times.length < 2;
+      if (wid && (day || fromDay)) {
+        const action = {
+          type: 'leave', workerId: wid, tipo: tipo, status: 'approvata',
+          mode: fromDay ? 'range' : 'single',
+          day: day || fromDay, fromDay: fromDay || day, toDay: toDay || '',
+          fullDay: fullDay && !/permesso/.test(t),
+          fromTime: times && times[0] ? times[0].replace('.', ':') : '',
+          toTime: times && times[1] ? times[1].replace('.', ':') : '',
+          isMalattia: /malattia|ricovero/.test(t),
+          openEnded: /malattia|ricovero/.test(t) && !toDay
+        };
+        actions.push(action);
+        summaryParts.push(tipo + ' per ' + workerName(wid));
+      }
+    }
+
+    // Impegno / riunione / corso
+    if (/\b(riunione|corso|impegno|meeting)\b/.test(t)) {
+      const wid = resolveWorkerIdByName(t);
+      const iso = t.match(/(\d{4}-\d{2}-\d{2})/);
+      const times = t.match(/(\d{1,2}[:\.]\d{2})/g);
+      let title = 'Impegno';
+      if (/riunione/.test(t)) title = 'Riunione';
+      if (/corso/.test(t)) title = 'Corso';
+      const titleMatch = t.match(/(?:riunione|corso|impegno)\s+([a-zàèéìòù0-9 \-]{3,40})/i);
+      // date from week day name relative to current week if no iso
+      let date = iso ? iso[1] : null;
+      if (!date && typeof weekDates !== 'undefined') {
+        const dayIdx = (function() {
+          if (/luned[iì]|\blun\b/.test(t)) return 0;
+          if (/marted[iì]|\bmar\b/.test(t)) return 1;
+          if (/mercoled[iì]|\bmer\b/.test(t)) return 2;
+          if (/gioved[iì]|\bgio\b/.test(t)) return 3;
+          if (/venerd[iì]|\bven\b/.test(t)) return 4;
+          if (/sabato|\bsab\b/.test(t)) return 5;
+          return null;
+        })();
+        if (dayIdx != null && weekDates[dayIdx]) date = weekDates[dayIdx];
+      }
+      if (wid && date) {
+        actions.push({
+          type: 'event',
+          title: title,
+          date: date,
+          from: times && times[0] ? times[0].replace('.', ':') : '09:00',
+          to: times && times[1] ? times[1].replace('.', ':') : '10:00',
+          allDay: false,
+          participantIds: [wid]
+        });
+        summaryParts.push('Impegno «' + title + '» per ' + workerName(wid));
+      }
+    }
+
+    // Shift open/close (same as proposal local)
+    const dayIdx = (function() {
+      if (/luned[iì]|\blun\b/.test(t)) return 0;
+      if (/marted[iì]|\bmar\b/.test(t)) return 1;
+      if (/mercoled[iì]|\bmer\b/.test(t)) return 2;
+      if (/gioved[iì]|\bgio\b/.test(t)) return 3;
+      if (/venerd[iì]|\bven\b/.test(t)) return 4;
+      if (/sabato|\bsab\b/.test(t)) return 5;
+      return null;
+    })();
+    const wantsClose = /chiusura/.test(t);
+    const wantsOpen = /apertura/.test(t) && !/magazzin/.test(t);
+    const wid = resolveWorkerIdByName(t);
+    if (wid && dayIdx != null && (wantsClose || wantsOpen)) {
+      const rules = (typeof R === 'function') ? R() : {};
+      let shift;
+      if (wantsClose) shift = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+      else shift = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+      actions.push({
+        type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey,
+        mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut
+      });
+      summaryParts.push((wantsClose ? 'Chiusura' : 'Apertura') + ' per ' + workerName(wid));
+    }
+
+    if (!actions.length) return null;
+    return { summary: summaryParts.join(' · ') || 'Modifiche proposte', actions: actions };
+  }
+
+function showProposalReviewModal() {
     try {
       const p0 = window.pendingTurnProposal;
       if (p0 && p0.week && typeof validateProposalWeek === 'function') {
