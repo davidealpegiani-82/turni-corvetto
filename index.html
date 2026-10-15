@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.3</title>
+  <title>Turni Corvetto v8.9.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.3';
+    const APP_VERSION = '8.9.4';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1902,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.2</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.4</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.9.3</small>
+          <small id="appVersionLabel">CORVETTO · V8.9.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2357,7 +2357,7 @@
 
 
 
-<div class="modal-backdrop" id="globalAiModal">
+<div class="modal-backdrop" id="globalAiModal" style="display:none;">
   <div class="modal" style="max-width:560px;">
     <h3 style="margin:0 0 6px;">🧠 Assistente intelligente</h3>
     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.3', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.4', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -10946,6 +10946,337 @@ function minLunchBreakMinutes(wId) {
   }
 
   
+  
+  // ========== ASSISTENTE GLOBALE (schermata principale) ==========
+  window._pendingGlobalAiActions = null;
+
+  function openGlobalAiAssistant() {
+    const modal = document.getElementById('globalAiModal');
+    if (!modal) {
+      showToast('Modale assistente non trovata — aggiorna la pagina', 'error');
+      return;
+    }
+    try {
+      const s = (typeof loadProposalAiSettings === 'function') ? loadProposalAiSettings() : { apiKey:'', apiBase:'https://api.groq.com/openai/v1', model:'openai/gpt-oss-20b', proxy:'' };
+      const k = document.getElementById('globalAiApiKey'); if (k) k.value = s.apiKey || '';
+      const b = document.getElementById('globalAiApiBase'); if (b) b.value = s.apiBase || 'https://api.groq.com/openai/v1';
+      const m = document.getElementById('globalAiApiModel'); if (m) m.value = s.model || 'openai/gpt-oss-20b';
+      const p = document.getElementById('globalAiApiProxy'); if (p) p.value = s.proxy || '';
+    } catch (e) {}
+    modal.style.display = 'flex';
+  }
+
+  function toggleGlobalAiSettings() {
+    const box = document.getElementById('globalAiSettings');
+    if (!box) return;
+    box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+  }
+
+  function saveGlobalAiSettings() {
+    const s = {
+      apiKey: (document.getElementById('globalAiApiKey') || {}).value || '',
+      apiBase: ((document.getElementById('globalAiApiBase') || {}).value || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
+      model: (document.getElementById('globalAiApiModel') || {}).value || 'openai/gpt-oss-20b',
+      proxy: ((document.getElementById('globalAiApiProxy') || {}).value || '').replace(/\/$/, '')
+    };
+    try { localStorage.setItem(typeof AI_SETTINGS_KEY !== 'undefined' ? AI_SETTINGS_KEY : 'turni_corvetto_ai_settings_v1', JSON.stringify(s)); } catch (e) {}
+    showToast('Impostazioni AI salvate', 'success');
+    const box = document.getElementById('globalAiSettings');
+    if (box) box.style.display = 'none';
+  }
+
+  function appendGlobalAiChat(role, text) {
+    const chat = document.getElementById('globalAiChat');
+    if (!chat) return;
+    const div = document.createElement('div');
+    div.style.cssText = 'margin-bottom:8px;padding:8px 10px;border-radius:10px;color:#0f172a;' +
+      (role === 'user' ? 'background:#e0e7ff;' : 'background:#ecfdf5;');
+    const who = role === 'user' ? 'Tu' : 'Assistente';
+    div.innerHTML = '<strong style="font-size:11px;">' + who + '</strong><div style="margin-top:4px;white-space:pre-wrap;">' +
+      (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(String(text || '')) : String(text || '')) + '</div>';
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function resolveWorkerIdByName(nameOrText) {
+    const t = String(nameOrText || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const workers = appData.workers || [];
+    for (const w of workers) {
+      const n = String(w.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (n === t || n.includes(t) || t.includes(n)) return w.id;
+    }
+    for (const w of workers) {
+      const parts = String(w.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(Boolean);
+      if (parts.some(function(p) { return p.length > 2 && t.includes(p); })) return w.id;
+    }
+    return null;
+  }
+
+  function interpretGlobalCommandLocal(text) {
+    const t = String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const actions = [];
+    const summaryParts = [];
+
+    const leaveMatch = t.match(/\b(ferie|permesso|rol|malattia|ricovero)\b/);
+    if (leaveMatch) {
+      const tipoMap = { ferie: 'Ferie', permesso: 'Permesso', rol: 'ROL', malattia: 'Malattia', ricovero: 'Ricovero' };
+      const tipo = tipoMap[leaveMatch[1]] || 'Ferie';
+      const wid = resolveWorkerIdByName(t);
+      let day = null, fromDay = null, toDay = null;
+      const iso = t.match(/(\d{4}-\d{2}-\d{2})/g);
+      if (iso && iso.length >= 2) { fromDay = iso[0]; toDay = iso[1]; }
+      else if (iso && iso.length === 1) { day = iso[0]; }
+      const times = t.match(/(\d{1,2}[:.]\d{2})/g);
+      const fullDay = !times || times.length < 2;
+      if (wid && (day || fromDay)) {
+        actions.push({
+          type: 'leave', workerId: wid, tipo: tipo, status: 'approvata',
+          mode: fromDay ? 'range' : 'single',
+          day: day || fromDay, fromDay: fromDay || day, toDay: toDay || '',
+          fullDay: fullDay && !/permesso/.test(t),
+          fromTime: times && times[0] ? times[0].replace('.', ':') : '',
+          toTime: times && times[1] ? times[1].replace('.', ':') : '',
+          isMalattia: /malattia|ricovero/.test(t),
+          openEnded: /malattia|ricovero/.test(t) && !toDay
+        });
+        summaryParts.push(tipo + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+      }
+    }
+
+    if (/\b(riunione|corso|impegno|meeting)\b/.test(t)) {
+      const wid = resolveWorkerIdByName(t);
+      const iso = t.match(/(\d{4}-\d{2}-\d{2})/);
+      const times = t.match(/(\d{1,2}[:.]\d{2})/g);
+      let title = /riunione/.test(t) ? 'Riunione' : (/corso/.test(t) ? 'Corso' : 'Impegno');
+      let date = iso ? iso[1] : null;
+      if (!date && typeof weekDates !== 'undefined') {
+        const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
+        if (dayIdx != null && weekDates[dayIdx]) date = weekDates[dayIdx];
+      }
+      if (wid && date) {
+        actions.push({
+          type: 'event', title: title, date: date,
+          from: times && times[0] ? times[0].replace('.', ':') : '09:00',
+          to: times && times[1] ? times[1].replace('.', ':') : '10:00',
+          allDay: false, participantIds: [wid]
+        });
+        summaryParts.push('Impegno «' + title + '»');
+      }
+    }
+
+    const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
+    const wantsClose = /chiusura/.test(t);
+    const wantsOpen = /apertura/.test(t) && !/magazzin/.test(t);
+    const wid = resolveWorkerIdByName(t);
+    if (wid && dayIdx != null && (wantsClose || wantsOpen)) {
+      const rules = (typeof R === 'function') ? R() : {};
+      const shift = wantsClose
+        ? (rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' })
+        : (rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' });
+      actions.push({
+        type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey,
+        mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut
+      });
+      summaryParts.push((wantsClose ? 'Chiusura' : 'Apertura') + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+    }
+
+    if (!actions.length) return null;
+    return { summary: summaryParts.join(' · ') || 'Modifiche proposte', actions: actions };
+  }
+
+  function describeGlobalActions(actions) {
+    return (actions || []).map(function(a, i) {
+      if (!a || !a.type) return (i+1) + '. (azione non valida)';
+      if (a.type === 'leave') {
+        const who = (typeof workerName === 'function' ? workerName(a.workerId) : a.workerId);
+        const when = a.day || ((a.fromDay || '') + (a.toDay ? ' → ' + a.toDay : (a.openEnded ? ' → in corso' : '')));
+        return (i+1) + '. ' + (a.tipo || 'Leave') + ' · ' + who + ' · ' + when;
+      }
+      if (a.type === 'event') {
+        return (i+1) + '. Impegno «' + (a.title || '') + '» · ' + (a.date || '') + ' ' + (a.from || '') + '-' + (a.to || '');
+      }
+      if (a.type === 'shift') {
+        return (i+1) + '. Turno ' + (typeof workerName === 'function' ? workerName(a.workerId) : a.workerId) + ' giorno ' + a.day;
+      }
+      return (i+1) + '. ' + a.type;
+    }).join('\n');
+  }
+
+  function applyGlobalAiActions(actions) {
+    if (!appData.leaveRequests) appData.leaveRequests = [];
+    if (!appData.events) appData.events = [];
+    let applied = 0;
+    const messages = [];
+    (actions || []).forEach(function(a) {
+      if (!a || !a.type) return;
+      try {
+        if (a.type === 'leave') {
+          let wid = a.workerId || resolveWorkerIdByName(a.workerName);
+          if (!wid) { messages.push('Leave: collaboratore non trovato'); return; }
+          const req = {
+            id: 'lr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            workerId: wid, tipo: a.tipo || 'Ferie', mode: a.mode || (a.fromDay ? 'range' : 'single'),
+            status: a.status || 'approvata', note: a.note || 'Inserito da assistente',
+            place: a.place || 'Milano',
+            requestDate: (typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0,10),
+            syncTurns: true, createdAt: new Date().toISOString(),
+            fullDay: a.fullDay !== false && !a.fromTime,
+            fromTime: a.fromTime || '', toTime: a.toTime || '',
+            isMalattia: !!(a.isMalattia || /malattia|ricovero/i.test(a.tipo || '')),
+            openEnded: !!a.openEnded
+          };
+          if (req.mode === 'range' || a.fromDay) {
+            req.fromDay = a.fromDay || a.day || '';
+            req.toDay = a.toDay || '';
+            req.day = req.fromDay;
+          } else {
+            req.day = a.day || a.fromDay || '';
+          }
+          if (!req.day && !req.fromDay) { messages.push('Leave: data mancante'); return; }
+          appData.leaveRequests.push(req);
+          if (req.status === 'approvata' && typeof applyLeaveToTurns === 'function') {
+            try { applyLeaveToTurns(req); } catch (e1) {}
+          }
+          applied++;
+          messages.push((req.tipo) + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+        } else if (a.type === 'event') {
+          const ids = (a.participantIds || []).map(function(x) { return resolveWorkerIdByName(x) || x; }).filter(Boolean);
+          if (!ids.length && a.workerId) ids.push(a.workerId);
+          if (!ids.length) { messages.push('Impegno: nessun partecipante'); return; }
+          const ev = {
+            id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            type: a.eventType || 'impegno', title: a.title || 'Impegno', date: a.date,
+            from: a.from || '', to: a.to || '', allDay: !!a.allDay,
+            participants: ids, participantIds: ids, note: a.note || '',
+            createdAt: new Date().toISOString()
+          };
+          if (!ev.date) { messages.push('Impegno: data mancante'); return; }
+          appData.events.push(ev);
+          applied++;
+          messages.push('Impegno «' + ev.title + '»');
+        } else if (a.type === 'shift') {
+          let wid = a.workerId || resolveWorkerIdByName(a.workerName);
+          const day = Number(a.day);
+          const wk = a.weekKey || currentWeekKey;
+          if (!wid || !(day >= 0 && day <= 5)) { messages.push('Turno incompleto'); return; }
+          if (!appData.weeks[wk]) appData.weeks[wk] = {};
+          if (!appData.weeks[wk][wid]) appData.weeks[wk][wid] = {};
+          if (!appData.weeks[wk][wid][day]) appData.weeks[wk][wid][day] = {};
+          const cell = appData.weeks[wk][wid][day];
+          if (cell.manualEdit) { messages.push('Turno saltato (manuale)'); return; }
+          if (a.mIn != null) cell.mIn = a.mIn;
+          if (a.mOut != null) cell.mOut = a.mOut;
+          if (a.pIn != null) cell.pIn = a.pIn;
+          if (a.pOut != null) cell.pOut = a.pOut;
+          if (a.status) cell.status = a.status;
+          cell.generated = true;
+          applied++;
+          messages.push('Turno aggiornato');
+        }
+      } catch (err) {
+        messages.push('Errore: ' + (err.message || err));
+      }
+    });
+    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
+    try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
+    try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
+    try { if (typeof autoUpdateShiftsAfterChange === 'function') autoUpdateShiftsAfterChange({ reason: 'Assistente AI', detail: messages.join('; ') }); } catch (e) {}
+    return { applied: applied, messages: messages };
+  }
+
+  async function callGlobalAiApi(userMessage) {
+    const s = (typeof loadProposalAiSettings === 'function') ? loadProposalAiSettings() : {};
+    if (!s.apiKey) throw new Error('Configura la chiave Groq (⚙️ API)');
+    const base = (s.proxy || s.apiBase || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
+    const workers = (appData.workers || []).map(function(w) { return { id: w.id, name: w.name }; });
+    const system = [
+      'Sei assistente app Turni Corvetto. Rispondi SOLO con JSON:',
+      '{"summary":"...","actions":[{"type":"leave|event|shift", ...}]}',
+      'type leave: workerId,tipo,day/fromDay/toDay,fullDay,fromTime,toTime,status',
+      'type event: title,date,from,to,participantIds',
+      'type shift: workerId,day 0-5,mIn,mOut,pIn,pOut',
+      'Workers: ' + JSON.stringify(workers)
+    ].join('\n');
+    const resp = await fetch(base + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.apiKey },
+      body: JSON.stringify({
+        model: s.model || 'openai/gpt-oss-20b',
+        temperature: 0.15,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }]
+      })
+    });
+    if (!resp.ok) throw new Error('API ' + resp.status + ': ' + (await resp.text()).slice(0, 200));
+    const data = await resp.json();
+    return (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : '';
+  }
+
+  async function sendGlobalAiMessage() {
+    const input = document.getElementById('globalAiInput');
+    const status = document.getElementById('globalAiStatus');
+    const btn = document.getElementById('btnGlobalAiSend');
+    const msg = (input && input.value || '').trim();
+    if (!msg) { showToast('Scrivi una richiesta', 'error'); return; }
+    appendGlobalAiChat('user', msg);
+    if (input) input.value = '';
+    if (status) status.textContent = 'Elaborazione…';
+    if (btn) btn.disabled = true;
+    const pending = document.getElementById('globalAiPending');
+    if (pending) pending.style.display = 'none';
+    window._pendingGlobalAiActions = null;
+
+    try {
+      const local = interpretGlobalCommandLocal(msg);
+      if (local && local.actions && local.actions.length) {
+        window._pendingGlobalAiActions = local.actions;
+        appendGlobalAiChat('assistant', (local.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(local.actions) + '\n\nConferma sotto per applicare.');
+        const list = document.getElementById('globalAiPendingList');
+        if (list) list.textContent = describeGlobalActions(local.actions);
+        if (pending) pending.style.display = 'block';
+        if (status) status.textContent = 'In attesa di conferma';
+        return;
+      }
+      const raw = await callGlobalAiApi(msg);
+      const patch = (typeof extractJsonFromAiText === 'function') ? extractJsonFromAiText(raw) : null;
+      const actions = (patch && patch.actions) || [];
+      if (!actions.length) {
+        appendGlobalAiChat('assistant', (patch && patch.summary) || 'Nessuna modifica. Prova con date tipo 2026-10-20 e nomi completi.');
+        if (status) status.textContent = 'Nessuna azione';
+        return;
+      }
+      window._pendingGlobalAiActions = actions;
+      appendGlobalAiChat('assistant', (patch.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(actions));
+      const list = document.getElementById('globalAiPendingList');
+      if (list) list.textContent = describeGlobalActions(actions);
+      if (pending) pending.style.display = 'block';
+      if (status) status.textContent = 'In attesa di conferma';
+    } catch (err) {
+      appendGlobalAiChat('assistant', 'Errore: ' + ((err && err.message) || err));
+      if (status) status.textContent = 'Errore';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function confirmGlobalAiActions() {
+    const actions = window._pendingGlobalAiActions;
+    if (!actions || !actions.length) { showToast('Nessuna azione', 'error'); return; }
+    const result = applyGlobalAiActions(actions);
+    appendGlobalAiChat('assistant', 'Applicato: ' + result.applied + (result.messages.length ? '\n· ' + result.messages.join('\n· ') : ''));
+    window._pendingGlobalAiActions = null;
+    const box = document.getElementById('globalAiPending');
+    if (box) box.style.display = 'none';
+    showToast(result.applied ? ('Applicate ' + result.applied + ' modifiche') : 'Nessuna modifica', result.applied ? 'success' : 'info');
+  }
+
+  function cancelGlobalAiActions() {
+    window._pendingGlobalAiActions = null;
+    const box = document.getElementById('globalAiPending');
+    if (box) box.style.display = 'none';
+    appendGlobalAiChat('assistant', 'Modifiche annullate.');
+  }
+
+
   function interpretProposalCommandLocal(text, p) {
     const t = String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const patch = { summary: '', changes: [], choices: [], notes: [] };
