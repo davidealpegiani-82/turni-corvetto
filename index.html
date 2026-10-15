@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.5</title>
+  <title>Turni Corvetto v8.9.6</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.5';
+    const APP_VERSION = '8.9.6';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1902,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.5</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V8.9.5</small>
+          <small id="appVersionLabel">CORVETTO · V8.9.6</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.5', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.6', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11055,10 +11055,19 @@ function minLunchBreakMinutes(wId) {
     }
 
     // Leave
-    const leaveMatch = t.match(/\b(ferie|permesso|rol|malattia|ricovero)\b/);
+    // donazione sangue prima di "permesso" generico
+    let leaveMatch = t.match(/\b(donazione(?:\s+sangue)?|ferie|permesso|rol|malattia|ricovero)\b/);
     if (leaveMatch) {
-      const tipoMap = { ferie: 'Ferie', permesso: 'Permesso', rol: 'ROL', malattia: 'Malattia', ricovero: 'Ricovero' };
-      const tipo = tipoMap[leaveMatch[1]] || 'Ferie';
+      const tipoMap = {
+        ferie: 'Ferie', permesso: 'Permesso', rol: 'ROL',
+        malattia: 'Malattia', ricovero: 'Ricovero',
+        donazione: 'Donazione Sangue', 'donazione sangue': 'Donazione Sangue'
+      };
+      let tipoKey = leaveMatch[1];
+      if (/donazione/.test(tipoKey)) tipoKey = 'donazione';
+      let tipo = tipoMap[tipoKey] || 'Ferie';
+      // "permesso per donazione sangue" → Donazione Sangue
+      if (/donazione/.test(t)) tipo = 'Donazione Sangue';
       const ids = findAllWorkerIds(t);
       const wid = ids[0] || null;
       let day = null, fromDay = null, toDay = null;
@@ -11075,8 +11084,9 @@ function minLunchBreakMinutes(wId) {
       const times = t.match(/(\d{1,2}[:.]\d{2})/g);
       const fullDay = !times || times.length < 2;
       if (wid && (day || fromDay)) {
+        const leaveStatus = (/rifiut|annull/.test(t) ? 'rifiutata' : (/attes|da conferm/.test(t) ? 'in_attesa' : 'approvata'));
         actions.push({
-          type: 'leave', workerId: wid, tipo: tipo, status: 'approvata',
+          type: 'leave', workerId: wid, tipo: tipo, status: leaveStatus,
           mode: fromDay ? 'range' : 'single',
           day: day || fromDay, fromDay: fromDay || day, toDay: toDay || '',
           fullDay: fullDay && !/permesso/.test(t),
