@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.4</title>
+  <title>Turni Corvetto v8.9.5</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.4';
+    const APP_VERSION = '8.9.5';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1902,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.4</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.5</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V8.9.4</small>
+          <small id="appVersionLabel">CORVETTO · V8.9.5</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.4', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.5', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11017,15 +11017,61 @@ function minLunchBreakMinutes(wId) {
     const actions = [];
     const summaryParts = [];
 
+    function parseItalianDate(str) {
+      // 2026-10-16
+      let m = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return m[1] + '-' + m[2] + '-' + m[3];
+      // 16/10/2026 or 16-10-2026
+      m = str.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+      if (m) {
+        const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
+        return m[3] + '-' + mo + '-' + d;
+      }
+      // 16/10 or 16-10 (assume current year or from week)
+      m = str.match(/\b(\d{1,2})[\/\-.](\d{1,2})\b/);
+      if (m) {
+        const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
+        let year = new Date().getFullYear();
+        try {
+          if (typeof weekDates !== 'undefined' && weekDates[0]) year = parseInt(String(weekDates[0]).slice(0,4), 10) || year;
+        } catch (e) {}
+        return year + '-' + mo + '-' + d;
+      }
+      return null;
+    }
+
+    function findAllWorkerIds(str) {
+      const ids = [];
+      const workers = appData.workers || [];
+      const s = String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      for (const w of workers) {
+        const n = String(w.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const parts = n.split(/\s+/).filter(Boolean);
+        if (parts.some(function(p) { return p.length > 2 && s.includes(p); })) {
+          if (ids.indexOf(w.id) < 0) ids.push(w.id);
+        }
+      }
+      return ids;
+    }
+
+    // Leave
     const leaveMatch = t.match(/\b(ferie|permesso|rol|malattia|ricovero)\b/);
     if (leaveMatch) {
       const tipoMap = { ferie: 'Ferie', permesso: 'Permesso', rol: 'ROL', malattia: 'Malattia', ricovero: 'Ricovero' };
       const tipo = tipoMap[leaveMatch[1]] || 'Ferie';
-      const wid = resolveWorkerIdByName(t);
+      const ids = findAllWorkerIds(t);
+      const wid = ids[0] || null;
       let day = null, fromDay = null, toDay = null;
-      const iso = t.match(/(\d{4}-\d{2}-\d{2})/g);
-      if (iso && iso.length >= 2) { fromDay = iso[0]; toDay = iso[1]; }
-      else if (iso && iso.length === 1) { day = iso[0]; }
+      const isoAll = [];
+      let mm;
+      const reIso = /(\d{4}-\d{2}-\d{2})/g;
+      while ((mm = reIso.exec(t))) isoAll.push(mm[1]);
+      if (isoAll.length >= 2) { fromDay = isoAll[0]; toDay = isoAll[1]; }
+      else if (isoAll.length === 1) { day = isoAll[0]; }
+      else {
+        const d1 = parseItalianDate(t);
+        if (d1) day = d1;
+      }
       const times = t.match(/(\d{1,2}[:.]\d{2})/g);
       const fullDay = !times || times.length < 2;
       if (wid && (day || fromDay)) {
@@ -11043,48 +11089,73 @@ function minLunchBreakMinutes(wId) {
       }
     }
 
-    if (/\b(riunione|corso|impegno|meeting)\b/.test(t)) {
-      const wid = resolveWorkerIdByName(t);
-      const iso = t.match(/(\d{4}-\d{2}-\d{2})/);
+    // Evento / corso / riunione — multi partecipante
+    if (/\b(riunione|corso|impegno|meeting|formazione)\b/.test(t)) {
+      const ids = findAllWorkerIds(t);
       const times = t.match(/(\d{1,2}[:.]\d{2})/g);
-      let title = /riunione/.test(t) ? 'Riunione' : (/corso/.test(t) ? 'Corso' : 'Impegno');
-      let date = iso ? iso[1] : null;
+      let title = 'Impegno';
+      if (/corso/.test(t)) {
+        title = 'Corso';
+        const km = t.match(/corso\s+([a-z0-9][a-z0-9 \-]{1,30})/);
+        if (km) {
+          let rest = km[1].trim();
+          // stop at date/time words
+          rest = rest.split(/\s+(?:il|il|giorno|dalle|da|presso|a)\s+/)[0].trim();
+          if (rest.length > 1) title = 'Corso ' + rest.charAt(0).toUpperCase() + rest.slice(1);
+        }
+        if (/kerakoll/.test(t) && !/kerakoll/i.test(title)) title = 'Corso Kerakoll';
+      } else if (/riunione/.test(t)) {
+        title = 'Riunione';
+        if (/commerciale/.test(t)) title = 'Riunione Commerciale';
+      }
+      let date = parseItalianDate(t);
       if (!date && typeof weekDates !== 'undefined') {
         const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
         if (dayIdx != null && weekDates[dayIdx]) date = weekDates[dayIdx];
       }
-      if (wid && date) {
+      let note = '';
+      const luogo = t.match(/presso\s+([^,.;]+)/) || t.match(/filiale\s+(?:di\s+)?([^,.;]+)/) || t.match(/\ba\s+(agrate|monza|milano|corvetto)[^,.;]*/);
+      if (luogo) note = 'Presso ' + luogo[1].trim();
+
+      if (ids.length && date) {
         actions.push({
-          type: 'event', title: title, date: date,
-          from: times && times[0] ? times[0].replace('.', ':') : '09:00',
-          to: times && times[1] ? times[1].replace('.', ':') : '10:00',
-          allDay: false, participantIds: [wid]
+          type: 'event',
+          title: title,
+          date: date,
+          from: times && times[0] ? times[0].replace('.', ':').replace(/^(\d):/, '0$1:') : '09:00',
+          to: times && times[1] ? times[1].replace('.', ':').replace(/^(\d):/, '0$1:') : '10:00',
+          allDay: false,
+          participantIds: ids,
+          note: note
         });
-        summaryParts.push('Impegno «' + title + '»');
+        summaryParts.push(title + ' · ' + date + ' · ' + ids.map(function(id){ return typeof workerName === 'function' ? workerName(id) : id; }).join(', '));
       }
     }
 
+    // Shift
     const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
     const wantsClose = /chiusura/.test(t);
     const wantsOpen = /apertura/.test(t) && !/magazzin/.test(t);
-    const wid = resolveWorkerIdByName(t);
-    if (wid && dayIdx != null && (wantsClose || wantsOpen)) {
+    const shiftIds = findAllWorkerIds(t);
+    if (shiftIds.length && dayIdx != null && (wantsClose || wantsOpen) && !/\b(corso|riunione|impegno)\b/.test(t)) {
       const rules = (typeof R === 'function') ? R() : {};
       const shift = wantsClose
         ? (rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' })
         : (rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' });
-      actions.push({
-        type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey,
-        mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut
+      shiftIds.forEach(function(wid) {
+        actions.push({
+          type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey,
+          mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut
+        });
       });
-      summaryParts.push((wantsClose ? 'Chiusura' : 'Apertura') + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+      summaryParts.push((wantsClose ? 'Chiusura' : 'Apertura') + ' aggiornata');
     }
 
     if (!actions.length) return null;
     return { summary: summaryParts.join(' · ') || 'Modifiche proposte', actions: actions };
   }
 
-  function describeGlobalActions(actions) {
+function describeGlobalActions(actions) {
     return (actions || []).map(function(a, i) {
       if (!a || !a.type) return (i+1) + '. (azione non valida)';
       if (a.type === 'leave') {
