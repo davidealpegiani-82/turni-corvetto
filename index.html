@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.8.0</title>
+  <title>Turni Corvetto v8.8.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,8 +38,9 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.8.0';
+    const APP_VERSION = '8.8.1';
   const APP_CHANGELOG = [
+    '8.8.1 — Assistente AI su Groq gratis (senza carta)',
     '8.8.0 — Assistente AI nel report proposta (modifiche in linguaggio naturale)',
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1900,7 +1901,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.8.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.8.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1918,7 +1919,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.8.0</small>
+          <small id="appVersionLabel">CORVETTO · v8.8.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2321,7 +2322,7 @@
     </div>
     <div class="proposal-section" id="proposalAiSection" style="margin-top:14px;border:2px solid #6366f1;border-radius:14px;padding:12px 14px;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);">
       <h4 style="margin:0 0 8px;color:#3730a3;display:flex;align-items:center;gap:8px;">🤖 Assistente AI proposta</h4>
-      <p style="font-size:11px;color:#475569;margin:0 0 10px;line-height:1.4;">Descrivi anomalie o modifiche in italiano. L'AI aggiorna la <strong>bozza</strong> della proposta; tu controlli e poi premi «Applica proposta».</p>
+      <p style="font-size:11px;color:#475569;margin:0 0 10px;line-height:1.4;">Scrivi in italiano le modifiche. L’assistente (Groq, gratis) aggiorna la <strong>bozza</strong>; poi controlli e premi <strong>Applica proposta</strong>.</p>
       <div id="proposalAiChat" style="max-height:160px;overflow-y:auto;margin-bottom:8px;font-size:12px;line-height:1.45;"></div>
       <textarea id="proposalAiInput" rows="3" placeholder="Es. Martedì sposta Andrea in chiusura; in apertura magazzino scegli Pino; non toccare Severin…" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #c7d2fe;padding:10px;font-size:13px;resize:vertical;min-height:72px;"></textarea>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center;">
@@ -2331,14 +2332,14 @@
       </div>
       <div id="proposalAiSettings" style="display:none;margin-top:10px;padding:10px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;font-size:12px;">
         <label style="display:block;margin-bottom:6px;font-weight:700;">Chiave API (xAI / OpenAI-compatible)</label>
-        <input type="password" id="aiApiKey" placeholder="xai-… oppure sk-…" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;" autocomplete="off"/>
+        <input type="password" id="aiApiKey" placeholder="gsk_… (chiave Groq)" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;" autocomplete="off"/>
         <label style="display:block;margin-bottom:6px;font-weight:700;">Endpoint base</label>
-        <input type="text" id="aiApiBase" placeholder="https://api.x.ai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+        <input type="text" id="aiApiBase" placeholder="https://api.groq.com/openai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
         <label style="display:block;margin-bottom:6px;font-weight:700;">Modello</label>
-        <input type="text" id="aiApiModel" placeholder="grok-3-mini" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+        <input type="text" id="aiApiModel" placeholder="llama-3.1-8b-instant" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
         <label style="display:block;margin-bottom:6px;font-weight:700;">Proxy CORS (opzionale)</label>
         <input type="text" id="aiApiProxy" placeholder="https://tuo-proxy.example/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
-        <p style="margin:0 0 8px;color:#64748b;font-size:11px;line-height:1.35;">Chiave salvata solo su questo dispositivo. Per xAI: <a href="https://console.x.ai/" target="_blank" rel="noopener">console.x.ai</a>. Se il browser blocca la chiamata (CORS), indica un proxy OpenAI-compatible.</p>
+        <p style="margin:0 0 8px;color:#64748b;font-size:11px;line-height:1.35;">Gratis con <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> (senza carta). Chiave salvata solo su questo dispositivo. Endpoint: https://api.groq.com/openai/v1 · Modello: llama-3.1-8b-instant. Se CORS blocca, usa un proxy o Worker Cloudflare.</p>
         <button type="button" class="alt" onclick="saveProposalAiSettings()">Salva impostazioni AI</button>
       </div>
     </div>
@@ -6092,7 +6093,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.8.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.8.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -10650,14 +10651,14 @@ function minLunchBreakMinutes(wId) {
       const raw = localStorage.getItem(AI_SETTINGS_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) {}
-    return { apiKey: '', apiBase: 'https://api.x.ai/v1', model: 'grok-3-mini', proxy: '' };
+    return { apiKey: '', apiBase: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant', proxy: '' };
   }
 
   function saveProposalAiSettings() {
     const s = {
       apiKey: (document.getElementById('aiApiKey') || {}).value || '',
-      apiBase: ((document.getElementById('aiApiBase') || {}).value || 'https://api.x.ai/v1').replace(/\/$/, ''),
-      model: (document.getElementById('aiApiModel') || {}).value || 'grok-3-mini',
+      apiBase: ((document.getElementById('aiApiBase') || {}).value || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
+      model: (document.getElementById('aiApiModel') || {}).value || 'llama-3.1-8b-instant',
       proxy: ((document.getElementById('aiApiProxy') || {}).value || '').replace(/\/$/, '')
     };
     localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(s));
@@ -10673,8 +10674,8 @@ function minLunchBreakMinutes(wId) {
     if (!open) {
       const s = loadProposalAiSettings();
       const k = document.getElementById('aiApiKey'); if (k) k.value = s.apiKey || '';
-      const b = document.getElementById('aiApiBase'); if (b) b.value = s.apiBase || 'https://api.x.ai/v1';
-      const m = document.getElementById('aiApiModel'); if (m) m.value = s.model || 'grok-3-mini';
+      const b = document.getElementById('aiApiBase'); if (b) b.value = s.apiBase || 'https://api.groq.com/openai/v1';
+      const m = document.getElementById('aiApiModel'); if (m) m.value = s.model || 'llama-3.1-8b-instant';
       const p = document.getElementById('aiApiProxy'); if (p) p.value = s.proxy || '';
       box.style.display = 'block';
     } else {
@@ -10766,9 +10767,9 @@ function minLunchBreakMinutes(wId) {
   async function callProposalAiApi(userMessage, contextObj) {
     const s = loadProposalAiSettings();
     if (!s.apiKey) {
-      throw new Error('Configura la chiave API (pulsante ⚙️ API). Per Grok/xAI: console.x.ai');
+      throw new Error('Configura la chiave Groq (⚙️ API). Gratis su console.groq.com/keys — senza carta');
     }
-    const base = (s.proxy || s.apiBase || 'https://api.x.ai/v1').replace(/\/$/, '');
+    const base = (s.proxy || s.apiBase || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
     const url = base + '/chat/completions';
     const system = [
       'Sei l\'assistente AI dell\'app Gestione Turni Corvetto.',
@@ -10790,7 +10791,7 @@ function minLunchBreakMinutes(wId) {
     ].join('\n');
 
     const body = {
-      model: s.model || 'grok-3-mini',
+      model: s.model || 'llama-3.1-8b-instant',
       temperature: 0.2,
       messages: [
         { role: 'system', content: system },
