@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.7.9</title>
+  <title>Turni Corvetto v8.7.10</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.7.9';
+    const APP_VERSION = '8.7.10';
   const APP_CHANGELOG = [
     '8.1.0 — PWA installabile: SW cache PDF, banner Installa, manifest',
 
@@ -1050,21 +1050,24 @@
     .choice-options .choice-opt-btn,
     button.choice-opt-btn {
       flex: 1 1 140px;
+      display: flex !important;
       justify-content: center;
       align-items: center;
       flex-direction: column;
-      min-height: 56px;
-      padding: 10px 12px !important;
+      gap: 4px;
+      min-height: 64px;
+      padding: 12px 14px !important;
       background: #ffffff !important;
       color: #0f172a !important;
-      border: 2px solid #334155 !important;
+      border: 2px solid #1e293b !important;
       font-weight: 800 !important;
-      font-size: 13px !important;
+      font-size: 14px !important;
       border-radius: 12px !important;
       opacity: 1 !important;
       box-shadow: 0 2px 6px rgba(15,23,42,0.12) !important;
       text-shadow: none !important;
       filter: none !important;
+      -webkit-text-fill-color: #0f172a !important;
     }
     body:not(.light-theme) .choice-options button,
     body:not(.light-theme) .choice-options .choice-opt-btn,
@@ -1072,18 +1075,21 @@
       background: #1e293b !important;
       color: #f8fafc !important;
       border: 2px solid #94a3b8 !important;
+      -webkit-text-fill-color: #f8fafc !important;
     }
     .choice-options button:hover,
     button.choice-opt-btn:hover {
       border-color: #1d4ed8 !important;
       background: #eff6ff !important;
       color: #0f172a !important;
+      -webkit-text-fill-color: #0f172a !important;
     }
     body:not(.light-theme) .choice-options button:hover,
     body:not(.light-theme) button.choice-opt-btn:hover {
       background: #334155 !important;
       color: #fff !important;
       border-color: #60a5fa !important;
+      -webkit-text-fill-color: #fff !important;
     }
     .choice-options button.selected,
     button.choice-opt-btn.selected {
@@ -1092,30 +1098,48 @@
       border: 3px solid #14532d !important;
       box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35) !important;
       font-weight: 900 !important;
-      transform: scale(1.02);
+      -webkit-text-fill-color: #ffffff !important;
     }
     body.light-theme .choice-options button.selected,
     body.light-theme button.choice-opt-btn.selected {
       background: #15803d !important;
       color: #ffffff !important;
       border-color: #14532d !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+    .choice-opt-name {
+      display: block !important;
+      font-weight: 900 !important;
+      font-size: 14px !important;
+      line-height: 1.25 !important;
+      color: inherit !important;
+      -webkit-text-fill-color: inherit !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     }
     .choice-options button small,
-    button.choice-opt-btn small {
-      display: block;
+    button.choice-opt-btn small,
+    .choice-opt-hint {
+      display: block !important;
       font-weight: 600 !important;
       opacity: 1 !important;
       font-size: 11px !important;
-      margin-top: 4px;
-      color: #334155 !important;
+      margin-top: 2px;
+      color: #475569 !important;
+      -webkit-text-fill-color: #475569 !important;
+      visibility: visible !important;
     }
     body:not(.light-theme) .choice-options button small,
-    body:not(.light-theme) button.choice-opt-btn small {
+    body:not(.light-theme) button.choice-opt-btn small,
+    body:not(.light-theme) .choice-opt-hint {
       color: #cbd5e1 !important;
+      -webkit-text-fill-color: #cbd5e1 !important;
     }
     .choice-options button.selected small,
-    button.choice-opt-btn.selected small {
+    button.choice-opt-btn.selected small,
+    .choice-options button.selected .choice-opt-hint {
       color: #ecfdf5 !important;
+      -webkit-text-fill-color: #ecfdf5 !important;
     }
     .mobile-cards { display: none; gap: 10px; flex-direction: column; }
     .worker-card {
@@ -1865,7 +1889,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.9</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.7.10</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1883,7 +1907,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.7.9</small>
+          <small id="appVersionLabel">CORVETTO · v8.7.10</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6034,7 +6058,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.7.9', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.7.10', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -9049,12 +9073,12 @@ function minLunchBreakMinutes(wId) {
       // essere bypassata dalla priorità del jolly o dallo Smart Brain.
       if(pinoCarusoEquivalent){
         const dayNames=['Lun','Mar','Mer','Gio','Ven'];
-        const makeOption = id => ({id,name:workerName(id),shift:{mIn:'06:30',mOut:'12:00',pIn:'13:00',pOut:'15:30'},hint:'06:30–15:30 · nastro 8h'});
+        const makeOption = id => ({id,name:(workerName(id)||id||'Candidato'),shift:{mIn:'06:30',mOut:'12:00',pIn:'13:00',pOut:'15:30'},hint:'06:30–15:30 · nastro 8h'});
         choices.push({
           id:`mag-open-${day}`, area:'magazzino', kind:'apertura', day,
           userRequired:true,
           label:`Magazzino ${dayNames[day]} — scegli chi spostare in apertura`,
-          options:[makeOption(pinoId),makeOption(carusoId),{id:'__leave__',name:'Lascia com’è',shift:null,hint:'Nessuno spostamento automatico',leaveAsIs:true}],
+          options:[makeOption(pinoId),makeOption(carusoId),{id:'__leave__',name:"Lascia com'è",shift:null,hint:'Nessuno spostamento automatico',leaveAsIs:true}],
           selected:null
         });
         notes.push(`Apertura magazzino ${dayNames[day]}: Pino Vartuca e Massimo Caruso sono candidati equivalenti. È richiesta una scelta esplicita (Pino, Caruso o lasciare com'è).`);
@@ -10658,7 +10682,12 @@ function minLunchBreakMinutes(wId) {
           const isSel = c.selected != null && String(c.selected) === String(o.id);
           const selCls = isSel ? 'selected' : '';
           const mark = isSel ? '✓ ' : '';
-          return `<button type="button" class="choice-opt-btn ${selCls}" data-choice="${escapeHtmlV47(c.id)}" data-opt="${escapeHtmlV47(o.id)}" onclick="selectProposalChoice(${jsStringArg(c.id)},${jsStringArg(o.id)})">${mark}${escapeHtmlV47(o.name)}<small>${escapeHtmlV47(o.hint || shiftLbl)}</small></button>`;
+          const displayName = (o.name && String(o.name).trim())
+            || (typeof workerName === 'function' ? workerName(o.id) : '')
+            || (o.id === '__leave__' ? "Lascia com'è" : '')
+            || String(o.id || 'Opzione');
+          const displayHint = o.hint || shiftLbl || '';
+          return `<button type="button" class="choice-opt-btn ${selCls}" data-choice="${escapeHtmlV47(c.id)}" data-opt="${escapeHtmlV47(o.id)}" onclick="selectProposalChoice(${jsStringArg(c.id)},${jsStringArg(o.id)})"><span class="choice-opt-name">${mark}${escapeHtmlV47(displayName)}</span>${displayHint ? `<small class="choice-opt-hint">${escapeHtmlV47(displayHint)}</small>` : ''}</button>`;
         }).join('');
         return `<div class="choice-card"><h5>${escapeHtmlV47(c.label)}</h5><div class="choice-options">${opts}</div></div>`;
       }).join('');
