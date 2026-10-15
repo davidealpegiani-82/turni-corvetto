@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.0</title>
+  <title>Turni Corvetto v8.9.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.0';
+    const APP_VERSION = '8.9.1';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1902,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.9.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong">v8.9.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · v8.9.0</small>
+          <small id="appVersionLabel">CORVETTO · v8.9.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2338,10 +2338,10 @@
         <label style="display:block;margin-bottom:6px;font-weight:700;">Endpoint base</label>
         <input type="text" id="aiApiBase" placeholder="https://api.groq.com/openai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
         <label style="display:block;margin-bottom:6px;font-weight:700;">Modello</label>
-        <input type="text" id="aiApiModel" placeholder="llama-3.1-8b-instant" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+        <input type="text" id="aiApiModel" placeholder="openai/gpt-oss-20b" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
         <label style="display:block;margin-bottom:6px;font-weight:700;">Proxy CORS (opzionale)</label>
         <input type="text" id="aiApiProxy" placeholder="https://tuo-proxy.example/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
-        <p style="margin:0 0 8px;color:#64748b;font-size:11px;line-height:1.35;">Gratis con <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> (senza carta). Chiave salvata solo su questo dispositivo. Endpoint: https://api.groq.com/openai/v1 · Modello: llama-3.1-8b-instant. Se CORS blocca, usa un proxy o Worker Cloudflare.</p>
+        <p style="margin:0 0 8px;color:#64748b;font-size:11px;line-height:1.35;">Gratis con <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> (senza carta). Chiave salvata solo su questo dispositivo. Endpoint: https://api.groq.com/openai/v1 · Modello: openai/gpt-oss-20b. Se CORS blocca, usa un proxy o Worker Cloudflare.</p>
         <button type="button" class="alt" onclick="saveProposalAiSettings()">Salva impostazioni AI</button>
       </div>
     </div>
@@ -2378,7 +2378,7 @@
       <label style="display:block;margin-bottom:4px;font-weight:700;">Endpoint</label>
       <input type="text" id="globalAiApiBase" value="https://api.groq.com/openai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
       <label style="display:block;margin-bottom:4px;font-weight:700;">Modello</label>
-      <input type="text" id="globalAiApiModel" value="llama-3.1-8b-instant" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
+      <input type="text" id="globalAiApiModel" value="openai/gpt-oss-20b" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
       <label style="display:block;margin-bottom:4px;font-weight:700;">Proxy CORS (opzionale)</label>
       <input type="text" id="globalAiApiProxy" placeholder="lascia vuoto" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
       <p style="margin:0 0 8px;color:#64748b;font-size:11px;">Chiave gratis su <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> (senza carta). Salvata solo su questo dispositivo.</p>
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -10691,14 +10691,14 @@ function minLunchBreakMinutes(wId) {
       const raw = localStorage.getItem(AI_SETTINGS_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) {}
-    return { apiKey: '', apiBase: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant', proxy: '' };
+    return { apiKey: '', apiBase: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', proxy: '' };
   }
 
   function saveProposalAiSettings() {
     const s = {
       apiKey: (document.getElementById('aiApiKey') || {}).value || '',
       apiBase: ((document.getElementById('aiApiBase') || {}).value || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
-      model: (document.getElementById('aiApiModel') || {}).value || 'llama-3.1-8b-instant',
+      model: (document.getElementById('aiApiModel') || {}).value || 'openai/gpt-oss-20b',
       proxy: ((document.getElementById('aiApiProxy') || {}).value || '').replace(/\/$/, '')
     };
     localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(s));
@@ -10715,7 +10715,7 @@ function minLunchBreakMinutes(wId) {
       const s = loadProposalAiSettings();
       const k = document.getElementById('aiApiKey'); if (k) k.value = s.apiKey || '';
       const b = document.getElementById('aiApiBase'); if (b) b.value = s.apiBase || 'https://api.groq.com/openai/v1';
-      const m = document.getElementById('aiApiModel'); if (m) m.value = s.model || 'llama-3.1-8b-instant';
+      const m = document.getElementById('aiApiModel'); if (m) m.value = s.model || 'openai/gpt-oss-20b';
       const p = document.getElementById('aiApiProxy'); if (p) p.value = s.proxy || '';
       box.style.display = 'block';
     } else {
@@ -10831,7 +10831,7 @@ function minLunchBreakMinutes(wId) {
     ].join('\n');
 
     const body = {
-      model: s.model || 'llama-3.1-8b-instant',
+      model: s.model || 'openai/gpt-oss-20b',
       temperature: 0.2,
       messages: [
         { role: 'system', content: system },
@@ -11001,7 +11001,7 @@ function minLunchBreakMinutes(wId) {
     const s = loadProposalAiSettings();
     const k = document.getElementById('globalAiApiKey'); if (k) k.value = s.apiKey || '';
     const b = document.getElementById('globalAiApiBase'); if (b) b.value = s.apiBase || 'https://api.groq.com/openai/v1';
-    const m = document.getElementById('globalAiApiModel'); if (m) m.value = s.model || 'llama-3.1-8b-instant';
+    const m = document.getElementById('globalAiApiModel'); if (m) m.value = s.model || 'openai/gpt-oss-20b';
     const p = document.getElementById('globalAiApiProxy'); if (p) p.value = s.proxy || '';
     openModal('globalAiModal');
   }
@@ -11016,7 +11016,7 @@ function minLunchBreakMinutes(wId) {
     const s = {
       apiKey: (document.getElementById('globalAiApiKey') || {}).value || '',
       apiBase: ((document.getElementById('globalAiApiBase') || {}).value || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
-      model: (document.getElementById('globalAiApiModel') || {}).value || 'llama-3.1-8b-instant',
+      model: (document.getElementById('globalAiApiModel') || {}).value || 'openai/gpt-oss-20b',
       proxy: ((document.getElementById('globalAiApiProxy') || {}).value || '').replace(/\/$/, '')
     };
     localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(s));
@@ -11115,7 +11115,7 @@ function minLunchBreakMinutes(wId) {
     ].join('\n');
 
     const body = {
-      model: s.model || 'llama-3.1-8b-instant',
+      model: s.model || 'openai/gpt-oss-20b',
       temperature: 0.15,
       messages: [
         { role: 'system', content: system },
