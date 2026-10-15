@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.6</title>
+  <title>Turni Corvetto v8.9.7</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.6';
+    const APP_VERSION = '8.9.7';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1902,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.7</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V8.9.6</small>
+          <small id="appVersionLabel">CORVETTO · V8.9.7</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.6', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.7', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11128,15 +11128,21 @@ function minLunchBreakMinutes(wId) {
       if (luogo) note = 'Presso ' + luogo[1].trim();
 
       if (ids.length && date) {
+        const ft = times && times[0] ? times[0].replace('.', ':') : '09:00';
+        const tt = times && times[1] ? times[1].replace('.', ':') : '10:00';
+        const pad = function(x) { const m = String(x).match(/^(\d{1,2}):(\d{2})$/); return m ? m[1].padStart(2,'0')+':'+m[2] : x; };
         actions.push({
           type: 'event',
           title: title,
           date: date,
-          from: times && times[0] ? times[0].replace('.', ':').replace(/^(\d):/, '0$1:') : '09:00',
-          to: times && times[1] ? times[1].replace('.', ':').replace(/^(\d):/, '0$1:') : '10:00',
+          fromTime: pad(ft),
+          toTime: pad(tt),
+          from: pad(ft),
+          to: pad(tt),
           allDay: false,
           participantIds: ids,
-          note: note
+          note: note,
+          location: note
         });
         summaryParts.push(title + ' · ' + date + ' · ' + ids.map(function(id){ return typeof workerName === 'function' ? workerName(id) : id; }).join(', '));
       }
@@ -11221,20 +11227,57 @@ function describeGlobalActions(actions) {
           applied++;
           messages.push((req.tipo) + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
         } else if (a.type === 'event') {
-          const ids = (a.participantIds || []).map(function(x) { return resolveWorkerIdByName(x) || x; }).filter(Boolean);
-          if (!ids.length && a.workerId) ids.push(a.workerId);
+          const ids = (a.participantIds || []).map(function(x) {
+            // se e gia un id valido workers, tienilo
+            if ((appData.workers || []).some(function(w) { return w.id === x; })) return x;
+            return resolveWorkerIdByName(x) || x;
+          }).filter(Boolean);
+          if (!ids.length && a.workerId) {
+            const w2 = resolveWorkerIdByName(a.workerId) || a.workerId;
+            ids.push(w2);
+          }
           if (!ids.length) { messages.push('Impegno: nessun partecipante'); return; }
+          // Normalizza orari HH:MM (l'app usa fromTime/toTime, non from/to)
+          const normTime = function(v) {
+            if (!v) return '';
+            let s = String(v).trim().replace('.', ':');
+            const m = s.match(/^(\d{1,2}):(\d{2})$/);
+            if (!m) return s;
+            return m[1].padStart(2, '0') + ':' + m[2];
+          };
+          let date = a.date || '';
+          // accetta 16/10 → YYYY-MM-DD
+          if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof parseItalianDate !== 'function') {
+            const m = String(date).match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?/);
+            if (m) {
+              const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
+              const y = m[3] || (typeof weekDates !== 'undefined' && weekDates[0] ? String(weekDates[0]).slice(0,4) : String(new Date().getFullYear()));
+              date = y + '-' + mo + '-' + d;
+            }
+          }
+          const fromTime = normTime(a.fromTime || a.from || '');
+          const toTime = normTime(a.toTime || a.to || '');
+          const allDay = !!a.allDay || (!fromTime && !toTime);
           const ev = {
             id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-            type: a.eventType || 'impegno', title: a.title || 'Impegno', date: a.date,
-            from: a.from || '', to: a.to || '', allDay: !!a.allDay,
-            participants: ids, participantIds: ids, note: a.note || '',
+            type: a.eventType || a.typeLabel || 'Corso',
+            title: a.title || 'Impegno',
+            date: date,
+            allDay: allDay,
+            fromTime: allDay ? '' : fromTime,
+            toTime: allDay ? '' : toTime,
+            location: a.location || a.note || '',
+            participantIds: ids,
+            notes: a.notes || a.note || '',
             createdAt: new Date().toISOString()
           };
-          if (!ev.date) { messages.push('Impegno: data mancante'); return; }
+          if (!ev.date || !/^\d{4}-\d{2}-\d{2}$/.test(ev.date)) {
+            messages.push('Impegno: data mancante o non valida (' + (a.date || '') + ')');
+            return;
+          }
           appData.events.push(ev);
           applied++;
-          messages.push('Impegno «' + ev.title + '»');
+          messages.push('Impegno «' + ev.title + '» il ' + ev.date + ' (' + ids.length + ' partecipante/i)');
         } else if (a.type === 'shift') {
           let wid = a.workerId || resolveWorkerIdByName(a.workerName);
           const day = Number(a.day);
@@ -11259,8 +11302,11 @@ function describeGlobalActions(actions) {
       }
     });
     try { if (typeof saveData === 'function') saveData(); } catch (e) {}
+    try { if (typeof scheduleSave === 'function') scheduleSave(); } catch (e) {}
     try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
     try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
+    try { if (typeof render === 'function') render(); } catch (e) {}
+    try { if (typeof renderEvents === 'function') renderEvents(); } catch (e) {}
     try { if (typeof autoUpdateShiftsAfterChange === 'function') autoUpdateShiftsAfterChange({ reason: 'Assistente AI', detail: messages.join('; ') }); } catch (e) {}
     return { applied: applied, messages: messages };
   }
