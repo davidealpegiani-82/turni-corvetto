@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.3.7</title>
+  <title>Turni Corvetto v9.4.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,20 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.3.7';
+    const APP_VERSION = '9.4.0';
+  const LEAVE_STATUS_MAP = {
+    'Ferie': 'FERIE',
+    'Permesso retribuito': 'ROL',
+    'Permesso Non retribuito': 'ASSENTE',
+    'Congedo Matrimoniale': 'FERIE',
+    'Visita Medica': 'ROL',
+    'Visita c/o cantiere': 'ROL',
+    'Partecipazione corso': 'EVENTO',
+    'Visita Fiera': 'EVENTO',
+    'Donazione Sangue': 'ROL',
+    'Malattia': 'MALATTIA',
+    'Ricovero': 'MALATTIA'
+  };
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.7</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.4.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1911,7 +1924,6 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <div class="week-badge" id="weekBadgeNum">Settimana ...</div>
-      <button type="button" class="success" id="btnForceCloud" onclick="forceReloadFromCloud()" title="Scarica i dati dal cloud" style="min-height:36px;padding:6px 10px;border-radius:999px;font-size:12px;">☁️ Cloud</button>
       <button type="button" class="alt" id="themeToggleBtn" onclick="toggleTheme()" title="Tema chiaro / scuro" style="min-height:36px;padding:6px 12px;border-radius:999px;font-weight:700;">🌓</button>
     </div>
   </div>
@@ -1922,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.3.7</small>
+          <small id="appVersionLabel">CORVETTO · V9.4.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -1947,7 +1959,7 @@
       <button class="alt" onclick="changeWeek(-1)" title="Settimana precedente">◀</button>
       <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
       <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
-      <button type="button" class="success" id="btnCloudRescueMain" onclick="forceReloadFromCloud()" style="width:100%;min-height:48px;font-size:15px;font-weight:800;margin-bottom:8px;background:#dc2626;border-color:#fecaca;color:#fff;">☁️ SCARICA DATI DAL CLOUD</button>
+      <button type="button" class="alt" id="btnCloudRescueMain" onclick="forceReloadFromCloud()" title="Ricarica turni/ferie/impegni dal cloud" style="width:100%;min-height:42px;margin-bottom:8px;font-weight:700;">☁️ Ricarica dal cloud</button>
       <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
       <button class="alt" onclick="openGlobalAiAssistant()" title="Assistente AI — turni, ferie, malattia, impegni" style="border-color:#059669;color:#065f46;font-weight:800;">🧠 Assistente</button>
       <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
@@ -3028,10 +3040,41 @@
       localStorage.setItem('turni_corvetto_test_data', JSON.stringify(appData));
       setSaveStatus('ok');
       maybeAutoSnapshot();
+      // Se Firebase SDK non è attivo, prova comunque a pubblicare su RTDB via REST (debounced)
+      try { scheduleRestCloudPush(); } catch (eR) {}
     } catch (e) {
       console.warn('saveLocalData', e);
       setSaveStatus('err');
       showToast('Errore salvataggio locale (spazio pieno?)', 'error', 4000);
+    }
+  }
+
+  var _restPushTimer = null;
+  function scheduleRestCloudPush() {
+    if (typeof db !== 'undefined' && db) return; // SDK gestisce già
+    clearTimeout(_restPushTimer);
+    _restPushTimer = setTimeout(function() { pushAppDataViaRest(); }, 1500);
+  }
+
+  async function pushAppDataViaRest() {
+    try {
+      const pathR = (typeof RTDB_PATH !== 'undefined' && RTDB_PATH) ? RTDB_PATH : 'turni_data_v47_pdf';
+      const url = 'https://turni-corvetto-fca14-default-rtdb.firebaseio.com/' + pathR + '.json';
+      const payload = Object.assign({}, appData, {
+        updatedAt: Date.now(),
+        updatedBy: (typeof CLIENT_ID !== 'undefined' ? CLIENT_ID : 'rest-client'),
+        updatedRevision: (Number(appData.updatedRevision) || 0) + 1
+      });
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      try { setSyncStatus('ok', 'cloud REST'); } catch (e) {}
+    } catch (err) {
+      console.warn('pushAppDataViaRest', err);
+      try { setSyncStatus('local', 'salvataggio solo locale'); } catch (e) {}
     }
   }
 
@@ -4406,7 +4449,7 @@ function isUsableAppData(value) {
   }
   window.renderMalattiaView = renderMalattiaView;
 
-  function exportMalattiaPDF() {
+  async function exportMalattiaPDF() {
     if (typeof window.jspdf === 'undefined') return alert('Libreria PDF non caricata.');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('portrait', 'mm', 'a4');
@@ -4440,7 +4483,15 @@ function isUsableAppData(value) {
       styles: { fontSize: 8 },
       headStyles: { fillColor: [180, 40, 40] }
     });
-    doc.save(`Malattia_${leaveYear}_${appData.title || 'CORVETTO'}.pdf`);
+    const blob = doc.output('blob');
+    if (typeof openDocumentPreview === 'function') {
+      await openDocumentPreview({ blob: blob, filename: 'Malattie_' + leaveYear + '_Corvetto.pdf', title: '👁️ Anteprima malattie ' + leaveYear, allowJpg: false });
+    } else {
+      window._pdfPreviewBlob = blob;
+      window._pdfPreviewFilename = 'Malattie_' + leaveYear + '_Corvetto.pdf';
+      const modal = document.getElementById('pdfPreviewModal');
+      if (modal) modal.style.display = 'flex';
+    }
   }
   window.exportMalattiaPDF = exportMalattiaPDF;
 
@@ -6210,73 +6261,51 @@ function annotateEventOnWeek(e,weekKey){
     const icsBody = opts.icsBody || '';
     if (!icsBody) { showToast('Nessun file calendario da condividere', 'error', 3000); return {ok:false}; }
 
-    // Costruisci il file in più MIME: Android spesso accetta text/plain o octet-stream nel foglio Condividi
-    const blobCalendar = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
-    const blobPlain = new Blob([icsBody], { type: 'text/plain;charset=utf-8' });
-    const blobOctet = new Blob([icsBody], { type: 'application/octet-stream' });
-    const fileVariants = [
-      new File([blobCalendar], fileName, { type: 'text/calendar', lastModified: Date.now() }),
-      new File([blobPlain], fileName, { type: 'text/plain', lastModified: Date.now() }),
-      new File([blobOctet], fileName, { type: 'application/octet-stream', lastModified: Date.now() })
-    ];
+    const file = new File([icsBody], fileName, { type: 'text/calendar', lastModified: Date.now() });
+    const filePlain = new File([icsBody], fileName, { type: 'text/plain', lastModified: Date.now() });
 
-    // 1) Web Share API con FILE → apre il foglio di sistema (WhatsApp, Gmail, Drive, …)
     if (typeof navigator.share === 'function') {
-      // Prova canShare + share con file
-      if (navigator.canShare) {
-        for (let i = 0; i < fileVariants.length; i++) {
-          const files = [fileVariants[i]];
-          try {
-            if (navigator.canShare({ files: files })) {
-              await navigator.share({ title: title, text: text, files: files });
-              showToast('Scegli WhatsApp (o altra app) dal foglio di condivisione', 'success', 3500);
-              return { ok: true, file: true, mime: files[0].type };
-            }
-          } catch (err) {
-            if (err && err.name === 'AbortError') return { ok: false, aborted: true };
-            // prova variante successiva
-            console.warn('share files variant', files[0].type, err);
-          }
-        }
-      }
-      // 2) Alcuni browser accettano share({files}) anche senza canShare
-      for (let i = 0; i < fileVariants.length; i++) {
+      const attempts = [
+        { title: title, text: text, files: [file] },
+        { title: title, text: text, files: [filePlain] }
+      ];
+      for (let i = 0; i < attempts.length; i++) {
         try {
-          await navigator.share({ title: title, text: text, files: [fileVariants[i]] });
-          showToast('Scegli WhatsApp dal foglio di condivisione', 'success', 3500);
-          return { ok: true, file: true, mime: fileVariants[i].type };
+          if (navigator.canShare && !navigator.canShare({ files: attempts[i].files })) continue;
+          await navigator.share(attempts[i]);
+          showToast('Scegli WhatsApp dal foglio di condivisione', 'success', 3000);
+          return { ok: true, file: true };
         } catch (err) {
           if (err && err.name === 'AbortError') return { ok: false, aborted: true };
-          console.warn('share without canShare', err);
         }
       }
-      // 3) Ultimo tentativo: solo testo (senza file) — meglio di uno scaricamento forzato se l’utente vuole condividere
+      // Ultimo tentativo: share con files senza canShare
       try {
-        await navigator.share({ title: title, text: text + '\n\n(File calendario non allegato da questo browser: usa Scarica ICS e allegalo in WhatsApp.)' });
-        showToast('Condiviso il testo. Per il file .ics usa Scarica ICS e allegalo in chat.', 'warn', 5000);
-        return { ok: true, textOnly: true };
-      } catch (err) {
-        if (err && err.name === 'AbortError') return { ok: false, aborted: true };
+        await navigator.share({ title: title, text: text, files: [filePlain] });
+        return { ok: true, file: true };
+      } catch (err2) {
+        if (err2 && err2.name === 'AbortError') return { ok: false, aborted: true };
       }
     }
-
-    // 4) Niente Web Share (es. desktop Chrome senza supporto file): download esplicito
+    // Solo se Web Share non esiste (desktop): download
     try {
       if (typeof downloadBlob === 'function') downloadBlob(fileName, icsBody);
       else {
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blobCalendar);
+        a.href = URL.createObjectURL(new Blob([icsBody], { type: 'text/calendar' }));
         a.download = fileName;
         document.body.appendChild(a); a.click(); a.remove();
       }
-      showToast('Condivisione non disponibile su questo dispositivo: file ICS scaricato.', 'info', 4500);
+      showToast('Su questo dispositivo usa Salva e allega il file in WhatsApp', 'info', 4500);
       return { ok: true, downloaded: true };
-    } catch (downloadErr) {
-      showToast('Condivisione e download non riusciti.', 'error', 4000);
+    } catch (e) {
+      showToast('Condivisione non riuscita', 'error', 3000);
       return { ok: false };
     }
   }
   window.shareIcsLikeEmail = shareIcsLikeEmail;
+
+;
 
   async function shareEventWhatsApp(id) {
     const e=(appData.events||[]).find(x=>String(x.id)===String(id));
@@ -6457,7 +6486,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.3.7', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.4.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -12354,6 +12383,7 @@ function confirmGlobalAiActions() {
     showToast('Ultima azione assistente annullata', 'success');
   }
 
+    window.confirmGlobalAiActions = confirmGlobalAiActions;
   function cancelGlobalAiActions() {
     window._pendingGlobalAiActions = null;
     const box = document.getElementById('globalAiPending');
@@ -13935,19 +13965,6 @@ async function downloadJpgFromPreview() {
   // ========== MODULO FERIE / PERMESSI ==========
   let editingLeaveId = null;
 
-  const LEAVE_STATUS_MAP = {
-    'Ferie': 'FERIE',
-    'Permesso retribuito': 'ROL',
-    'Permesso Non retribuito': 'ASSENTE',
-    'Congedo Matrimoniale': 'FERIE',
-    'Visita Medica': 'ROL',
-    'Visita c/o cantiere': 'ROL',
-    'Partecipazione corso': 'EVENTO',
-    'Visita Fiera': 'EVENTO',
-    'Donazione Sangue': 'ROL',
-    'Malattia': 'MALATTIA',
-    'Ricovero': 'MALATTIA'
-  };
 
   function changeLeaveYear(delta) {
     if (leaveCalMode === 'month') {
@@ -14109,8 +14126,10 @@ async function downloadJpgFromPreview() {
 
   function openMalattiaModal(existingId) {
     editingMalattiaId = existingId || null;
+    const modal = document.getElementById('malattiaModal');
+    if (!modal) { showToast('Modale malattia non trovata', 'error'); return; }
     const sel = document.getElementById('malWorker');
-    if (!sel) return;
+    if (!sel) { showToast('Form malattia incompleto', 'error'); modal.style.display = 'flex'; return; }
     sel.innerHTML = '';
     (appData.workers || []).forEach(w => {
       sel.innerHTML += '<option value="' + w.id + '">' + w.name + '</option>';
