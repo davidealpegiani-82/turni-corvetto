@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.8</title>
+  <title>Turni Corvetto v8.9.9</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.8';
+    const APP_VERSION = '8.9.9';
   const APP_CHANGELOG = [
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
@@ -1902,7 +1902,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.8</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.9</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1920,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V8.9.8</small>
+          <small id="appVersionLabel">CORVETTO · V8.9.9</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6133,7 +6133,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.8', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=8.9.9', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11018,151 +11018,183 @@ function minLunchBreakMinutes(wId) {
     const summaryParts = [];
 
     function parseItalianDate(str) {
-      // 2026-10-16
       let m = str.match(/(\d{4})-(\d{2})-(\d{2})/);
       if (m) return m[1] + '-' + m[2] + '-' + m[3];
-      // 16/10/2026 or 16-10-2026
       m = str.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
-      if (m) {
-        const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
-        return m[3] + '-' + mo + '-' + d;
-      }
-      // 16/10 or 16-10 (assume current year or from week)
+      if (m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
       m = str.match(/\b(\d{1,2})[\/\-.](\d{1,2})\b/);
       if (m) {
-        const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
         let year = new Date().getFullYear();
         try {
           if (typeof weekDates !== 'undefined' && weekDates[0]) year = parseInt(String(weekDates[0]).slice(0,4), 10) || year;
         } catch (e) {}
-        return year + '-' + mo + '-' + d;
+        return year + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
       }
       return null;
     }
 
     function findAllWorkerIds(str) {
       const ids = [];
-      const workers = appData.workers || [];
       const s = String(str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      for (const w of workers) {
+      (appData.workers || []).forEach(function(w) {
         const n = String(w.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const parts = n.split(/\s+/).filter(Boolean);
         if (parts.some(function(p) { return p.length > 2 && s.includes(p); })) {
           if (ids.indexOf(w.id) < 0) ids.push(w.id);
         }
-      }
+      });
       return ids;
     }
 
-    // Leave
-    // donazione sangue prima di "permesso" generico
-    let leaveMatch = t.match(/\b(donazione(?:\s+sangue)?|ferie|permesso|rol|malattia|ricovero)\b/);
-    if (leaveMatch) {
-      const tipoMap = {
-        ferie: 'Ferie', permesso: 'Permesso', rol: 'ROL',
-        malattia: 'Malattia', ricovero: 'Ricovero',
-        donazione: 'Donazione Sangue', 'donazione sangue': 'Donazione Sangue'
-      };
-      let tipoKey = leaveMatch[1];
-      if (/donazione/.test(tipoKey)) tipoKey = 'donazione';
-      let tipo = tipoMap[tipoKey] || 'Ferie';
-      // "permesso per donazione sangue" → Donazione Sangue
-      if (/donazione/.test(t)) tipo = 'Donazione Sangue';
+    function detectLeaveTipo(str) {
+      // ordine: più specifici prima
+      if (/donazione/.test(str)) return 'Donazione Sangue';
+      if (/congedo/.test(str) && /matrimon/.test(str)) return 'Congedo Matrimoniale';
+      if (/visita/.test(str) && /cantiere/.test(str)) return 'Visita c/o cantiere';
+      if (/visita/.test(str) && /fiera/.test(str)) return 'Visita Fiera';
+      if (/visita/.test(str) && /medic/.test(str)) return 'Visita Medica';
+      if (/partecipazione\s+corso|corso\s+come\s+assenza/.test(str)) return 'Partecipazione corso';
+      if (/permesso/.test(str) && /non\s*retrib/.test(str)) return 'Permesso Non retribuito';
+      if (/permesso/.test(str) && /retrib/.test(str)) return 'Permesso retribuito';
+      if (/permesso/.test(str)) return 'Permesso retribuito';
+      if (/\brol\b/.test(str)) return 'ROL';
+      if (/ricovero/.test(str)) return 'Ricovero';
+      if (/malattia/.test(str)) return 'Malattia';
+      if (/ferie/.test(str)) return 'Ferie';
+      return null;
+    }
+
+    function detectEventType(str) {
+      if (/trasferta/.test(str)) return 'Trasferta';
+      if (/appuntamento/.test(str)) return 'Appuntamento';
+      if (/visita\s+medic/.test(str)) return 'Visita medica';
+      if (/riunione/.test(str)) return 'Riunione';
+      if (/corso|formazione|kerakoll|mapei/.test(str)) return 'Corso';
+      if (/\b(impegno|meeting)\b/.test(str)) return 'Altro';
+      return null;
+    }
+
+    // ——— LEAVE / MALATTIA ———
+    const leaveTipo = detectLeaveTipo(t);
+    if (leaveTipo) {
       const ids = findAllWorkerIds(t);
       const wid = ids[0] || null;
       let day = null, fromDay = null, toDay = null;
       const isoAll = [];
-      let mm;
-      const reIso = /(\d{4}-\d{2}-\d{2})/g;
+      let mm, reIso = /(\d{4}-\d{2}-\d{2})/g;
       while ((mm = reIso.exec(t))) isoAll.push(mm[1]);
       if (isoAll.length >= 2) { fromDay = isoAll[0]; toDay = isoAll[1]; }
       else if (isoAll.length === 1) { day = isoAll[0]; }
       else {
-        const d1 = parseItalianDate(t);
-        if (d1) day = d1;
+        // due date tipo 20/10 e 22/10
+        const ddmmy = [];
+        const reD = /\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?\b/g;
+        let m2;
+        while ((m2 = reD.exec(t))) {
+          ddmmy.push(parseItalianDate(m2[0]));
+        }
+        const uniq = ddmmy.filter(Boolean);
+        if (uniq.length >= 2) { fromDay = uniq[0]; toDay = uniq[1]; }
+        else if (uniq.length === 1) { day = uniq[0]; }
       }
       const times = t.match(/(\d{1,2}[:.]\d{2})/g);
-      const fullDay = !times || times.length < 2;
+      const pad = function(x) {
+        const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
+        return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
+      };
+      const fullDay = !times || times.length < 2 || /giornata\s+intera|tutto\s+il\s+giorno|tutta\s+la\s+giornata/.test(t);
+      const isMal = leaveTipo === 'Malattia' || leaveTipo === 'Ricovero';
+      const leaveStatus = (/rifiut|annull/.test(t) ? 'rifiutata' : (/in\s*attesa|da\s+conferm/.test(t) ? 'in_attesa' : 'approvata'));
+      const openEnded = isMal && !toDay && (/senza\s+fine|open|in\s+corso|fino\s+a\s+dimiss|senza\s+data/.test(t) || !toDay);
+
       if (wid && (day || fromDay)) {
-        const leaveStatus = (/rifiut|annull/.test(t) ? 'rifiutata' : (/attes|da conferm/.test(t) ? 'in_attesa' : 'approvata'));
         actions.push({
-          type: 'leave', workerId: wid, tipo: tipo, status: leaveStatus,
-          mode: fromDay ? 'range' : 'single',
-          day: day || fromDay, fromDay: fromDay || day, toDay: toDay || '',
-          fullDay: fullDay && !/permesso/.test(t),
-          fromTime: times && times[0] ? times[0].replace('.', ':') : '',
-          toTime: times && times[1] ? times[1].replace('.', ':') : '',
-          isMalattia: /malattia|ricovero/.test(t),
-          openEnded: /malattia|ricovero/.test(t) && !toDay
+          type: 'leave',
+          workerId: wid,
+          tipo: leaveTipo,
+          status: leaveStatus,
+          mode: (fromDay && toDay) || (fromDay && openEnded) ? 'range' : 'single',
+          day: day || fromDay,
+          fromDay: fromDay || day,
+          toDay: toDay || '',
+          fullDay: fullDay,
+          fromTime: fullDay ? '' : pad(times && times[0]),
+          toTime: fullDay ? '' : pad(times && times[1]),
+          isMalattia: isMal,
+          openEnded: !!openEnded && isMal,
+          syncTurns: leaveStatus === 'approvata',
+          note: 'Inserito da assistente AI'
         });
-        summaryParts.push(tipo + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+        summaryParts.push(leaveTipo + ' · ' + (typeof workerName === 'function' ? workerName(wid) : wid) + ' · ' + (fromDay && toDay ? fromDay + '→' + toDay : (day || fromDay)));
       }
     }
 
-    // Evento / corso / riunione — multi partecipante
-    if (/\b(riunione|corso|impegno|meeting|formazione)\b/.test(t)) {
+    // ——— EVENTI ———
+    const evType = detectEventType(t);
+    if (evType && !leaveTipo) {
       const ids = findAllWorkerIds(t);
       const times = t.match(/(\d{1,2}[:.]\d{2})/g);
-      let title = 'Impegno';
-      if (/corso/.test(t)) {
-        title = 'Corso';
-        const km = t.match(/corso\s+([a-z0-9][a-z0-9 \-]{1,30})/);
-        if (km) {
-          let rest = km[1].trim();
-          // stop at date/time words
-          rest = rest.split(/\s+(?:il|il|giorno|dalle|da|presso|a)\s+/)[0].trim();
-          if (rest.length > 1) title = 'Corso ' + rest.charAt(0).toUpperCase() + rest.slice(1);
+      const pad = function(x) {
+        const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
+        return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
+      };
+      let title = evType;
+      if (evType === 'Corso') {
+        if (/kerakoll/.test(t)) title = 'Corso Kerakoll';
+        else if (/mapei/.test(t)) title = 'Corso Mapei';
+        else {
+          const km = t.match(/corso\s+([a-z0-9][a-z0-9 \-]{1,28})/);
+          if (km) {
+            let rest = km[1].split(/\s+(?:il|dalle|da|presso|a|per)\s+/)[0].trim();
+            if (rest.length > 1) title = 'Corso ' + rest.charAt(0).toUpperCase() + rest.slice(1);
+          }
         }
-        if (/kerakoll/.test(t) && !/kerakoll/i.test(title)) title = 'Corso Kerakoll';
-      } else if (/riunione/.test(t)) {
-        title = 'Riunione';
-        if (/commerciale/.test(t)) title = 'Riunione Commerciale';
+      } else if (evType === 'Riunione' && /commerciale/.test(t)) {
+        title = 'Riunione Commerciale';
       }
       let date = parseItalianDate(t);
       if (!date && typeof weekDates !== 'undefined') {
         const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
         if (dayIdx != null && weekDates[dayIdx]) date = weekDates[dayIdx];
       }
-      let note = '';
-      const luogo = t.match(/presso\s+([^,.;]+)/) || t.match(/filiale\s+(?:di\s+)?([^,.;]+)/) || t.match(/\ba\s+(agrate|monza|milano|corvetto)[^,.;]*/);
-      if (luogo) note = 'Presso ' + luogo[1].trim();
+      let location = '';
+      const luogo = t.match(/presso\s+([^,.;]+)/) || t.match(/filiale\s+(?:di\s+)?([^,.;]+)/);
+      if (luogo) location = luogo[1].trim();
+      if (/agrate/.test(t) && !location) location = 'Filiale di Agrate';
 
       if (ids.length && date) {
-        const ft = times && times[0] ? times[0].replace('.', ':') : '09:00';
-        const tt = times && times[1] ? times[1].replace('.', ':') : '10:00';
-        const pad = function(x) { const m = String(x).match(/^(\d{1,2}):(\d{2})$/); return m ? m[1].padStart(2,'0')+':'+m[2] : x; };
+        const ft = times && times[0] ? pad(times[0]) : '09:00';
+        const tt = times && times[1] ? pad(times[1]) : '10:00';
         actions.push({
           type: 'event',
+          eventType: evType,
           title: title,
           date: date,
-          fromTime: pad(ft),
-          toTime: pad(tt),
-          from: pad(ft),
-          to: pad(tt),
+          fromTime: ft,
+          toTime: tt,
+          from: ft,
+          to: tt,
           allDay: false,
           participantIds: ids,
-          note: note,
-          location: note
+          location: location,
+          note: location
         });
         summaryParts.push(title + ' · ' + date + ' · ' + ids.map(function(id){ return typeof workerName === 'function' ? workerName(id) : id; }).join(', '));
       }
     }
 
-    // Shift
+    // ——— TURNI ———
     const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
     const wantsClose = /chiusura/.test(t);
     const wantsOpen = /apertura/.test(t) && !/magazzin/.test(t);
     const shiftIds = findAllWorkerIds(t);
-    if (shiftIds.length && dayIdx != null && (wantsClose || wantsOpen) && !/\b(corso|riunione|impegno)\b/.test(t)) {
+    if (shiftIds.length && dayIdx != null && (wantsClose || wantsOpen) && !leaveTipo && !evType) {
       const rules = (typeof R === 'function') ? R() : {};
       const shift = wantsClose
         ? (rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' })
         : (rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' });
       shiftIds.forEach(function(wid) {
-        actions.push({
-          type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey,
-          mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut
-        });
+        actions.push({ type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey, mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut });
       });
       summaryParts.push((wantsClose ? 'Chiusura' : 'Apertura') + ' aggiornata');
     }
@@ -11194,65 +11226,101 @@ function describeGlobalActions(actions) {
     if (!appData.events) appData.events = [];
     let applied = 0;
     const messages = [];
+    const changes = [];
+
     (actions || []).forEach(function(a) {
       if (!a || !a.type) return;
       try {
         if (a.type === 'leave') {
           let wid = a.workerId || resolveWorkerIdByName(a.workerName);
-          if (!wid) { messages.push('Leave: collaboratore non trovato'); return; }
+          if (!wid || !workerObj(wid)) { messages.push('Assenza: collaboratore non trovato'); return; }
+          const tipo = a.tipo || 'Ferie';
+          const status = a.status || 'approvata';
+          const isMal = !!(a.isMalattia || tipo === 'Malattia' || tipo === 'Ricovero');
+          const mode = a.mode || (a.fromDay && (a.toDay || a.openEnded) ? 'range' : 'single');
+          const fullDay = a.fullDay !== false && !a.fromTime;
           const req = {
             id: 'lr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-            workerId: wid, tipo: a.tipo || 'Ferie', mode: a.mode || (a.fromDay ? 'range' : 'single'),
-            status: a.status || 'approvata', note: a.note || 'Inserito da assistente',
+            workerId: wid,
+            tipo: tipo,
+            mode: mode,
+            status: status,
+            note: a.note || 'Inserito da assistente AI',
             place: a.place || 'Milano',
-            requestDate: (typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0,10),
-            syncTurns: true, createdAt: new Date().toISOString(),
-            fullDay: a.fullDay !== false && !a.fromTime,
-            fromTime: a.fromTime || '', toTime: a.toTime || '',
-            isMalattia: !!(a.isMalattia || /malattia|ricovero/i.test(a.tipo || '')),
-            openEnded: !!a.openEnded
+            requestDate: (typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0, 10),
+            syncTurns: a.syncTurns !== false && status === 'approvata',
+            createdAt: new Date().toISOString(),
+            fullDay: fullDay,
+            fromTime: fullDay ? '' : (a.fromTime || ''),
+            toTime: fullDay ? '' : (a.toTime || ''),
+            isMalattia: isMal,
+            openEnded: !!(a.openEnded && isMal)
           };
-          if (req.mode === 'range' || a.fromDay) {
+          if (mode === 'range') {
             req.fromDay = a.fromDay || a.day || '';
-            req.toDay = a.toDay || '';
+            req.toDay = a.openEnded ? '' : (a.toDay || '');
             req.day = req.fromDay;
+            req.fullDay = true;
+            req.fromTime = '';
+            req.toTime = '';
+            req.hours = null;
           } else {
             req.day = a.day || a.fromDay || '';
+            if (req.fullDay) {
+              req.fromTime = '';
+              req.toTime = '';
+              if (typeof inferLeaveHoursFromWeek === 'function') {
+                try {
+                  const d = new Date(req.day + 'T12:00:00');
+                  req.hours = inferLeaveHoursFromWeek(wid, d);
+                } catch (eH) { req.hours = null; }
+              }
+            } else if (typeof calculateLeaveIntervalHours === 'function') {
+              try {
+                req.hours = calculateLeaveIntervalHours(wid, req.fromTime, req.toTime);
+              } catch (eH2) { req.hours = null; }
+            }
           }
-          if (!req.day && !req.fromDay) { messages.push('Leave: data mancante'); return; }
+          if (!req.day && !req.fromDay) { messages.push('Assenza: data mancante'); return; }
+
+          if (status === 'approvata' && req.syncTurns && typeof captureLeaveBaseline === 'function') {
+            try { req.turnsBefore = captureLeaveBaseline(req); } catch (eB) {}
+          }
           appData.leaveRequests.push(req);
-          if (req.status === 'approvata' && typeof applyLeaveToTurns === 'function') {
-            try { applyLeaveToTurns(req); } catch (e1) {}
+          if (status === 'approvata' && req.syncTurns && typeof applyLeaveToTurns === 'function') {
+            try {
+              applyLeaveToTurns(req);
+              changes.push({
+                who: workerName(wid),
+                day: mode === 'single' ? req.day : (req.fromDay + (req.toDay ? ' → ' + req.toDay : ' → in corso')),
+                before: 'disponibile',
+                after: tipo,
+                cause: tipo + ' via assistente'
+              });
+            } catch (eA) {
+              messages.push('Apply leave: ' + (eA.message || eA));
+            }
           }
           applied++;
-          messages.push((req.tipo) + ' per ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+          messages.push(tipo + ' per ' + workerName(wid) + (status === 'approvata' ? ' (approvata)' : ' (' + status + ')'));
         } else if (a.type === 'event') {
           const ids = (a.participantIds || []).map(function(x) {
-            // se e gia un id valido workers, tienilo
             if ((appData.workers || []).some(function(w) { return w.id === x; })) return x;
             return resolveWorkerIdByName(x) || x;
           }).filter(Boolean);
-          if (!ids.length && a.workerId) {
-            const w2 = resolveWorkerIdByName(a.workerId) || a.workerId;
-            ids.push(w2);
-          }
+          if (!ids.length && a.workerId) ids.push(resolveWorkerIdByName(a.workerId) || a.workerId);
           if (!ids.length) { messages.push('Impegno: nessun partecipante'); return; }
-          // Normalizza orari HH:MM (l'app usa fromTime/toTime, non from/to)
           const normTime = function(v) {
             if (!v) return '';
-            let s = String(v).trim().replace('.', ':');
-            const m = s.match(/^(\d{1,2}):(\d{2})$/);
-            if (!m) return s;
-            return m[1].padStart(2, '0') + ':' + m[2];
+            const m = String(v).trim().replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
+            return m ? m[1].padStart(2, '0') + ':' + m[2] : String(v);
           };
           let date = a.date || '';
-          // accetta 16/10 → YYYY-MM-DD
-          if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof parseItalianDate !== 'function') {
+          if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
             const m = String(date).match(/(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?/);
             if (m) {
-              const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
               const y = m[3] || (typeof weekDates !== 'undefined' && weekDates[0] ? String(weekDates[0]).slice(0,4) : String(new Date().getFullYear()));
-              date = y + '-' + mo + '-' + d;
+              date = y + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
             }
           }
           const fromTime = normTime(a.fromTime || a.from || '');
@@ -11272,12 +11340,12 @@ function describeGlobalActions(actions) {
             createdAt: new Date().toISOString()
           };
           if (!ev.date || !/^\d{4}-\d{2}-\d{2}$/.test(ev.date)) {
-            messages.push('Impegno: data mancante o non valida (' + (a.date || '') + ')');
+            messages.push('Impegno: data non valida');
             return;
           }
           appData.events.push(ev);
           applied++;
-          messages.push('Impegno «' + ev.title + '» il ' + ev.date + ' (' + ids.length + ' partecipante/i)');
+          messages.push('Impegno «' + ev.title + '» ' + ev.date + ' (' + ids.length + ' pers.)');
         } else if (a.type === 'shift') {
           let wid = a.workerId || resolveWorkerIdByName(a.workerName);
           const day = Number(a.day);
@@ -11295,23 +11363,30 @@ function describeGlobalActions(actions) {
           if (a.status) cell.status = a.status;
           cell.generated = true;
           applied++;
-          messages.push('Turno aggiornato');
+          messages.push('Turno ' + workerName(wid));
         }
       } catch (err) {
         messages.push('Errore: ' + (err.message || err));
       }
     });
+
     try { if (typeof saveData === 'function') saveData(); } catch (e) {}
     try { if (typeof scheduleSave === 'function') scheduleSave(); } catch (e) {}
     try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
     try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
     try { if (typeof render === 'function') render(); } catch (e) {}
+    try { if (typeof renderLeaveView === 'function') renderLeaveView(); } catch (e) {}
     try { if (typeof renderEvents === 'function') renderEvents(); } catch (e) {}
-    try { if (typeof autoUpdateShiftsAfterChange === 'function') autoUpdateShiftsAfterChange({ reason: 'Assistente AI', detail: messages.join('; ') }); } catch (e) {}
+    try {
+      if (changes.length && typeof autoUpdateShiftsAfterChange === 'function') {
+        autoUpdateShiftsAfterChange({ reason: 'Assistente AI', detail: messages.join('; '), changes: changes });
+      }
+    } catch (e) {}
     return { applied: applied, messages: messages };
   }
 
-  async function callGlobalAiApi(userMessage) {
+
+  function callGlobalAiApi(userMessage) {
     const s = (typeof loadProposalAiSettings === 'function') ? loadProposalAiSettings() : {};
     if (!s.apiKey) throw new Error('Configura la chiave Groq (⚙️ API)');
     const base = (s.proxy || s.apiBase || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
