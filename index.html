@@ -13563,7 +13563,7 @@ function confirmGlobalAiActions() {
   }
   window.printPdfFromPreview = printPdfFromPreview;
 
-function downloadJpgFromPreview() {
+async function downloadJpgFromPreview() {
     try {
       const blob = window._pdfPreviewBlob;
       if (!blob) return;
