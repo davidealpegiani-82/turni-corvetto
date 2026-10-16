@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v8.9.9</title>
+  <title>Turni Corvetto v9.0.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,8 +38,9 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '8.9.9';
+    const APP_VERSION = '9.0.0';
   const APP_CHANGELOG = [
+    '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
     '8.8.1 — Assistente AI su Groq gratis (senza carta)',
     '8.8.0 — Assistente AI nel report proposta (modifiche in linguaggio naturale)',
@@ -1902,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v8.9.9</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.0.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1920,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V8.9.9</small>
+          <small id="appVersionLabel">CORVETTO · V9.0.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2385,8 +2386,9 @@
       <button type="button" class="alt" onclick="saveGlobalAiSettings()">Salva</button>
     </div>
     <div id="globalAiPending" style="display:none;margin-top:12px;padding:10px;border-radius:10px;border:2px solid #f59e0b;background:#fffbeb;font-size:12px;">
-      <div style="font-weight:800;margin-bottom:6px;color:#92400e;">Conferma modifiche proposte</div>
-      <div id="globalAiPendingList" style="margin-bottom:8px;"></div>
+      <div style="font-weight:800;margin-bottom:6px;color:#92400e;">Anteprima — conferma prima di salvare</div>
+      <div id="globalAiPendingList" style="margin-bottom:8px;line-height:1.45;"></div>
+      <div id="globalAiPendingMeta" style="font-size:11px;color:#92400e;margin-bottom:8px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" class="success" onclick="confirmGlobalAiActions()">✅ Conferma e applica</button>
         <button type="button" class="alt" onclick="cancelGlobalAiActions()">Annulla</button>
@@ -6133,7 +6135,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=8.9.9', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.0.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11013,9 +11015,19 @@ function minLunchBreakMinutes(wId) {
   }
 
   function interpretGlobalCommandLocal(text) {
-    const t = String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const actions = [];
-    const summaryParts = [];
+    const rawText = String(text || '').trim();
+    if (!rawText) return null;
+
+    // Spezza comandi multipli: " e poi ", " inoltre ", ";", newline, " e " solo se sembra secondo comando
+    function splitCommands(s) {
+      const parts = s.split(/\s*(?:;|\n|\be\s+poi\b|\binoltre\b|\bp oi\b|\balso\b)\s*/i)
+        .map(function(x) { return x.trim(); }).filter(Boolean);
+      if (parts.length > 1) return parts;
+      // "ferie X ... e corso Y ..." — split su " e " seguito da keyword azione
+      const re = /\s+e\s+(?=(?:ferie|permesso|donazione|malattia|ricovero|corso|riunione|impegno|annulla|elimina|cancella|visita|congedo|trasferta|appuntamento)\b)/i;
+      const p2 = s.split(re).map(function(x) { return x.trim(); }).filter(Boolean);
+      return p2.length > 1 ? p2 : [s];
+    }
 
     function parseItalianDate(str) {
       let m = str.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -11047,13 +11059,12 @@ function minLunchBreakMinutes(wId) {
     }
 
     function detectLeaveTipo(str) {
-      // ordine: più specifici prima
       if (/donazione/.test(str)) return 'Donazione Sangue';
       if (/congedo/.test(str) && /matrimon/.test(str)) return 'Congedo Matrimoniale';
       if (/visita/.test(str) && /cantiere/.test(str)) return 'Visita c/o cantiere';
       if (/visita/.test(str) && /fiera/.test(str)) return 'Visita Fiera';
       if (/visita/.test(str) && /medic/.test(str)) return 'Visita Medica';
-      if (/partecipazione\s+corso|corso\s+come\s+assenza/.test(str)) return 'Partecipazione corso';
+      if (/partecipazione\s+corso/.test(str)) return 'Partecipazione corso';
       if (/permesso/.test(str) && /non\s*retrib/.test(str)) return 'Permesso Non retribuito';
       if (/permesso/.test(str) && /retrib/.test(str)) return 'Permesso retribuito';
       if (/permesso/.test(str)) return 'Permesso retribuito';
@@ -11074,154 +11085,243 @@ function minLunchBreakMinutes(wId) {
       return null;
     }
 
-    // ——— LEAVE / MALATTIA ———
-    const leaveTipo = detectLeaveTipo(t);
-    if (leaveTipo) {
-      const ids = findAllWorkerIds(t);
-      const wid = ids[0] || null;
-      let day = null, fromDay = null, toDay = null;
-      const isoAll = [];
-      let mm, reIso = /(\d{4}-\d{2}-\d{2})/g;
-      while ((mm = reIso.exec(t))) isoAll.push(mm[1]);
-      if (isoAll.length >= 2) { fromDay = isoAll[0]; toDay = isoAll[1]; }
-      else if (isoAll.length === 1) { day = isoAll[0]; }
-      else {
-        // due date tipo 20/10 e 22/10
-        const ddmmy = [];
-        const reD = /\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?\b/g;
-        let m2;
-        while ((m2 = reD.exec(t))) {
-          ddmmy.push(parseItalianDate(m2[0]));
-        }
-        const uniq = ddmmy.filter(Boolean);
-        if (uniq.length >= 2) { fromDay = uniq[0]; toDay = uniq[1]; }
-        else if (uniq.length === 1) { day = uniq[0]; }
-      }
-      const times = t.match(/(\d{1,2}[:.]\d{2})/g);
-      const pad = function(x) {
-        const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
-        return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
-      };
-      const fullDay = !times || times.length < 2 || /giornata\s+intera|tutto\s+il\s+giorno|tutta\s+la\s+giornata/.test(t);
-      const isMal = leaveTipo === 'Malattia' || leaveTipo === 'Ricovero';
-      const leaveStatus = (/rifiut|annull/.test(t) ? 'rifiutata' : (/in\s*attesa|da\s+conferm/.test(t) ? 'in_attesa' : 'approvata'));
-      const openEnded = isMal && !toDay && (/senza\s+fine|open|in\s+corso|fino\s+a\s+dimiss|senza\s+data/.test(t) || !toDay);
-
-      if (wid && (day || fromDay)) {
-        actions.push({
-          type: 'leave',
-          workerId: wid,
-          tipo: leaveTipo,
-          status: leaveStatus,
-          mode: (fromDay && toDay) || (fromDay && openEnded) ? 'range' : 'single',
-          day: day || fromDay,
-          fromDay: fromDay || day,
-          toDay: toDay || '',
-          fullDay: fullDay,
-          fromTime: fullDay ? '' : pad(times && times[0]),
-          toTime: fullDay ? '' : pad(times && times[1]),
-          isMalattia: isMal,
-          openEnded: !!openEnded && isMal,
-          syncTurns: leaveStatus === 'approvata',
-          note: 'Inserito da assistente AI'
-        });
-        summaryParts.push(leaveTipo + ' · ' + (typeof workerName === 'function' ? workerName(wid) : wid) + ' · ' + (fromDay && toDay ? fromDay + '→' + toDay : (day || fromDay)));
-      }
-    }
-
-    // ——— EVENTI ———
-    const evType = detectEventType(t);
-    if (evType && !leaveTipo) {
-      const ids = findAllWorkerIds(t);
-      const times = t.match(/(\d{1,2}[:.]\d{2})/g);
-      const pad = function(x) {
-        const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
-        return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
-      };
-      let title = evType;
-      if (evType === 'Corso') {
-        if (/kerakoll/.test(t)) title = 'Corso Kerakoll';
-        else if (/mapei/.test(t)) title = 'Corso Mapei';
-        else {
-          const km = t.match(/corso\s+([a-z0-9][a-z0-9 \-]{1,28})/);
-          if (km) {
-            let rest = km[1].split(/\s+(?:il|dalle|da|presso|a|per)\s+/)[0].trim();
-            if (rest.length > 1) title = 'Corso ' + rest.charAt(0).toUpperCase() + rest.slice(1);
+    function findMatchingLeaves(wid, dateKey, tipoHint) {
+      return (appData.leaveRequests || []).filter(function(r) {
+        if (wid && r.workerId !== wid) return false;
+        if (tipoHint && String(r.tipo || '').toLowerCase().indexOf(String(tipoHint).toLowerCase().split(' ')[0]) < 0) {
+          // soft match on first word
+          if (tipoHint === 'Donazione Sangue' && !/donazione/i.test(r.tipo || '')) return false;
+          if (tipoHint !== 'Donazione Sangue' && tipoHint && r.tipo !== tipoHint && !String(r.tipo).toLowerCase().includes(String(tipoHint).toLowerCase().slice(0, 5))) {
+            // still allow if date matches strongly
           }
         }
-      } else if (evType === 'Riunione' && /commerciale/.test(t)) {
-        title = 'Riunione Commerciale';
-      }
-      let date = parseItalianDate(t);
-      if (!date && typeof weekDates !== 'undefined') {
-        const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
-        if (dayIdx != null && weekDates[dayIdx]) date = weekDates[dayIdx];
-      }
-      let location = '';
-      const luogo = t.match(/presso\s+([^,.;]+)/) || t.match(/filiale\s+(?:di\s+)?([^,.;]+)/);
-      if (luogo) location = luogo[1].trim();
-      if (/agrate/.test(t) && !location) location = 'Filiale di Agrate';
-
-      if (ids.length && date) {
-        const ft = times && times[0] ? pad(times[0]) : '09:00';
-        const tt = times && times[1] ? pad(times[1]) : '10:00';
-        actions.push({
-          type: 'event',
-          eventType: evType,
-          title: title,
-          date: date,
-          fromTime: ft,
-          toTime: tt,
-          from: ft,
-          to: tt,
-          allDay: false,
-          participantIds: ids,
-          location: location,
-          note: location
-        });
-        summaryParts.push(title + ' · ' + date + ' · ' + ids.map(function(id){ return typeof workerName === 'function' ? workerName(id) : id; }).join(', '));
-      }
-    }
-
-    // ——— TURNI ———
-    const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
-    const wantsClose = /chiusura/.test(t);
-    const wantsOpen = /apertura/.test(t) && !/magazzin/.test(t);
-    const shiftIds = findAllWorkerIds(t);
-    if (shiftIds.length && dayIdx != null && (wantsClose || wantsOpen) && !leaveTipo && !evType) {
-      const rules = (typeof R === 'function') ? R() : {};
-      const shift = wantsClose
-        ? (rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' })
-        : (rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' });
-      shiftIds.forEach(function(wid) {
-        actions.push({ type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey, mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut });
+        const days = [];
+        if (r.day) days.push(r.day);
+        if (r.fromDay) days.push(r.fromDay);
+        if (r.toDay) days.push(r.toDay);
+        if (dateKey && days.length && days.indexOf(dateKey) < 0) {
+          // range contains date?
+          if (r.fromDay && r.toDay && dateKey >= r.fromDay && dateKey <= r.toDay) return true;
+          if (r.fromDay && r.openEnded && dateKey >= r.fromDay) return true;
+          return false;
+        }
+        return true;
       });
-      summaryParts.push((wantsClose ? 'Chiusura' : 'Apertura') + ' aggiornata');
     }
 
-    if (!actions.length) return null;
-    return { summary: summaryParts.join(' · ') || 'Modifiche proposte', actions: actions };
+    function findMatchingEvents(ids, dateKey, titleHint) {
+      return (appData.events || []).filter(function(e) {
+        if (dateKey && e.date !== dateKey) return false;
+        if (ids && ids.length) {
+          const p = e.participantIds || [];
+          if (!ids.some(function(id) { return p.indexOf(id) >= 0; })) return false;
+        }
+        if (titleHint && e.title && String(e.title).toLowerCase().indexOf(titleHint.toLowerCase()) < 0) return false;
+        return true;
+      });
+    }
+
+    function parseOne(cmd) {
+      const t = String(cmd || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const actions = [];
+      const summaryParts = [];
+      const isCancel = /\b(annulla|elimina|cancella|rimuovi|togli)\b/.test(t);
+
+      // CANCEL leave / event
+      if (isCancel) {
+        const ids = findAllWorkerIds(t);
+        const wid = ids[0] || null;
+        const date = parseItalianDate(t);
+        const leaveTipo = detectLeaveTipo(t);
+        const evType = detectEventType(t);
+
+        if (leaveTipo || /ferie|permesso|malattia|assenza|donazione/.test(t)) {
+          const matches = findMatchingLeaves(wid, date, leaveTipo);
+          if (matches.length) {
+            matches.slice(0, 3).forEach(function(r) {
+              actions.push({ type: 'cancel_leave', leaveId: r.id, workerId: r.workerId, tipo: r.tipo, day: r.day || r.fromDay, preview: true });
+              summaryParts.push('Annulla ' + r.tipo + ' · ' + (typeof workerName === 'function' ? workerName(r.workerId) : r.workerId));
+            });
+          } else {
+            summaryParts.push('Nessuna assenza trovata da annullare');
+          }
+        }
+        if (evType || /impegno|corso|riunione/.test(t)) {
+          const titleHint = /kerakoll/.test(t) ? 'kerakoll' : (/mapei/.test(t) ? 'mapei' : (evType || ''));
+          const matches = findMatchingEvents(ids, date, titleHint);
+          if (matches.length) {
+            matches.slice(0, 3).forEach(function(e) {
+              actions.push({ type: 'cancel_event', eventId: e.id, title: e.title, date: e.date, preview: true });
+              summaryParts.push('Annulla impegno «' + e.title + '» · ' + e.date);
+            });
+          }
+        }
+        if (actions.length) return { summary: summaryParts.join(' · '), actions: actions };
+      }
+
+      // CREATE leave
+      const leaveTipo = detectLeaveTipo(t);
+      if (leaveTipo) {
+        const ids = findAllWorkerIds(t);
+        const wid = ids[0] || null;
+        let day = null, fromDay = null, toDay = null;
+        const isoAll = [];
+        let mm, reIso = /(\d{4}-\d{2}-\d{2})/g;
+        while ((mm = reIso.exec(t))) isoAll.push(mm[1]);
+        if (isoAll.length >= 2) { fromDay = isoAll[0]; toDay = isoAll[1]; }
+        else if (isoAll.length === 1) { day = isoAll[0]; }
+        else {
+          const uniq = [];
+          const reD = /\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?\b/g;
+          let m2;
+          while ((m2 = reD.exec(t))) {
+            const p = parseItalianDate(m2[0]);
+            if (p && uniq.indexOf(p) < 0) uniq.push(p);
+          }
+          if (uniq.length >= 2) { fromDay = uniq[0]; toDay = uniq[1]; }
+          else if (uniq.length === 1) { day = uniq[0]; }
+        }
+        const times = t.match(/(\d{1,2}[:.]\d{2})/g);
+        const pad = function(x) {
+          const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
+          return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
+        };
+        const fullDay = !times || times.length < 2 || /giornata\s+intera|tutto\s+il\s+giorno|tutta\s+la\s+giornata/.test(t);
+        const isMal = leaveTipo === 'Malattia' || leaveTipo === 'Ricovero';
+        const leaveStatus = (/rifiut|annull/.test(t) && !isCancel ? 'rifiutata' : (/in\s*attesa|da\s+conferm/.test(t) ? 'in_attesa' : 'approvata'));
+        if (wid && (day || fromDay)) {
+          const action = {
+            type: 'leave', workerId: wid, tipo: leaveTipo, status: leaveStatus,
+            mode: (fromDay && toDay) || (fromDay && isMal) ? 'range' : 'single',
+            day: day || fromDay, fromDay: fromDay || day, toDay: toDay || '',
+            fullDay: fullDay,
+            fromTime: fullDay ? '' : pad(times && times[0]),
+            toTime: fullDay ? '' : pad(times && times[1]),
+            isMalattia: isMal, openEnded: isMal && !toDay,
+            syncTurns: leaveStatus === 'approvata', note: 'Inserito da assistente AI'
+          };
+          // stima ore per anteprima
+          try {
+            if (fullDay && typeof inferLeaveHoursFromWeek === 'function') {
+              action.estimatedHours = inferLeaveHoursFromWeek(wid, new Date((day || fromDay) + 'T12:00:00'));
+            } else if (!fullDay && typeof calculateLeaveIntervalHours === 'function') {
+              action.estimatedHours = calculateLeaveIntervalHours(wid, action.fromTime, action.toTime);
+            }
+          } catch (eH) {}
+          actions.push(action);
+          summaryParts.push(leaveTipo + ' · ' + (typeof workerName === 'function' ? workerName(wid) : wid));
+        }
+      }
+
+      // CREATE event (if not pure leave)
+      const evType = detectEventType(t);
+      if (evType && !leaveTipo) {
+        const ids = findAllWorkerIds(t);
+        const times = t.match(/(\d{1,2}[:.]\d{2})/g);
+        const pad = function(x) {
+          const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
+          return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
+        };
+        let title = evType;
+        if (evType === 'Corso') {
+          if (/kerakoll/.test(t)) title = 'Corso Kerakoll';
+          else if (/mapei/.test(t)) title = 'Corso Mapei';
+        } else if (evType === 'Riunione' && /commerciale/.test(t)) title = 'Riunione Commerciale';
+        let date = parseItalianDate(t);
+        if (!date && typeof weekDates !== 'undefined') {
+          const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
+          if (dayIdx != null && weekDates[dayIdx]) date = weekDates[dayIdx];
+        }
+        let location = '';
+        const luogo = t.match(/presso\s+([^,.;]+)/) || t.match(/filiale\s+(?:di\s+)?([^,.;]+)/);
+        if (luogo) location = luogo[1].trim();
+        if (/agrate/.test(t) && !location) location = 'Filiale di Agrate';
+        if (ids.length && date) {
+          const ft = times && times[0] ? pad(times[0]) : '09:00';
+          const tt = times && times[1] ? pad(times[1]) : '10:00';
+          actions.push({
+            type: 'event', eventType: evType, title: title, date: date,
+            fromTime: ft, toTime: tt, from: ft, to: tt, allDay: false,
+            participantIds: ids, location: location, note: location
+          });
+          summaryParts.push(title + ' · ' + date);
+        }
+      }
+
+      // shift
+      const dayIdx = (/luned|\blun\b/.test(t) ? 0 : /marted|\bmar\b/.test(t) ? 1 : /mercoled|\bmer\b/.test(t) ? 2 : /gioved|\bgio\b/.test(t) ? 3 : /venerd|\bven\b/.test(t) ? 4 : /sabato|\bsab\b/.test(t) ? 5 : null);
+      const wantsClose = /chiusura/.test(t);
+      const wantsOpen = /apertura/.test(t) && !/magazzin/.test(t);
+      const shiftIds = findAllWorkerIds(t);
+      if (shiftIds.length && dayIdx != null && (wantsClose || wantsOpen) && !leaveTipo && !evType) {
+        const rules = (typeof R === 'function') ? R() : {};
+        const shift = wantsClose ? (rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' }) : (rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' });
+        shiftIds.forEach(function(wid) {
+          actions.push({ type: 'shift', workerId: wid, day: dayIdx, weekKey: currentWeekKey, mIn: shift.mIn, mOut: shift.mOut, pIn: shift.pIn, pOut: shift.pOut });
+        });
+        summaryParts.push(wantsClose ? 'Chiusura' : 'Apertura');
+      }
+
+      return { summary: summaryParts.join(' · '), actions: actions };
+    }
+
+    const parts = splitCommands(rawText);
+    const allActions = [];
+    const allSummaries = [];
+    parts.forEach(function(p) {
+      const r = parseOne(p);
+      if (r && r.actions && r.actions.length) {
+        r.actions.forEach(function(a) { allActions.push(a); });
+        if (r.summary) allSummaries.push(r.summary);
+      }
+    });
+    if (!allActions.length) return null;
+    return {
+      summary: allSummaries.join(' | ') || ('Proposte ' + allActions.length + ' azioni'),
+      actions: allActions
+    };
   }
 
 function describeGlobalActions(actions) {
     return (actions || []).map(function(a, i) {
       if (!a || !a.type) return (i+1) + '. (azione non valida)';
+      if (a.type === 'cancel_leave') {
+        return (i+1) + '. 🗑️ ANNULLA ' + (a.tipo || 'assenza') + ' · ' + (typeof workerName === 'function' ? workerName(a.workerId) : a.workerId) + (a.day ? ' · ' + a.day : '') + ' → ripristina turni';
+      }
+      if (a.type === 'cancel_event') {
+        return (i+1) + '. 🗑️ ANNULLA impegno «' + (a.title || '') + '» · ' + (a.date || '');
+      }
       if (a.type === 'leave') {
         const who = (typeof workerName === 'function' ? workerName(a.workerId) : a.workerId);
-        const when = a.day || ((a.fromDay || '') + (a.toDay ? ' → ' + a.toDay : (a.openEnded ? ' → in corso' : '')));
-        return (i+1) + '. ' + (a.tipo || 'Leave') + ' · ' + who + ' · ' + when;
+        const when = a.mode === 'range'
+          ? ((a.fromDay || '') + (a.toDay ? ' → ' + a.toDay : (a.openEnded ? ' → in corso' : '')))
+          : (a.day || a.fromDay || '');
+        const ore = a.fullDay
+          ? ('giornata intera' + (a.estimatedHours != null ? ' ≈ ' + a.estimatedHours + 'h' : ''))
+          : ((a.fromTime || '') + '-' + (a.toTime || '') + (a.estimatedHours != null ? ' ≈ ' + a.estimatedHours + 'h' : ''));
+        const sync = a.syncTurns !== false && a.status === 'approvata' ? ' · aggiorna turni' : '';
+        return (i+1) + '. ➕ ' + (a.tipo || 'Leave') + ' · ' + who + ' · ' + when + ' · ' + ore + ' · ' + (a.status || 'approvata') + sync;
       }
       if (a.type === 'event') {
-        return (i+1) + '. Impegno «' + (a.title || '') + '» · ' + (a.date || '') + ' ' + (a.from || '') + '-' + (a.to || '');
+        const who = (a.participantIds || []).map(function(id) { return typeof workerName === 'function' ? workerName(id) : id; }).join(', ');
+        return (i+1) + '. ➕ Impegno «' + (a.title || '') + '» · ' + (a.date || '') + ' ' + (a.fromTime || a.from || '') + '-' + (a.toTime || a.to || '') + ' · ' + who + (a.location ? ' · ' + a.location : '');
       }
       if (a.type === 'shift') {
-        return (i+1) + '. Turno ' + (typeof workerName === 'function' ? workerName(a.workerId) : a.workerId) + ' giorno ' + a.day;
+        return (i+1) + '. 🔄 Turno ' + (typeof workerName === 'function' ? workerName(a.workerId) : a.workerId) + ' giorno ' + a.day + ' → ' + [a.mIn, a.mOut, a.pIn, a.pOut].filter(Boolean).join(' | ');
       }
       return (i+1) + '. ' + a.type;
     }).join('\n');
   }
 
-  function applyGlobalAiActions(actions) {
+  function describeGlobalActionsHtml(actions) {
+    const lines = describeGlobalActions(actions).split('\n');
+    return lines.map(function(l) {
+      return '<div style="padding:6px 8px;margin:4px 0;border-radius:8px;background:#fff;border:1px solid #fde68a;color:#0f172a;">' +
+        (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(l) : l) + '</div>';
+    }).join('');
+  }
+
+function applyGlobalAiActions(actions) {
     if (!appData.leaveRequests) appData.leaveRequests = [];
     if (!appData.events) appData.events = [];
     let applied = 0;
@@ -11231,7 +11331,23 @@ function describeGlobalActions(actions) {
     (actions || []).forEach(function(a) {
       if (!a || !a.type) return;
       try {
-        if (a.type === 'leave') {
+        if (a.type === 'cancel_leave') {
+          const prev = (appData.leaveRequests || []).find(function(r) { return r.id === a.leaveId; });
+          if (!prev) { messages.push('Assenza da annullare non trovata'); return; }
+          try {
+            if (typeof restoreLeaveEffects === 'function') restoreLeaveEffects(prev);
+          } catch (eR) { messages.push('Ripristino turni: ' + (eR.message || eR)); }
+          appData.leaveRequests = (appData.leaveRequests || []).filter(function(r) { return r.id !== a.leaveId; });
+          applied++;
+          messages.push('Annullata ' + (prev.tipo || 'assenza') + ' di ' + workerName(prev.workerId));
+          changes.push({ who: workerName(prev.workerId), day: prev.day || prev.fromDay, before: prev.tipo, after: 'disponibile', cause: 'Annullamento assistente' });
+        } else if (a.type === 'cancel_event') {
+          const doomed = (appData.events || []).find(function(e) { return e.id === a.eventId; });
+          if (!doomed) { messages.push('Impegno da annullare non trovato'); return; }
+          appData.events = (appData.events || []).filter(function(e) { return e.id !== a.eventId; });
+          applied++;
+          messages.push('Annullato impegno «' + (doomed.title || '') + '»');
+        } else if (a.type === 'leave') {
           let wid = a.workerId || resolveWorkerIdByName(a.workerName);
           if (!wid || !workerObj(wid)) { messages.push('Assenza: collaboratore non trovato'); return; }
           const tipo = a.tipo || 'Ferie';
@@ -11433,7 +11549,9 @@ function describeGlobalActions(actions) {
         window._pendingGlobalAiActions = local.actions;
         appendGlobalAiChat('assistant', (local.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(local.actions) + '\n\nConferma sotto per applicare.');
         const list = document.getElementById('globalAiPendingList');
-        if (list) list.textContent = describeGlobalActions(local.actions);
+        if (list) list.innerHTML = describeGlobalActionsHtml(local.actions);
+        const meta = document.getElementById('globalAiPendingMeta');
+        if (meta) meta.textContent = (local.actions.length) + ' azion' + (local.actions.length === 1 ? 'e' : 'i') + ' in attesa di conferma — nulla è salvato finché non premi Conferma.';
         if (pending) pending.style.display = 'block';
         if (status) status.textContent = 'In attesa di conferma';
         return;
@@ -11449,7 +11567,9 @@ function describeGlobalActions(actions) {
       window._pendingGlobalAiActions = actions;
       appendGlobalAiChat('assistant', (patch.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(actions));
       const list = document.getElementById('globalAiPendingList');
-      if (list) list.textContent = describeGlobalActions(actions);
+      if (list) list.innerHTML = describeGlobalActionsHtml(actions);
+      const meta2 = document.getElementById('globalAiPendingMeta');
+      if (meta2) meta2.textContent = actions.length + ' azioni in attesa — nulla è salvato finché non premi Conferma.';
       if (pending) pending.style.display = 'block';
       if (status) status.textContent = 'In attesa di conferma';
     } catch (err) {
