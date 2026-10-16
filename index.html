@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.3.0</title>
+  <title>Turni Corvetto v9.3.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.3.0';
+    const APP_VERSION = '9.3.1';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1921,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.3.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.3.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6176,7 +6176,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.3.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.3.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -13519,7 +13519,51 @@ function confirmGlobalAiActions() {
   }
   window.downloadPdfFromPreview = downloadPdfFromPreview;
 
-  async function downloadJpgFromPreview() {
+  async 
+  function printPdfFromPreview() {
+    try {
+      const blob = window._pdfPreviewBlob;
+      if (!blob) { alert('Nessun file in anteprima'); return; }
+      const url = window._pdfPreviewUrl || URL.createObjectURL(blob);
+      if (!window._pdfPreviewUrl) window._pdfPreviewUrl = url;
+
+      // Preferisci iframe nascosto (più affidabile su mobile / popup blocker)
+      let frame = document.getElementById('pdfPrintFrame');
+      if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'pdfPrintFrame';
+        frame.title = 'Stampa PDF';
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;';
+        document.body.appendChild(frame);
+      }
+      frame.onload = function() {
+        try {
+          const w = frame.contentWindow;
+          if (!w) throw new Error('no window');
+          setTimeout(function() {
+            try { w.focus(); w.print(); }
+            catch (e1) {
+              // Fallback: nuova scheda
+              const tab = window.open(url, '_blank');
+              if (tab) setTimeout(function() { try { tab.print(); } catch (e2) {} }, 600);
+              else showToast('Consenti i popup per stampare, oppure usa Salva PDF', 'info', 4000);
+            }
+          }, 350);
+        } catch (e) {
+          const tab = window.open(url, '_blank');
+          if (tab) setTimeout(function() { try { tab.focus(); tab.print(); } catch (e3) {} }, 600);
+          else showToast('Apri Salva PDF se la stampa è bloccata', 'info', 4000);
+        }
+      };
+      frame.src = url;
+      showToast('Apertura stampa…', 'info', 2000);
+    } catch (err) {
+      alert('Stampa non riuscita: ' + (err.message || err));
+    }
+  }
+  window.printPdfFromPreview = printPdfFromPreview;
+
+function downloadJpgFromPreview() {
     try {
       const blob = window._pdfPreviewBlob;
       if (!blob) return;
@@ -15182,12 +15226,13 @@ function confirmGlobalAiActions() {
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
       <h3 style="margin:0;" id="pdfPreviewTitle">👁️ Anteprima</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" class="success" id="pdfPreviewDownloadBtn" onclick="downloadPdfFromPreview()">⬇️ Salva PDF</button>
+        <button type="button" class="success" id="pdfPreviewPrintBtn" onclick="printPdfFromPreview()">🖨️ Stampa</button>
+        <button type="button" class="alt" id="pdfPreviewDownloadBtn" onclick="downloadPdfFromPreview()">⬇️ Salva PDF</button>
         <button type="button" class="alt" id="pdfPreviewJpgBtn" style="display:none;" onclick="downloadJpgFromPreview()">🖼️ Salva JPG</button>
         <button type="button" class="alt" onclick="closePdfPreview()">Chiudi</button>
       </div>
     </div>
-    <p id="pdfPreviewHint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted);">Controlla l’anteprima, poi tocca Salva per scaricare.</p>
+    <p id="pdfPreviewHint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted);">Controlla l’anteprima: puoi <strong>Stampare</strong> subito oppure Salvare il PDF.</p>
     <div id="pdfPreviewPages" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:#3a3a3a;border-radius:10px;padding:10px;text-align:center;min-height:50vh;"></div>
     <iframe id="pdfPreviewFrame" title="Anteprima PDF" style="display:none;"></iframe>
   </div>
