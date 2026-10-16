@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.3.5</title>
+  <title>Turni Corvetto v9.3.6</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.3.5';
+    const APP_VERSION = '9.3.6';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.5</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1911,6 +1911,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <div class="week-badge" id="weekBadgeNum">Settimana ...</div>
+      <button type="button" class="success" id="btnForceCloud" onclick="forceReloadFromCloud()" title="Scarica i dati dal cloud" style="min-height:36px;padding:6px 10px;border-radius:999px;font-size:12px;">☁️ Cloud</button>
       <button type="button" class="alt" id="themeToggleBtn" onclick="toggleTheme()" title="Tema chiaro / scuro" style="min-height:36px;padding:6px 12px;border-radius:999px;font-weight:700;">🌓</button>
     </div>
   </div>
@@ -1921,7 +1922,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.3.5</small>
+          <small id="appVersionLabel">CORVETTO · V9.3.6</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3872,11 +3873,43 @@ function isUsableAppData(value) {
     }
 
     if (!db) {
+      // Firebase SDK assente/bloccato: recupera comunque via REST (come l'app Soldi)
+      setSyncStatus('busy', 'cloud REST…');
       const local = readLocalSavedData();
       if (local) appData = local;
-      finishInitRender();
-      if (typeof scheduleAllEventReminders === 'function') scheduleAllEventReminders();
-      setSyncStatus('local', 'senza Firebase');
+      const pathR = (typeof RTDB_PATH !== 'undefined' && RTDB_PATH) ? RTDB_PATH : 'turni_data_v47_pdf';
+      const url = 'https://turni-corvetto-fca14-default-rtdb.firebaseio.com/' + pathR + '.json';
+      fetch(url, { cache: 'no-store', mode: 'cors' })
+        .then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function(data) {
+          if (data && Array.isArray(data.workers) && data.workers.length) {
+            const remoteScore = (typeof dataRichness === 'function') ? dataRichness(data) : 1;
+            const localScore = (typeof dataRichness === 'function') ? dataRichness(appData) : 0;
+            if (remoteScore >= localScore) {
+              appData = data;
+              try { normalizeAppData(); } catch (e) {}
+              try { localStorage.setItem('turni_corvetto_test_data', JSON.stringify(appData)); } catch (e) {}
+            }
+            finishInitRender();
+            setSyncStatus('ok', 'cloud REST');
+            showToast('Dati caricati dal cloud (' + Object.keys(appData.weeks || {}).length + ' settimane)', 'success', 4500);
+          } else {
+            finishInitRender();
+            setSyncStatus('local', 'senza Firebase');
+          }
+          if (typeof scheduleAllEventReminders === 'function') scheduleAllEventReminders();
+        })
+        .catch(function(err) {
+          console.warn('REST cloud fail', err);
+          finishInitRender();
+          setSyncStatus('local', 'senza Firebase');
+          showToast('Cloud non raggiungibile: ' + (err.message || err), 'error', 5000);
+          if (typeof scheduleAllEventReminders === 'function') scheduleAllEventReminders();
+          try { showCloudRescueBanner('Connessione cloud fallita. Tocca per riprovare.'); } catch (e) {}
+        });
       return;
     }
 
@@ -6423,7 +6456,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.3.5', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.3.6', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
