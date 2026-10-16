@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.3.1</title>
+  <title>Turni Corvetto v9.3.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.3.1';
+    const APP_VERSION = '9.3.2';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.1</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.2</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1921,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.3.1</small>
+          <small id="appVersionLabel">CORVETTO · V9.3.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2549,7 +2549,7 @@
     <div class="form-group"><label>Promemoria</label><select id="evReminder"><option value="0">Nessun promemoria</option><option value="15">15 minuti prima</option><option value="60" selected>1 ora prima</option><option value="120">2 ore prima</option><option value="1440">1 giorno prima</option></select></div>
     <div class="modal-actions" style="justify-content:space-between;">
       <button class="danger" id="evDeleteBtn" onclick="deleteEvent()" style="display:none;">🗑️ Elimina</button>
-      <div style="display:flex;gap:8px;margin-left:auto;"><button class="alt" onclick="closeModal('eventModal')">Annulla</button><button type="button" class="success" onclick="shareEventWhatsAppFromModal()" title="Condividi su WhatsApp">WhatsApp</button>
+      <div style="display:flex;gap:8px;margin-left:auto;"><button class="alt" onclick="closeModal('eventModal')">Annulla</button><button type="button" class="success" onclick="shareEventWhatsAppFromModal()" title="Apre il foglio Condividi per inviare il file ICS" title="Condividi su WhatsApp">WhatsApp</button>
         <button onclick="saveEvent()">Salva impegno</button></div>
     </div>
   </div>
@@ -5862,7 +5862,7 @@ function annotateEventOnWeek(e,weekKey){
     const safeId = jsStringArg(id);
     const location = e.location ? ' · 📍 ' + esc(e.location) : '';
     const notes = e.notes ? `<div class="event-meta">📝 ${esc(e.notes)}</div>` : '';
-    return `<div class="event-card${past?' expired':''}"><div class="event-card-head"><div><div class="event-chip">${esc(e.type || 'Evento')}</div><div class="event-title" style="margin-top:6px;">${esc(e.title || 'Impegno')}</div><div class="event-meta">📅 ${esc(formatEventDate(e.date))} · ⏰ ${esc(when)}${location}</div><div class="event-participants">👥 ${esc(names)}</div>${notes}</div><div class="event-actions"><button class="alt" onclick="openEventModal(${safeId})">✏️ Modifica</button><button class="danger" onclick="deleteEventById(${safeId})">🗑️</button><button class="alt" onclick="downloadEventICS(${safeId})">📅 ICS</button><button class="success" onclick="shareEventWhatsApp(${safeId})">WhatsApp</button></div></div></div>`;
+    return `<div class="event-card${past?' expired':''}"><div class="event-card-head"><div><div class="event-chip">${esc(e.type || 'Evento')}</div><div class="event-title" style="margin-top:6px;">${esc(e.title || 'Impegno')}</div><div class="event-meta">📅 ${esc(formatEventDate(e.date))} · ⏰ ${esc(when)}${location}</div><div class="event-participants">👥 ${esc(names)}</div>${notes}</div><div class="event-actions"><button class="alt" onclick="openEventModal(${safeId})">✏️ Modifica</button><button class="danger" onclick="deleteEventById(${safeId})">🗑️</button><button class="alt" onclick="downloadEventICS(${safeId})">📅 ICS</button><button class="success" onclick="shareEventWhatsApp(${safeId})" title="Apre Condividi: scegli WhatsApp o altra app">📤 Condividi</button></div></div></div>`;
   }
 
   function renderEventsView(){
@@ -5966,36 +5966,74 @@ function annotateEventOnWeek(e,weekKey){
     const fileName = (opts.fileName || 'impegno.ics').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.ics$/i, '') + '.ics';
     const icsBody = opts.icsBody || '';
     if (!icsBody) { showToast('Nessun file calendario da condividere', 'error', 3000); return {ok:false}; }
+
+    // Costruisci il file in più MIME: Android spesso accetta text/plain o octet-stream nel foglio Condividi
+    const blobCalendar = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
+    const blobPlain = new Blob([icsBody], { type: 'text/plain;charset=utf-8' });
+    const blobOctet = new Blob([icsBody], { type: 'application/octet-stream' });
+    const fileVariants = [
+      new File([blobCalendar], fileName, { type: 'text/calendar', lastModified: Date.now() }),
+      new File([blobPlain], fileName, { type: 'text/plain', lastModified: Date.now() }),
+      new File([blobOctet], fileName, { type: 'application/octet-stream', lastModified: Date.now() })
+    ];
+
+    // 1) Web Share API con FILE → apre il foglio di sistema (WhatsApp, Gmail, Drive, …)
+    if (typeof navigator.share === 'function') {
+      // Prova canShare + share con file
+      if (navigator.canShare) {
+        for (let i = 0; i < fileVariants.length; i++) {
+          const files = [fileVariants[i]];
+          try {
+            if (navigator.canShare({ files: files })) {
+              await navigator.share({ title: title, text: text, files: files });
+              showToast('Scegli WhatsApp (o altra app) dal foglio di condivisione', 'success', 3500);
+              return { ok: true, file: true, mime: files[0].type };
+            }
+          } catch (err) {
+            if (err && err.name === 'AbortError') return { ok: false, aborted: true };
+            // prova variante successiva
+            console.warn('share files variant', files[0].type, err);
+          }
+        }
+      }
+      // 2) Alcuni browser accettano share({files}) anche senza canShare
+      for (let i = 0; i < fileVariants.length; i++) {
+        try {
+          await navigator.share({ title: title, text: text, files: [fileVariants[i]] });
+          showToast('Scegli WhatsApp dal foglio di condivisione', 'success', 3500);
+          return { ok: true, file: true, mime: fileVariants[i].type };
+        } catch (err) {
+          if (err && err.name === 'AbortError') return { ok: false, aborted: true };
+          console.warn('share without canShare', err);
+        }
+      }
+      // 3) Ultimo tentativo: solo testo (senza file) — meglio di uno scaricamento forzato se l’utente vuole condividere
+      try {
+        await navigator.share({ title: title, text: text + '\n\n(File calendario non allegato da questo browser: usa Scarica ICS e allegalo in WhatsApp.)' });
+        showToast('Condiviso il testo. Per il file .ics usa Scarica ICS e allegalo in chat.', 'warn', 5000);
+        return { ok: true, textOnly: true };
+      } catch (err) {
+        if (err && err.name === 'AbortError') return { ok: false, aborted: true };
+      }
+    }
+
+    // 4) Niente Web Share (es. desktop Chrome senza supporto file): download esplicito
     try {
-      // Prova il MIME calendar standard; su alcuni Android il foglio Condividi accetta solo text/plain.
-      if (navigator.share && navigator.canShare) {
-        const files = [new File([icsBody], fileName, {type:'text/calendar;charset=utf-8'})];
-        if (navigator.canShare({files})) {
-          await navigator.share({title, text, files}); return {ok:true, file:true, mime:'text/calendar'};
-        }
-        const plain = [new File([icsBody], fileName, {type:'text/plain;charset=utf-8'})];
-        if (navigator.canShare({files:plain})) {
-          await navigator.share({title, text, files:plain});
-          showToast('File .ics condiviso. Se l’app destinataria non lo riconosce, usa “Scarica ICS” e importalo nel calendario.', 'info', 5000);
-          return {ok:true, file:true, mime:'text/plain'};
-        }
+      if (typeof downloadBlob === 'function') downloadBlob(fileName, icsBody);
+      else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blobCalendar);
+        a.download = fileName;
+        document.body.appendChild(a); a.click(); a.remove();
       }
-      if (typeof navigator.share === 'function') {
-        await navigator.share({title, text});
-        showToast('Il dispositivo ha condiviso il testo ma non ha accettato il file ICS. Usa “Scarica ICS” per allegarlo manualmente.', 'warn', 5500);
-        return {ok:true, textOnly:true};
-      }
-      // Fallback esplicito e affidabile: scarica il calendario invece di fingere di averlo condiviso.
-      downloadBlob(fileName, icsBody);
-      showToast('Condivisione file non disponibile: ho scaricato il file ICS.', 'info', 4500);
-      return {ok:true, downloaded:true};
-    } catch (err) {
-      if (err && err.name === 'AbortError') return {ok:false, aborted:true};
-      console.warn('shareIcsLikeEmail', err);
-      try { downloadBlob(fileName, icsBody); showToast('Condivisione non riuscita: file ICS scaricato come alternativa.', 'warn', 5000); return {ok:true, downloaded:true}; }
-      catch (downloadErr) { showToast('Condivisione e download non riusciti. Riprova dal browser.', 'error', 4500); return {ok:false, error:true}; }
+      showToast('Condivisione non disponibile su questo dispositivo: file ICS scaricato.', 'info', 4500);
+      return { ok: true, downloaded: true };
+    } catch (downloadErr) {
+      showToast('Condivisione e download non riusciti.', 'error', 4000);
+      return { ok: false };
     }
   }
+  window.shareIcsLikeEmail = shareIcsLikeEmail;
 
   async function shareEventWhatsApp(id) {
     const e=(appData.events||[]).find(x=>String(x.id)===String(id));
@@ -6176,7 +6214,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.3.1', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.3.2', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
