@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.0.0</title>
+  <title>Turni Corvetto v9.1.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.0.0';
+    const APP_VERSION = '9.1.0';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.0.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.1.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1921,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.0.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.1.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2391,8 +2391,12 @@
       <div id="globalAiPendingMeta" style="font-size:11px;color:#92400e;margin-bottom:8px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" class="success" onclick="confirmGlobalAiActions()">✅ Conferma e applica</button>
-        <button type="button" class="alt" onclick="cancelGlobalAiActions()">Annulla</button>
+        <button type="button" class="alt" onclick="cancelGlobalAiActions()">Annulla proposta</button>
       </div>
+    </div>
+    <div id="globalAiUndoBar" style="display:none;margin-top:10px;padding:8px 10px;border-radius:10px;background:#ecfdf5;border:1px solid #6ee7b7;font-size:12px;">
+      <span id="globalAiUndoMsg">Ultima azione applicata.</span>
+      <button type="button" class="alt" style="margin-left:8px;font-size:12px;" onclick="undoLastGlobalAiAction()">↩️ Annulla ultima azione</button>
     </div>
   </div>
 </div>
@@ -6135,7 +6139,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW: serve HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.0.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.1.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         // Nuovo SW in attesa → attiva subito
@@ -11159,6 +11163,74 @@ function minLunchBreakMinutes(wId) {
         if (actions.length) return { summary: summaryParts.join(' · '), actions: actions };
       }
 
+      // MODIFY leave (sposta / cambia data o orario)
+      if (/\b(sposta|cambia|modifica|aggiorna)\b/.test(t) && !isCancel) {
+        const ids = findAllWorkerIds(t);
+        const wid = ids[0] || null;
+        const leaveTipo = detectLeaveTipo(t);
+        const dates = [];
+        const reD = /\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?\b/g;
+        let m2;
+        while ((m2 = reD.exec(t))) {
+          const p = parseItalianDate(m2[0]);
+          if (p && dates.indexOf(p) < 0) dates.push(p);
+        }
+        const iso = t.match(/(\d{4}-\d{2}-\d{2})/g);
+        if (iso) iso.forEach(function(d) { if (dates.indexOf(d) < 0) dates.push(d); });
+        const times = t.match(/(\d{1,2}[:.]\d{2})/g);
+        const pad = function(x) {
+          const m = String(x || '').replace('.', ':').match(/^(\d{1,2}):(\d{2})$/);
+          return m ? m[1].padStart(2,'0') + ':' + m[2] : '';
+        };
+        // trova richiesta esistente: prima data = riferimento, seconda = nuova
+        const refDate = dates[0] || null;
+        const newDate = dates.length >= 2 ? dates[1] : dates[0];
+        const matches = findMatchingLeaves(wid, refDate, leaveTipo);
+        if (matches.length) {
+          const prev = matches[0];
+          // annulla vecchia + ricrea con nuovi dati
+          actions.push({ type: 'cancel_leave', leaveId: prev.id, workerId: prev.workerId, tipo: prev.tipo, day: prev.day || prev.fromDay });
+          const newFrom = newDate || prev.day || prev.fromDay;
+          const newTo = dates.length >= 3 ? dates[2] : (prev.toDay && dates.length >= 2 ? dates[1] : (prev.toDay || ''));
+          // if only one date in text and prev was range, keep duration
+          let toDay = prev.toDay || '';
+          let fromDay = newFrom;
+          if (prev.toDay && prev.fromDay && dates.length === 1) {
+            // sposta mantenendo durata
+            const d0 = new Date(prev.fromDay + 'T12:00:00');
+            const d1 = new Date(prev.toDay + 'T12:00:00');
+            const days = Math.round((d1 - d0) / 86400000);
+            const n0 = new Date(newFrom + 'T12:00:00');
+            n0.setDate(n0.getDate() + days);
+            toDay = n0.toISOString().slice(0, 10);
+            fromDay = newFrom;
+          } else if (dates.length >= 2) {
+            fromDay = dates[0];
+            toDay = dates[1];
+          }
+          const fullDay = !(times && times.length >= 2) && (prev.fullDay !== false);
+          actions.push({
+            type: 'leave',
+            workerId: prev.workerId,
+            tipo: prev.tipo,
+            status: prev.status || 'approvata',
+            mode: toDay ? 'range' : 'single',
+            day: fromDay,
+            fromDay: fromDay,
+            toDay: toDay,
+            fullDay: fullDay,
+            fromTime: fullDay ? '' : pad(times && times[0] || prev.fromTime),
+            toTime: fullDay ? '' : pad(times && times[1] || prev.toTime),
+            isMalattia: !!prev.isMalattia,
+            openEnded: !!prev.openEnded,
+            syncTurns: true,
+            note: 'Modificato da assistente AI'
+          });
+          summaryParts.push('Modifica ' + prev.tipo + ' → ' + fromDay + (toDay ? '→' + toDay : ''));
+          return { summary: summaryParts.join(' · '), actions: actions };
+        }
+      }
+
       // CREATE leave
       const leaveTipo = detectLeaveTipo(t);
       if (leaveTipo) {
@@ -11275,8 +11347,37 @@ function minLunchBreakMinutes(wId) {
         if (r.summary) allSummaries.push(r.summary);
       }
     });
-    if (!allActions.length) return null;
-    return {
+if (!allActions.length) {
+      const low = rawText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const seemsRequest = /\b(ferie|permesso|donazione|malattia|ricovero|corso|riunione|impegno|annulla|elimina|visita|congedo|sposta|cambia|modifica)\b/.test(low);
+      if (seemsRequest) {
+        const hasWorker = (appData.workers || []).some(function(w) {
+          const n = String(w.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const parts = n.split(/\s+/).filter(Boolean);
+          return parts.some(function(p) { return p.length > 2 && low.includes(p); });
+        });
+        const hasDate = /\d{1,2}[\/\-.]\d{1,2}|\d{4}-\d{2}-\d{2}|luned|marted|mercoled|gioved|venerd|sabato/.test(low);
+        const missing = [];
+        if (!hasWorker) missing.push('il nome del collaboratore');
+        if (!hasDate) missing.push('la data (es. 17/10)');
+        if (missing.length) {
+          return {
+            summary: 'Per procedere mi serve: ' + missing.join(' e ') + '.',
+            actions: [],
+            clarify: true,
+            clarifyText: 'Non ho abbastanza dati. Indica ' + missing.join(' e ') + '. Esempio: Donazione sangue Davide 17/10 giornata intera'
+          };
+        }
+        return {
+          summary: 'Non ho capito la richiesta.',
+          actions: [],
+          clarify: true,
+          clarifyText: 'Prova con: nome + tipo + data. Es. Ferie Andrea dal 20/10 al 22/10'
+        };
+      }
+      return null;
+    }
+        return {
       summary: allSummaries.join(' | ') || ('Proposte ' + allActions.length + ' azioni'),
       actions: allActions
     };
@@ -11545,6 +11646,11 @@ function applyGlobalAiActions(actions) {
 
     try {
       const local = interpretGlobalCommandLocal(msg);
+      if (local && local.clarify && (!local.actions || !local.actions.length)) {
+        appendGlobalAiChat('assistant', local.clarifyText || local.summary || 'Servono più dettagli.');
+        if (status) status.textContent = 'Chiarimento richiesto';
+        return;
+      }
       if (local && local.actions && local.actions.length) {
         window._pendingGlobalAiActions = local.actions;
         appendGlobalAiChat('assistant', (local.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(local.actions) + '\n\nConferma sotto per applicare.');
@@ -11580,22 +11686,70 @@ function applyGlobalAiActions(actions) {
     }
   }
 
+  function snapshotGlobalAiState() {
+    return {
+      weeks: JSON.parse(JSON.stringify(appData.weeks || {})),
+      leaveRequests: JSON.parse(JSON.stringify(appData.leaveRequests || [])),
+      events: JSON.parse(JSON.stringify(appData.events || [])),
+      notes: JSON.parse(JSON.stringify(appData.notes || {}))
+    };
+  }
+
+  function restoreGlobalAiState(snap) {
+    if (!snap) return;
+    appData.weeks = snap.weeks || {};
+    appData.leaveRequests = snap.leaveRequests || [];
+    appData.events = snap.events || [];
+    if (snap.notes) appData.notes = snap.notes;
+    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
+    try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
+    try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
+    try { if (typeof render === 'function') render(); } catch (e) {}
+    try { if (typeof renderLeaveView === 'function') renderLeaveView(); } catch (e) {}
+    try { if (typeof renderEvents === 'function') renderEvents(); } catch (e) {}
+  }
+
   function confirmGlobalAiActions() {
     const actions = window._pendingGlobalAiActions;
     if (!actions || !actions.length) { showToast('Nessuna azione', 'error'); return; }
+    window._globalAiUndoStack = window._globalAiUndoStack || [];
+    window._globalAiUndoStack.push({
+      snap: snapshotGlobalAiState(),
+      label: (actions.length) + ' azion' + (actions.length === 1 ? 'e' : 'i'),
+      at: new Date().toISOString()
+    });
+    if (window._globalAiUndoStack.length > 10) window._globalAiUndoStack.shift();
+
     const result = applyGlobalAiActions(actions);
     appendGlobalAiChat('assistant', 'Applicato: ' + result.applied + (result.messages.length ? '\n· ' + result.messages.join('\n· ') : ''));
     window._pendingGlobalAiActions = null;
     const box = document.getElementById('globalAiPending');
     if (box) box.style.display = 'none';
+    const undoBar = document.getElementById('globalAiUndoBar');
+    const undoMsg = document.getElementById('globalAiUndoMsg');
+    if (undoBar) undoBar.style.display = 'block';
+    if (undoMsg) undoMsg.textContent = 'Ultima azione: ' + result.applied + ' modifiche applicate.';
     showToast(result.applied ? ('Applicate ' + result.applied + ' modifiche') : 'Nessuna modifica', result.applied ? 'success' : 'info');
+  }
+
+  function undoLastGlobalAiAction() {
+    const stack = window._globalAiUndoStack || [];
+    if (!stack.length) { showToast('Niente da annullare', 'info'); return; }
+    const last = stack.pop();
+    restoreGlobalAiState(last.snap);
+    appendGlobalAiChat('assistant', '↩️ Annullata l\'ultima azione dell\'assistente (' + (last.label || '') + ').');
+    const undoBar = document.getElementById('globalAiUndoBar');
+    if (undoBar) undoBar.style.display = stack.length ? 'block' : 'none';
+    const undoMsg = document.getElementById('globalAiUndoMsg');
+    if (undoMsg && stack.length) undoMsg.textContent = 'Puoi annullare ancora ' + stack.length + ' azion' + (stack.length === 1 ? 'e' : 'i') + '.';
+    showToast('Ultima azione assistente annullata', 'success');
   }
 
   function cancelGlobalAiActions() {
     window._pendingGlobalAiActions = null;
     const box = document.getElementById('globalAiPending');
     if (box) box.style.display = 'none';
-    appendGlobalAiChat('assistant', 'Modifiche annullate.');
+    appendGlobalAiChat('assistant', 'Proposta annullata (niente salvato).');
   }
 
 
