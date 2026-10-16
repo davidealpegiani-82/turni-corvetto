@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.4.0</title>
+  <title>Turni Corvetto v9.4.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.4.0';
+    const APP_VERSION = '9.4.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.4.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.4.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.4.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.4.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -1946,7 +1946,7 @@
       <button type="button" id="tabTurni" class="active-tab" onclick="switchView('turni')">📋 Tabella</button>
       <button type="button" id="tabFerie" onclick="switchView('ferie')">🏖️ Ferie</button>
       <button type="button" id="tabEventi" onclick="switchView('eventi')">📌 Eventi</button>
-      <button type="button" id="tabMalattia" onclick="switchView('malattia')">🤒 Malattia</button>
+      <button type="button" id="tabMalattia" onclick="switchView('malattia'); setTimeout(function(){ var m=document.getElementById('malattiaControlCard'); if(m){m.style.display='block';} }, 0)">🤒 Malattia</button>
       <button type="button" id="tabGuida" onclick="openHelpGuide()">❓ Guida</button>
       <button type="button" id="tabSettings" onclick="switchView('settings')">⚙️ Impostazioni</button>
     </div>
@@ -2095,6 +2095,10 @@
 <!-- ========== VISTA FERIE ========== -->
 
 <div id="viewMalattia" style="display:none;">
+  <div style="margin:0 0 12px;display:flex;flex-wrap:wrap;gap:8px;">
+    <button type="button" class="btn-malattia" onclick="openMalattiaModal()" style="min-height:44px;padding:10px 16px;">➕ Nuova malattia / ricovero</button>
+    <button type="button" class="alt" onclick="exportMalattiaPDF()">📄 PDF malattie</button>
+  </div>
   <div class="leave-panel" style="display:block;">
     <h3 style="font-size:13px; margin:0 0 10px; color:#f87171; text-transform:uppercase; letter-spacing:0.04em;">In corso / future</h3>
     <div id="malattiaActiveList"></div>
@@ -4504,7 +4508,16 @@ function isUsableAppData(value) {
       if (el) el.style.display = 'none';
     });
     var showEl = document.getElementById(map[view] || 'viewTurni');
-    if (showEl) showEl.style.display = (view === 'ferie' || view === 'eventi' || view === 'stats' || view === 'settings') ? 'block' : 'block';
+    if (showEl) showEl.style.display = 'block';
+    if (view === 'malattia' && typeof renderMalattiaView === 'function') {
+      try { renderMalattiaView(); } catch (e) {}
+    }
+    if (view === 'ferie' && typeof renderLeaveView === 'function') {
+      try { renderLeaveView(); } catch (e) {}
+    }
+    if (view === 'eventi' && typeof renderEventsView === 'function') {
+      try { renderEventsView(); } catch (e) {}
+    }
 
     document.querySelectorAll('.nav-tabs button, .view-tabs button').forEach(function(b) { b.classList.remove('active-tab'); });
     var tabIds = { turni:'tabTurni', ferie:'tabFerie', eventi:'tabEventi', malattia:'tabMalattia', settings:'tabSettings' };
@@ -4515,11 +4528,16 @@ function isUsableAppData(value) {
     var fc = document.getElementById('ferieControlCard');
     var ec = document.getElementById('eventiControlCard');
     var mc = document.getElementById('malattiaControlCard');
-    var mc = document.getElementById('malattiaControlCard');
     if (tc) tc.style.display = (view === 'turni' || view === 'proposta') ? '' : 'none';
     if (fc) fc.style.display = view === 'ferie' ? '' : 'none';
     if (ec) ec.style.display = view === 'eventi' ? '' : 'none';
-    if (mc) mc.style.display = view === 'malattia' ? '' : 'none';
+    if (mc) {
+      mc.style.display = view === 'malattia' ? 'block' : 'none';
+      if (view === 'malattia') {
+        mc.style.visibility = 'visible';
+        mc.style.opacity = '1';
+      }
+    }
     var pq = document.getElementById('propostaQuickBar');
     if (pq) pq.style.display = view === 'proposta' ? '' : 'none';
 
@@ -6486,7 +6504,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.4.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.4.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14125,40 +14143,73 @@ async function downloadJpgFromPreview() {
   }
 
   function openMalattiaModal(existingId) {
-    editingMalattiaId = existingId || null;
-    const modal = document.getElementById('malattiaModal');
-    if (!modal) { showToast('Modale malattia non trovata', 'error'); return; }
-    const sel = document.getElementById('malWorker');
-    if (!sel) { showToast('Form malattia incompleto', 'error'); modal.style.display = 'flex'; return; }
-    sel.innerHTML = '';
-    (appData.workers || []).forEach(w => {
-      sel.innerHTML += '<option value="' + w.id + '">' + w.name + '</option>';
-    });
-    document.getElementById('malDeleteBtn').style.display = existingId ? 'block' : 'none';
-    if (existingId) {
-      const req = (appData.leaveRequests || []).find(r => r.id === existingId);
-      if (req) {
-        sel.value = req.workerId;
-        const t = document.querySelector('input[name="malTipo"][value="' + (req.tipo || 'Malattia') + '"]');
-        if (t) t.checked = true;
-        document.getElementById('malFromDay').value = req.fromDay || req.day || '';
-        document.getElementById('malToDay').value = req.toDay || '';
-        document.getElementById('malOpenEnded').checked = !!req.openEnded || (!req.toDay && !!(req.fromDay || req.day));
-        document.getElementById('malNote').value = req.note || '';
-        document.getElementById('malStatus').value = req.status || 'approvata';
-        toggleMalOpenEnded();
+    try {
+      editingMalattiaId = existingId || null;
+      const modal = document.getElementById('malattiaModal');
+      if (!modal) { showToast('Modale malattia non trovata — aggiorna la pagina', 'error'); return; }
+
+      const sel = document.getElementById('malWorker');
+      if (sel) {
+        sel.innerHTML = '';
+        const workers = (appData && appData.workers) ? appData.workers : [];
+        if (!workers.length) {
+          sel.innerHTML = '<option value="">Nessun collaboratore — ricarica dal cloud</option>';
+        } else {
+          workers.forEach(function(w) {
+            sel.innerHTML += '<option value="' + w.id + '">' + (w.name || w.id) + '</option>';
+          });
+        }
       }
-    } else {
-      document.querySelector('input[name="malTipo"][value="Malattia"]').checked = true;
-      document.getElementById('malFromDay').value = localDateKey(new Date());
-      document.getElementById('malToDay').value = '';
-      document.getElementById('malOpenEnded').checked = false;
-      document.getElementById('malNote').value = '';
-      document.getElementById('malStatus').value = 'approvata';
-      toggleMalOpenEnded();
+
+      const delBtn = document.getElementById('malDeleteBtn');
+      if (delBtn) delBtn.style.display = existingId ? 'block' : 'none';
+
+      const setVal = function(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      };
+      const setCheck = function(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.checked = !!val;
+      };
+
+      if (existingId) {
+        const req = ((appData && appData.leaveRequests) || []).find(function(r) { return r.id === existingId; });
+        if (req) {
+          if (sel) sel.value = req.workerId;
+          const t = document.querySelector('input[name="malTipo"][value="' + (req.tipo || 'Malattia') + '"]');
+          if (t) t.checked = true;
+          setVal('malFromDay', req.fromDay || req.day || '');
+          setVal('malToDay', req.toDay || '');
+          setCheck('malOpenEnded', !!req.openEnded || (!req.toDay && !!(req.fromDay || req.day)));
+          setVal('malNote', req.note || '');
+          setVal('malStatus', req.status || 'approvata');
+        }
+      } else {
+        const t = document.querySelector('input[name="malTipo"][value="Malattia"]') || document.querySelector('input[name="malTipo"]');
+        if (t) t.checked = true;
+        setVal('malFromDay', (typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0, 10));
+        setVal('malToDay', '');
+        setCheck('malOpenEnded', false);
+        setVal('malNote', '');
+        setVal('malStatus', 'approvata');
+      }
+
+      try { if (typeof toggleMalOpenEnded === 'function') toggleMalOpenEnded(); } catch (e) {}
+
+      modal.style.display = 'flex';
+      modal.style.zIndex = '10050';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+    } catch (err) {
+      console.error('openMalattiaModal', err);
+      showToast('Errore apertura malattia: ' + (err.message || err), 'error', 5000);
+      const modal = document.getElementById('malattiaModal');
+      if (modal) { modal.style.display = 'flex'; modal.style.zIndex = '10050'; }
     }
-    document.getElementById('malattiaModal').style.display = 'flex';
   }
+  window.openMalattiaModal = openMalattiaModal;
+
 
   function validateApprovedLeaveConflict(req, ignoreId) {
     if (!req || req.status !== 'approvata') return '';
