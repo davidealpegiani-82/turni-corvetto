@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.3.2</title>
+  <title>Turni Corvetto v9.3.3</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.3.2';
+    const APP_VERSION = '9.3.3';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.2</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.3</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1921,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.3.2</small>
+          <small id="appVersionLabel">CORVETTO · V9.3.3</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3232,7 +3232,99 @@
     }
     return out;
   }
-  function isUsableAppData(value) {
+  
+  function dataRichness(d) {
+    if (!d || typeof d !== 'object') return 0;
+    let score = 0;
+    try {
+      score += (Array.isArray(d.leaveRequests) ? d.leaveRequests.length : 0) * 5;
+      score += (Array.isArray(d.events) ? d.events.length : 0) * 3;
+      const weeks = d.weeks || {};
+      const wkeys = Object.keys(weeks);
+      score += wkeys.length;
+      wkeys.forEach(function(wk) {
+        const byWorker = weeks[wk] || {};
+        Object.keys(byWorker).forEach(function(wid) {
+          const days = byWorker[wid] || {};
+          Object.keys(days).forEach(function(di) {
+            const c = days[di];
+            if (!c) return;
+            if (c.mIn || c.pIn || c.status) score += 1;
+          });
+        });
+      });
+      if (Array.isArray(d.workers) && d.workers.length) score += 2;
+    } catch (e) {}
+    return score;
+  }
+
+  function tryRecoverFromLocalBackups() {
+    const current = dataRichness(appData);
+    // Se abbiamo già dati utili, non toccare
+    if (current >= 8) return false;
+
+    const candidates = [];
+    // 1) backup history v1
+    try {
+      const list = JSON.parse(localStorage.getItem('turni_corvetto_backup_history_v1') || '[]');
+      if (Array.isArray(list)) {
+        list.forEach(function(e) {
+          if (e && e.data) candidates.push({ src: 'cronologia ' + (e.at || ''), data: e.data, score: dataRichness(e.data) });
+        });
+      }
+    } catch (e) {}
+    // 2) snapshots
+    try {
+      const list = JSON.parse(localStorage.getItem('turni_corvetto_snapshots_v1') || '[]');
+      if (Array.isArray(list)) {
+        list.forEach(function(e) {
+          if (e && e.data) candidates.push({ src: 'snapshot ' + (e.label || e.at || ''), data: e.data, score: dataRichness(e.data) });
+        });
+      }
+    } catch (e) {}
+    // 3) precloud backups
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('turni_corvetto_precloud_backup_') === 0) {
+          try {
+            const data = JSON.parse(localStorage.getItem(k));
+            candidates.push({ src: k, data: data, score: dataRichness(data) });
+          } catch (e2) {}
+        }
+      }
+    } catch (e) {}
+    // 4) raw local key if different from current
+    try {
+      const raw = localStorage.getItem('turni_corvetto_test_data');
+      if (raw) {
+        const data = JSON.parse(raw);
+        candidates.push({ src: 'localStorage principale', data: data, score: dataRichness(data) });
+      }
+    } catch (e) {}
+
+    candidates.sort(function(a, b) { return b.score - a.score; });
+    if (!candidates.length || candidates[0].score <= current) return false;
+    const best = candidates[0];
+    if (best.score < 3) return false;
+    appData = best.data;
+    try { if (typeof normalizeAppData === 'function') normalizeAppData(); } catch (e) {}
+    try { localStorage.setItem('turni_corvetto_test_data', JSON.stringify(appData)); } catch (e) {}
+    try { showToast('Dati recuperati da: ' + best.src, 'success', 5000); } catch (e) {}
+    console.warn('Recovered appData from', best.src, 'score', best.score);
+    return true;
+  }
+
+  function shouldPreferLocalOverRemote(local, remote) {
+    const lr = dataRichness(local);
+    const rr = dataRichness(remote);
+    // remoto quasi vuoto, locale pieno → non sovrascrivere
+    if (lr >= 10 && rr < lr * 0.4) return true;
+    if (lr >= 15 && rr < 5) return true;
+    return false;
+  }
+
+function isUsableAppData(value) {
     const v = normalizeCloudPayload(value);
     return !!(v && typeof v === 'object' && Array.isArray(v.workers) && v.workers.length > 0);
   }
@@ -3589,6 +3681,7 @@
   function finishInitRender() {
     setTimeout(function(){ try { if (typeof updateRulesBanner==="function") updateRulesBanner(); } catch(e){} }, 120);
 
+    try { if (typeof tryRecoverFromLocalBackups === 'function') tryRecoverFromLocalBackups(); } catch (e) {}
     try { if (typeof sanitizeAppData === 'function') sanitizeAppData(); } catch (e) {}
 
     normalizeAppData();
@@ -3705,6 +3798,17 @@
         _lastCloudSeenAt = remoteAt;
         _lastCloudSeenBy = String(remoteBy || '');
         _lastCloudSeenRevision = Number(data.updatedRevision || 0);
+        // Protezione: non sostituire dati locali ricchi con un cloud quasi vuoto
+        if (typeof shouldPreferLocalOverRemote === 'function' && shouldPreferLocalOverRemote(appData, data)) {
+          window._pendingRemoteData = data;
+          window._conflictRemote = data;
+          try {
+            if (typeof showRemoteUpdateBar === 'function') showRemoteUpdateBar('Cloud più recente ma con meno dati: verifica prima di sovrascrivere.');
+            else showToast('Cloud incompleto: mantengo i dati locali', 'warn', 5000);
+          } catch (e) {}
+          setSyncStatus('ok', 'cloud · protezione dati');
+          return;
+        }
         _applyingRemote = true;
         appData = data;
         normalizeAppData();
@@ -6214,7 +6318,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.3.2', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.3.3', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
