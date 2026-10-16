@@ -11386,7 +11386,7 @@ function describeGlobalActions(actions) {
   }
 
 
-  function callGlobalAiApi(userMessage) {
+  async function callGlobalAiApi(userMessage) {
     const s = (typeof loadProposalAiSettings === 'function') ? loadProposalAiSettings() : {};
     if (!s.apiKey) throw new Error('Configura la chiave Groq (⚙️ API)');
     const base = (s.proxy || s.apiBase || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
