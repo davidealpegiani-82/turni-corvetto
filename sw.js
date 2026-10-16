@@ -1,7 +1,7 @@
 /* Turni Corvetto PWA SW v9.2.0 */
-const CACHE_CORE = 'corvetto-core-v9.2.0';
-const CACHE_CDN = 'corvetto-cdn-v9.2.0';
-const APP_SW_VERSION = '9.2.0';
+const CACHE_CORE = 'corvetto-core-v9.3.0';
+const CACHE_CDN = 'corvetto-cdn-v9.3.0';
+const APP_SW_VERSION = '9.3.0';
 
 const CORE_ASSETS = [
   './manifest.webmanifest',

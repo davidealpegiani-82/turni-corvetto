@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.2.0</title>
+  <title>Turni Corvetto v9.3.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.2.0';
+    const APP_VERSION = '9.3.0';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.2.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1921,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.2.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.3.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2362,11 +2362,19 @@
   <div class="modal" style="max-width:560px;">
     <h3 style="margin:0 0 6px;">🧠 Assistente intelligente</h3>
     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
-      Gestisci <strong>turni, ferie, permessi, malattia e impegni</strong> in italiano.
-      Le modifiche vengono proposte e applicate solo dopo conferma. Gratis con Groq.
+      Gestisci <strong>turni, ferie, permessi, malattia e impegni</strong> in italiano libero.
+      Anteprima obbligatoria prima del salvataggio. Interprete locale + Groq (gratis) per frasi complesse.
     </p>
+    <div id="globalAiChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Donazione sangue ' )">Donazione</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Ferie ' )">Ferie</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Permesso retribuito ' )">Permesso</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Corso ' )">Corso</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Malattia ' )">Malattia</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="runGlobalAiWeekProblems()">Problemi settimana</button>
+    </div>
     <div id="globalAiChat" style="max-height:240px;overflow-y:auto;margin-bottom:10px;font-size:12px;line-height:1.45;min-height:80px;"></div>
-    <textarea id="globalAiInput" rows="3" placeholder="Es. Ferie Massimo 20-22 ottobre · Malattia Caruso da mercoledì · Riunione Davide martedì 18:00-19:30 · Martedì Andrea in chiusura" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #a7f3d0;padding:10px;font-size:13px;resize:vertical;"></textarea>
+    <textarea id="globalAiInput" rows="3" placeholder="Scrivi liberamente: es. domani Davide in donazione tutto il giorno; oppure ferie Andrea settimana prossima…" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #a7f3d0;padding:10px;font-size:13px;resize:vertical;"></textarea>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;">
       <button type="button" class="success" id="btnGlobalAiSend" onclick="sendGlobalAiMessage()">Invia</button>
       <button type="button" class="alt" onclick="toggleGlobalAiSettings()" style="font-size:12px;">⚙️ API</button>
@@ -3399,6 +3407,7 @@
       }
       const msg = document.getElementById('conflictMsg');
       if (msg) msg.textContent = 'Due versioni diverse dei dati. Scegli quale mantenere: nessuna sovrascrittura silenziosa.';
+      try{enrichConflictDetails(appData, window._conflictRemote);}catch(e){}
       document.getElementById('conflictModal').style.display = 'flex';
       return;
     }
@@ -3416,6 +3425,34 @@
     finishInitRender();
     setSyncStatus('ok', 'cloud live');
     showToast('Vista aggiornata con i dati cloud', 'success', 2500);
+  }
+
+  
+  function enrichConflictDetails(localData, remoteData) {
+    const el = document.getElementById('conflictDetails');
+    if (!el) return;
+    try {
+      const L = localData || appData;
+      const R = remoteData || window._conflictRemote || {};
+      const rd = R.data || R;
+      const lines = [];
+      const lLeaves = (L.leaveRequests || []).length;
+      const rLeaves = (rd.leaveRequests || []).length;
+      const lEv = (L.events || []).length;
+      const rEv = (rd.events || []).length;
+      const lWeeks = Object.keys(L.weeks || {}).length;
+      const rWeeks = Object.keys(rd.weeks || {}).length;
+      lines.push('Locale — ferie/permessi: ' + lLeaves + ', impegni: ' + lEv + ', settimane: ' + lWeeks);
+      lines.push('Remoto — ferie/permessi: ' + rLeaves + ', impegni: ' + rEv + ', settimane: ' + rWeeks);
+      if (lLeaves !== rLeaves) lines.push('Δ assenze: ' + (rLeaves - lLeaves > 0 ? '+' : '') + (rLeaves - lLeaves));
+      if (lEv !== rEv) lines.push('Δ impegni: ' + (rEv - lEv > 0 ? '+' : '') + (rEv - lEv));
+      if (lWeeks !== rWeeks) lines.push('Δ settimane: ' + (rWeeks - lWeeks > 0 ? '+' : '') + (rWeeks - lWeeks));
+      const lu = R.updatedAt || R.updated_at;
+      if (lu) lines.push('Remoto aggiornato: ' + new Date(Number(lu) || lu).toLocaleString());
+      el.innerHTML = lines.map(function(x) { return '<div style="margin:2px 0;">' + x + '</div>'; }).join('');
+    } catch (e) {
+      el.textContent = 'Dettaglio confronto non disponibile';
+    }
   }
 
   function resolveConflictKeepLocal() {
@@ -5850,7 +5887,7 @@ function annotateEventOnWeek(e,weekKey){
   function icsEscape(value) {
     return String(value == null ? '' : value)
       .replace(/\\/g, '\\\\')
-      .replace(/\r\n|\n|\r/g, '\\n')
+      .replace(/\r\n|\n|\r/g, '\n')
       .replace(/;/g, '\\;')
       .replace(/,/g, '\\,');
   }
@@ -6139,7 +6176,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.2.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.3.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -7829,7 +7866,7 @@ function minLunchBreakMinutes(wId) {
     const test = (name, fn) => { try { const result = fn(); checks.push({name, pass: result === true, detail: result === true ? '' : 'Risultato inatteso'}); } catch (e) { checks.push({name, pass:false, detail:String(e && e.message || e)}); } };
     test('Evento orario con fuso Europe/Rome', () => { const x=buildCalendarICS([{id:'qa-1',date:'2026-10-26',title:'Test',fromTime:'09:00',toTime:'10:30'}]); return x.includes('TZID=Europe/Rome:20261026T090000') && x.includes('TZID=Europe/Rome:20261026T103000') && x.endsWith('END:VCALENDAR\r\n'); });
     test('Evento giornata intera con DTEND esclusivo', () => { const x=buildCalendarICS([{id:'qa-2',date:'2026-12-31',title:'Fine anno',allDay:true}]); return x.includes('DTSTART;VALUE=DATE:20261231') && x.includes('DTEND;VALUE=DATE:20270101'); });
-    test('Escape di caratteri speciali e nuove righe', () => { const x=buildCalendarICS([{id:'qa-3',date:'2026-10-26',title:'Test, A; B\\C',notes:'riga 1\nriga 2',fromTime:'08:00',toTime:'09:00'}]); return x.includes('SUMMARY:Test\\, A\\; B\\\\C') && x.includes('DESCRIPTION:riga 1\\nriga 2'); });
+    test('Escape di caratteri speciali e nuove righe', () => { const x=buildCalendarICS([{id:'qa-3',date:'2026-10-26',title:'Test, A; B\\C',notes:'riga 1\nriga 2',fromTime:'08:00',toTime:'09:00'}]); return x.includes('SUMMARY:Test\\, A\\; B\\\\C') && x.includes('DESCRIPTION:riga 1\nriga 2'); });
     test('Ripiegamento righe lunghe', () => { const x=buildCalendarICS([{id:'qa-4',date:'2026-10-26',title:'A'.repeat(180),fromTime:'08:00',toTime:'09:00'}]); return x.split('\r\n').filter(l=>l.length>75).length===0 && x.includes('\r\n '); });
     test('Rifiuto data impossibile', () => { try { eventToICS({id:'qa-5',date:'2026-02-30',title:'Data errata',fromTime:'08:00',toTime:'09:00'}); return false; } catch(e) { return /Data evento inesistente/.test(String(e.message)); } });
     return checks;
@@ -11741,12 +11778,19 @@ function applyGlobalAiActions(actions) {
     const base = (s.proxy || s.apiBase || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
     const workers = (appData.workers || []).map(function(w) { return { id: w.id, name: w.name }; });
     const system = [
-      'Sei assistente app Turni Corvetto. Rispondi SOLO con JSON:',
-      '{"summary":"...","actions":[{"type":"leave|event|shift", ...}]}',
-      'type leave: workerId,tipo,day/fromDay/toDay,fullDay,fromTime,toTime,status',
-      'type event: title,date,from,to,participantIds',
-      'type shift: workerId,day 0-5,mIn,mOut,pIn,pOut',
-      'Workers: ' + JSON.stringify(workers)
+      'Sei assistente operativo app Turni Corvetto (Italia).',
+      'Interpreta frasi italiane anche informali e rispondi SOLO con JSON valido:',
+      '{"summary":"testo","actions":[...]}',
+      'Azioni possibili:',
+      '{"type":"leave","workerId":"...","tipo":"Ferie|Permesso retribuito|Permesso Non retribuito|Congedo Matrimoniale|Visita Medica|Visita c/o cantiere|Partecipazione corso|Visita Fiera|Donazione Sangue|Malattia|Ricovero","status":"approvata","mode":"single|range","day":"YYYY-MM-DD","fromDay":"","toDay":"","fullDay":true,"fromTime":"","toTime":"","isMalattia":false,"openEnded":false}',
+      '{"type":"event","eventType":"Corso|Riunione|Visita medica|Appuntamento|Trasferta|Altro","title":"...","date":"YYYY-MM-DD","fromTime":"HH:MM","toTime":"HH:MM","participantIds":["id"],"location":""}',
+      '{"type":"cancel_leave","leaveId":"..."} o cerca per workerId+day',
+      '{"type":"cancel_event","eventId":"..."}',
+      '{"type":"shift","workerId":"...","day":0,"mIn":"","mOut":"","pIn":"","pOut":""}',
+      'Usa SOLO workerId del contesto. Date in YYYY-MM-DD. Se manca info, summary spiega e actions=[].',
+      'Workers: ' + JSON.stringify(workers),
+      'Oggi: ' + ((typeof localDateKey === 'function') ? localDateKey(new Date()) : new Date().toISOString().slice(0,10)),
+      'Settimana: ' + (typeof currentWeekKey !== 'undefined' ? currentWeekKey : '')
     ].join('\n');
     const resp = await fetch(base + '/chat/completions', {
       method: 'POST',
@@ -11762,13 +11806,123 @@ function applyGlobalAiActions(actions) {
     return (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : '';
   }
 
+  
+  function fillGlobalAiChip(prefix) {
+    const input = document.getElementById('globalAiInput');
+    if (!input) return;
+    input.value = prefix;
+    input.focus();
+  }
+
+  function resolveRelativeDateTokens(text) {
+    // espande domani / oggi / dopodomani / lunedi prossimo in date ISO usando settimana corrente se possibile
+    let t = String(text || '');
+    const today = new Date();
+    const fmt = function(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return y + '-' + m + '-' + day;
+    };
+    const addDays = function(n) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
+      return fmt(d);
+    };
+    t = t.replace(/\boggi\b/gi, addDays(0));
+    t = t.replace(/\bdomani\b/gi, addDays(1));
+    t = t.replace(/\bdopodomani\b/gi, addDays(2));
+    // "settimana prossima" → lunedì prossimo approx
+    if (/settimana\s+prossima/i.test(t)) {
+      const day = today.getDay(); // 0 dom
+      const toMon = ((8 - day) % 7) || 7;
+      t = t.replace(/settimana\s+prossima/gi, 'dal ' + addDays(toMon) + ' al ' + addDays(toMon + 4));
+    }
+    return t;
+  }
+
+  function findAmbiguousWorkerMatches(text) {
+    const t = String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const hits = [];
+    (appData.workers || []).forEach(function(w) {
+      const n = String(w.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const parts = n.split(/\s+/).filter(Boolean);
+      if (parts.some(function(p) { return p.length > 2 && t.includes(p); })) hits.push(w);
+    });
+    // ambiguità: stesso cognome/token condiviso da più di uno e testo ha solo quel token
+    if (hits.length <= 1) return null;
+    const tokens = t.split(/\s+/).filter(function(x) { return x.length > 2; });
+    // se il testo menziona un solo pezzo di nome condiviso
+    const shared = hits.map(function(w) { return String(w.name).split(/\s+/)[0].toLowerCase(); });
+    // return list for clarify
+    return hits;
+  }
+
+  function buildWeekProblemsReport() {
+    const lines = [];
+    try {
+      const workers = appData.workers || [];
+      const monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(currentWeekKey) : null;
+      workers.forEach(function(w) {
+        for (let day = 0; day <= 5; day++) {
+          const cell = appData.weeks && appData.weeks[currentWeekKey] && appData.weeks[currentWeekKey][w.id] && appData.weeks[currentWeekKey][w.id][day];
+          if (!cell) continue;
+          let dateObj = null;
+          try {
+            if (monday) {
+              dateObj = new Date(monday);
+              dateObj.setDate(dateObj.getDate() + day);
+            }
+          } catch (e) {}
+          if (typeof detectCellAnomalies === 'function') {
+            const issues = detectCellAnomalies(w, day, cell, dateObj) || [];
+            issues.forEach(function(iss) {
+              const msg = (iss && (iss.message || iss.text || iss.title)) ? (iss.message || iss.text || iss.title) : String(iss);
+              lines.push((w.name || w.id) + ' · g' + day + ': ' + msg);
+            });
+          }
+        }
+      });
+    } catch (e) {
+      lines.push('Analisi incompleta: ' + (e.message || e));
+    }
+    if (!lines.length) return 'Nessun problema rilevato dal controllo celle sulla settimana corrente.';
+    return 'Problemi rilevati (' + lines.length + '):\n· ' + lines.slice(0, 25).join('\n· ') + (lines.length > 25 ? '\n…' : '');
+  }
+
+  function runGlobalAiWeekProblems() {
+    openGlobalAiAssistant();
+    const report = buildWeekProblemsReport();
+    appendGlobalAiChat('assistant', report);
+    const st = document.getElementById('globalAiStatus');
+    if (st) st.textContent = 'Analisi settimana';
+  }
+
+  function archiveOldWeeks(keepWeeks) {
+    keepWeeks = keepWeeks || 16;
+    const keys = Object.keys(appData.weeks || {}).sort();
+    if (keys.length <= keepWeeks) {
+      showToast('Niente da archiviare (' + keys.length + ' settimane)', 'info');
+      return 0;
+    }
+    const toDrop = keys.slice(0, keys.length - keepWeeks);
+    if (!confirm('Archiviare (rimuovere localmente) ' + toDrop.length + ' settimane più vecchie?\nVerrà creato un backup prima.')) return 0;
+    try { pushBackupHistory('Prima archiviazione settimane'); } catch (e) {}
+    toDrop.forEach(function(k) { delete appData.weeks[k]; });
+    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
+    showToast('Rimosse ' + toDrop.length + ' settimane vecchie', 'success');
+    return toDrop.length;
+  }
+
   async function sendGlobalAiMessage() {
     const input = document.getElementById('globalAiInput');
     const status = document.getElementById('globalAiStatus');
     const btn = document.getElementById('btnGlobalAiSend');
-    const msg = (input && input.value || '').trim();
+    let msg = (input && input.value || '').trim();
     if (!msg) { showToast('Scrivi una richiesta', 'error'); return; }
-    appendGlobalAiChat('user', msg);
+
+    // Pre-process: date relative
+    const expanded = resolveRelativeDateTokens(msg);
+    appendGlobalAiChat('user', msg + (expanded !== msg ? ('\n→ interpretato: ' + expanded) : ''));
     if (input) input.value = '';
     if (status) status.textContent = 'Elaborazione…';
     if (btn) btn.disabled = true;
@@ -11776,40 +11930,99 @@ function applyGlobalAiActions(actions) {
     if (pending) pending.style.display = 'none';
     window._pendingGlobalAiActions = null;
 
+    // Comando analisi problemi
+    if (/problemi|anomalie|cosa\\s+non\\s+torna|check\\s+settimana/i.test(msg)) {
+      appendGlobalAiChat('assistant', buildWeekProblemsReport());
+      if (status) status.textContent = 'Analisi completata';
+      if (btn) btn.disabled = false;
+      return;
+    }
+
     try {
-      const local = interpretGlobalCommandLocal(msg);
+      // Ambiguità nomi
+      const amb = findAmbiguousWorkerMatches(expanded);
+      if (amb && amb.length > 1) {
+        // se la frase non contiene nome intero unico
+        const fullHits = amb.filter(function(w) {
+          const n = String(w.name || '').toLowerCase();
+          return expanded.toLowerCase().includes(n.split(' ')[0].toLowerCase()) && expanded.toLowerCase().includes((n.split(' ')[1] || '').toLowerCase());
+        });
+        if (fullHits.length !== 1) {
+          const names = amb.map(function(w) { return w.name; }).join(', ');
+          appendGlobalAiChat('assistant', 'Ho trovato più collaboratori possibili: ' + names + '.\nSpecifica nome e cognome (es. «' + amb[0].name + '»).');
+          if (status) status.textContent = 'Chiarimento nomi';
+          return;
+        }
+      }
+
+      let local = interpretGlobalCommandLocal(expanded);
+
+      // Fallback: prova anche msg originale
+      if ((!local || !local.actions || !local.actions.length) && expanded !== msg) {
+        local = interpretGlobalCommandLocal(msg) || local;
+      }
+
       if (local && local.clarify && (!local.actions || !local.actions.length)) {
+        // prova Groq prima di arrendersi
+        const s = (typeof loadProposalAiSettings === 'function') ? loadProposalAiSettings() : {};
+        if (s.apiKey) {
+          if (status) status.textContent = 'Chiedo a Groq…';
+          try {
+            const raw = await callGlobalAiApi(expanded);
+            const patch = (typeof extractJsonFromAiText === 'function') ? extractJsonFromAiText(raw) : null;
+            if (patch && patch.actions && patch.actions.length) {
+              window._pendingGlobalAiActions = patch.actions;
+              appendGlobalAiChat('assistant', (patch.summary || 'Proposta Groq') + '\n\n' + describeGlobalActions(patch.actions));
+              const list = document.getElementById('globalAiPendingList');
+              if (list) list.innerHTML = describeGlobalActionsHtml(patch.actions);
+              if (pending) pending.style.display = 'block';
+              if (status) status.textContent = 'In attesa di conferma';
+              return;
+            }
+          } catch (eG) {
+            console.warn(eG);
+          }
+        }
         appendGlobalAiChat('assistant', local.clarifyText || local.summary || 'Servono più dettagli.');
         if (status) status.textContent = 'Chiarimento richiesto';
         return;
       }
+
       if (local && local.actions && local.actions.length) {
         window._pendingGlobalAiActions = local.actions;
         appendGlobalAiChat('assistant', (local.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(local.actions) + '\n\nConferma sotto per applicare.');
         const list = document.getElementById('globalAiPendingList');
         if (list) list.innerHTML = describeGlobalActionsHtml(local.actions);
         const meta = document.getElementById('globalAiPendingMeta');
-        if (meta) meta.textContent = (local.actions.length) + ' azion' + (local.actions.length === 1 ? 'e' : 'i') + ' in attesa di conferma — nulla è salvato finché non premi Conferma.';
+        if (meta) meta.textContent = local.actions.length + ' azioni in attesa — nulla è salvato finché non premi Conferma.';
         if (pending) pending.style.display = 'block';
         if (status) status.textContent = 'In attesa di conferma';
         return;
       }
-      const raw = await callGlobalAiApi(msg);
-      const patch = (typeof extractJsonFromAiText === 'function') ? extractJsonFromAiText(raw) : null;
-      const actions = (patch && patch.actions) || [];
-      if (!actions.length) {
-        appendGlobalAiChat('assistant', (patch && patch.summary) || 'Nessuna modifica. Prova con date tipo 2026-10-20 e nomi completi.');
-        if (status) status.textContent = 'Nessuna azione';
+
+      // Locale vuoto → Groq free-form
+      const s = (typeof loadProposalAiSettings === 'function') ? loadProposalAiSettings() : {};
+      if (s.apiKey) {
+        if (status) status.textContent = 'Frase libera → Groq…';
+        const raw = await callGlobalAiApi(expanded);
+        const patch = (typeof extractJsonFromAiText === 'function') ? extractJsonFromAiText(raw) : null;
+        const actions = (patch && patch.actions) || [];
+        if (actions.length) {
+          window._pendingGlobalAiActions = actions;
+          appendGlobalAiChat('assistant', (patch.summary || 'Interpretazione Groq') + '\n\n' + describeGlobalActions(actions));
+          const list = document.getElementById('globalAiPendingList');
+          if (list) list.innerHTML = describeGlobalActionsHtml(actions);
+          if (pending) pending.style.display = 'block';
+          if (status) status.textContent = 'In attesa di conferma';
+          return;
+        }
+        appendGlobalAiChat('assistant', (patch && patch.summary) || ('Non sono riuscito a strutturare la frase.\n' + String(raw || '').slice(0, 400)));
+        if (status) status.textContent = 'Non strutturato';
         return;
       }
-      window._pendingGlobalAiActions = actions;
-      appendGlobalAiChat('assistant', (patch.summary || 'Modifiche proposte') + '\n\n' + describeGlobalActions(actions));
-      const list = document.getElementById('globalAiPendingList');
-      if (list) list.innerHTML = describeGlobalActionsHtml(actions);
-      const meta2 = document.getElementById('globalAiPendingMeta');
-      if (meta2) meta2.textContent = actions.length + ' azioni in attesa — nulla è salvato finché non premi Conferma.';
-      if (pending) pending.style.display = 'block';
-      if (status) status.textContent = 'In attesa di conferma';
+
+      appendGlobalAiChat('assistant', 'Non ho capito. Prova con nome + tipo + data, oppure configura Groq in ⚙️ API per frasi più libere.\nEsempio: «Domani Davide in donazione sangue tutto il giorno»');
+      if (status) status.textContent = 'Non compreso';
     } catch (err) {
       appendGlobalAiChat('assistant', 'Errore: ' + ((err && err.message) || err));
       if (status) status.textContent = 'Errore';
@@ -11818,30 +12031,7 @@ function applyGlobalAiActions(actions) {
     }
   }
 
-  function snapshotGlobalAiState() {
-    return {
-      weeks: JSON.parse(JSON.stringify(appData.weeks || {})),
-      leaveRequests: JSON.parse(JSON.stringify(appData.leaveRequests || [])),
-      events: JSON.parse(JSON.stringify(appData.events || [])),
-      notes: JSON.parse(JSON.stringify(appData.notes || {}))
-    };
-  }
-
-  function restoreGlobalAiState(snap) {
-    if (!snap) return;
-    appData.weeks = snap.weeks || {};
-    appData.leaveRequests = snap.leaveRequests || [];
-    appData.events = snap.events || [];
-    if (snap.notes) appData.notes = snap.notes;
-    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
-    try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
-    try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
-    try { if (typeof render === 'function') render(); } catch (e) {}
-    try { if (typeof renderLeaveView === 'function') renderLeaveView(); } catch (e) {}
-    try { if (typeof renderEvents === 'function') renderEvents(); } catch (e) {}
-  }
-
-  function confirmGlobalAiActions() {
+function confirmGlobalAiActions() {
     const actions = window._pendingGlobalAiActions;
     if (!actions || !actions.length) { showToast('Nessuna azione', 'error'); return; }
     window._globalAiUndoStack = window._globalAiUndoStack || [];
