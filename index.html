@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.6.0</title>
+  <title>Turni Corvetto v9.6.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.6.0';
+    const APP_VERSION = '9.6.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.6.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.6.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,11 +1934,11 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.6.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.6.1</small>
         </div>
       </div>
       <div class="nav-meta">
-        <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span>
+        <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span>
         <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
       </div>
     </div>
@@ -3836,15 +3836,37 @@ function isUsableAppData(value) {
   }
 
   function initApp() {
-    // FONTE DI VERITÀ = CLOUD all'apertura.
-    // Locale serve solo come cache offline finché il cloud non risponde.
     try {
-      if (!currentDate || isNaN(currentDate.getTime())) currentDate = new Date();
+      if (!currentDate || isNaN(new Date(currentDate).getTime())) currentDate = new Date();
     } catch (e) { currentDate = new Date(); }
+
+    function paintWeekLabels() {
+      try {
+        if (!currentDate || isNaN(currentDate.getTime())) currentDate = new Date();
+        var label = (typeof getWeekDisplayLabel === 'function') ? getWeekDisplayLabel(currentDate) : '';
+        var wl = document.getElementById('weekLabel');
+        if (wl && label) wl.textContent = label;
+        var badge = document.getElementById('weekBadgeNum');
+        if (badge && typeof getWeekInfo === 'function') {
+          var info = getWeekInfo(currentDate);
+          badge.textContent = 'Settimana ' + info.weekNo;
+        }
+      } catch (e) {
+        console.warn('paintWeekLabels', e);
+      }
+    }
 
     function applyData(data, source) {
       if (!data || typeof data !== 'object') return false;
-      if (!Array.isArray(data.workers) || !data.workers.length) return false;
+      var workers = data.workers;
+      if (!workers) return false;
+      // Firebase a volte serializza array come oggetto
+      if (!Array.isArray(workers)) {
+        workers = Object.keys(workers).map(function(k) { return workers[k]; }).filter(Boolean);
+        data.workers = workers;
+      }
+      if (!workers.length) return false;
+
       appData = data;
       try {
         if (typeof normalizeCloudPayload === 'function') {
@@ -3854,86 +3876,80 @@ function isUsableAppData(value) {
       } catch (e) {}
       try { if (typeof normalizeAppData === 'function') normalizeAppData(); } catch (e) {}
       try { localStorage.setItem('turni_corvetto_test_data', JSON.stringify(appData)); } catch (e) {}
+
+      paintWeekLabels();
       try {
         if (typeof finishInitRender === 'function') finishInitRender();
         else if (typeof renderWeek === 'function') renderWeek();
       } catch (e) {
-        console.error(e);
-        try { renderWeek(); } catch (e2) {}
+        console.error('render after cloud', e);
+        paintWeekLabels();
+        try { if (typeof renderWeek === 'function') renderWeek(); } catch (e2) {}
       }
       try { setSyncStatus('ok', source || 'cloud'); } catch (e) {}
       return true;
     }
 
     function fetchCloud() {
-      var pathR = (typeof RTDB_PATH !== 'undefined' && RTDB_PATH) ? RTDB_PATH : 'turni_data_v47_pdf';
-      var url = 'https://turni-corvetto-fca14-default-rtdb.firebaseio.com/' + pathR + '.json';
-      return fetch(url, { cache: 'no-store', mode: 'cors', headers: { 'Accept': 'application/json' } })
-        .then(function(res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
+      var pathR = (typeof RTDB_PATH !== 'undefined' && RTDB_PATH) ? String(RTDB_PATH) : 'turni_data_v47_pdf';
+      var base = 'https://turni-corvetto-fca14-default-rtdb.firebaseio.com/';
+      var urls = [base + pathR + '.json', base + 'turni_data_v47_pdf.json'];
+      var chain = Promise.reject(new Error('start'));
+      urls.forEach(function(u) {
+        chain = chain.catch(function() {
+          return fetch(u, { cache: 'no-store', mode: 'cors', headers: { 'Accept': 'application/json' } }).then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          });
         });
+      });
+      return chain;
     }
 
-    // 1) Cache locale solo per non lasciare schermo bianco
+    // 1) Cache locale
     try {
       var local = (typeof readLocalSavedData === 'function') ? readLocalSavedData() : null;
-      if (local && local.workers && local.workers.length) {
+      if (local && local.workers && (Array.isArray(local.workers) ? local.workers.length : Object.keys(local.workers).length)) {
         appData = local;
         try { normalizeAppData(); } catch (e) {}
       }
-      finishInitRender();
+      paintWeekLabels();
+      try { finishInitRender(); } catch (e) { try { renderWeek(); } catch (e2) {} }
     } catch (e) {
-      try { if (typeof renderWeek === 'function') renderWeek(); } catch (e2) {}
+      paintWeekLabels();
     }
 
-    // 2) Cloud obbligatorio all'apertura (silenzioso)
+    // 2) Cloud subito (priorità)
     try { setSyncStatus('busy', 'sync…'); } catch (e) {}
-    fetchCloud()
-      .then(function(data) {
-        // All'apertura il cloud ha priorità se ha collaboratori
-        if (applyData(data, 'cloud')) {
-          try { if (typeof scheduleAllEventReminders === 'function') scheduleAllEventReminders(); } catch (e) {}
-          return;
-        }
-        try { setSyncStatus('local', 'cloud vuoto'); } catch (e) {}
-      })
-      .catch(function(err) {
-        console.warn('fetchCloud', err);
-        try { setSyncStatus('local', 'offline'); } catch (e) {}
-      })
-      .finally(function() {
-        // 3) Listener live Firebase (se presente) — applica cloud se più ricco, senza dialogo se locale è scarso
-        try {
-          if (typeof db === 'undefined' || !db) return;
-          db.ref(RTDB_PATH).off(); // evita listener multipli
-          db.ref(RTDB_PATH).on('value', function(snapshot) {
-            try {
-              var data = snapshot.val();
-              if (!data || !data.workers || !data.workers.length) return;
-              var remoteAt = Number(data.updatedAt) || 0;
-              var remoteBy = String(data.updatedBy || '');
-              if (remoteBy && typeof CLIENT_ID !== 'undefined' && remoteBy === CLIENT_ID && remoteAt <= (_lastLocalWriteAt || 0) + 2500) {
-                try { setSyncStatus('ok', 'live'); } catch (e) {}
-                return;
-              }
-              var localScore = (typeof dataRichness === 'function') ? dataRichness(appData) : 0;
-              var remoteScore = (typeof dataRichness === 'function') ? dataRichness(data) : 1;
-              // Locale quasi vuoto o cloud più ricco → applica senza chiedere
-              if (localScore < 40 || remoteScore >= localScore) {
-                applyData(data, 'live');
-                return;
-              }
-              // Solo se locale è chiaramente più ricco: tieni locale e segnala
-              try { setSyncStatus('ok', 'locale più recente'); } catch (e) {}
-            } catch (e) {
-              console.warn('live', e);
+    fetchCloud().then(function(data) {
+      if (applyData(data, 'cloud')) {
+        try { if (typeof scheduleAllEventReminders === 'function') scheduleAllEventReminders(); } catch (e) {}
+      } else {
+        try { setSyncStatus('local', 'dati non validi'); } catch (e) {}
+      }
+    }).catch(function(err) {
+      console.warn('fetchCloud fail', err);
+      try { setSyncStatus('local', 'offline'); } catch (e) {}
+    }).then(function() {
+      // 3) Live Firebase
+      try {
+        if (typeof db === 'undefined' || !db) return;
+        try { db.ref(RTDB_PATH).off(); } catch (e) {}
+        db.ref(RTDB_PATH).on('value', function(snapshot) {
+          try {
+            var data = snapshot.val();
+            if (!data || !data.workers) return;
+            var remoteBy = String(data.updatedBy || '');
+            var remoteAt = Number(data.updatedAt) || 0;
+            if (remoteBy && typeof CLIENT_ID !== 'undefined' && remoteBy === CLIENT_ID && remoteAt <= (_lastLocalWriteAt || 0) + 2500) {
+              try { setSyncStatus('ok', 'live'); } catch (e) {}
+              return;
             }
-          });
-        } catch (e) {
-          console.warn('listener', e);
-        }
-      });
+            applyData(data, 'live');
+          } catch (e) { console.warn(e); }
+        });
+      } catch (e) { console.warn(e); }
+    });
   }
 
 
@@ -3960,34 +3976,34 @@ function isUsableAppData(value) {
   }
 
   function setSyncStatus(state, detail) {
-    const el = document.getElementById('syncIndicator');
-    if (!el) return;
-    el.className = 'sync-indicator';
     const d = detail ? String(detail) : '';
+    let htmlStatus = '';
+    let cls = 'sync-indicator';
+    let title = '';
     if (state === 'ok') {
-      el.classList.add('sync-ok');
-      el.innerHTML = '🟢 Cloud' + (d ? ' · ' + escapeHtmlV47(d) : '');
-      el.title = 'Sincronizzato con Firebase';
+      cls += ' sync-ok';
+      htmlStatus = '🟢 Cloud' + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
+      title = 'Sincronizzato';
     } else if (state === 'busy') {
-      el.classList.add('sync-busy');
-      el.innerHTML = '🔵 Sync…' + (d ? ' · ' + escapeHtmlV47(d) : '');
-      el.title = 'Connessione in corso';
+      cls += ' sync-busy';
+      htmlStatus = '🔵 Sync…' + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
+      title = 'Connessione in corso';
     } else if (state === 'err') {
-      el.classList.add('sync-err');
-      el.innerHTML = '🔴 ' + escapeHtmlV47(d || 'errore');
-      el.title = 'Errore sync: ' + d;
+      cls += ' sync-err';
+      htmlStatus = '🔴 ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d || 'errore') : (d || 'errore'));
+      title = 'Errore sync';
     } else {
-      el.classList.add('sync-local');
-      let msg = '🟠 Locale';
-      if (d === 'file locale') msg = '🟠 File locale (no cloud)';
-      else if (d === 'rete assente') msg = '🟠 Offline · rete assente';
-      else if (d) msg += ' · ' + escapeHtmlV47(d);
-      el.innerHTML = msg;
-      el.title = d === 'file locale'
-        ? 'Apri l\'app da HTTPS (es. Firebase Hosting) per attivare la sync cloud'
-        : (d === 'rete assente' ? 'Nessuna connessione a Firebase. Dati salvati solo su questo dispositivo.' : 'Modalità locale');
+      cls += ' sync-local';
+      htmlStatus = '🟠 Locale' + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
+      title = 'Solo locale';
     }
+    document.querySelectorAll('#syncIndicator').forEach(function(el) {
+      el.className = cls;
+      el.innerHTML = htmlStatus;
+      el.title = title;
+    });
   }
+
 
   function pushUndo(label, snapshot) {
     undoStack.push({ label, snapshot, ts: Date.now() });
@@ -6399,7 +6415,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.6.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.6.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -15456,47 +15472,14 @@ async function downloadJpgFromPreview() {
     updateAuthUI();
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    initAuth();
-    initApp();
-
-  // Ritento cloud una sola volta se ancora vuoto
-  setTimeout(function() {
-    try {
-      var nW = (appData && appData.workers) ? appData.workers.length : 0;
-      var nWeeks = appData && appData.weeks ? Object.keys(appData.weeks).length : 0;
-      if (nW < 3 || nWeeks < 1) {
-        var pathR = (typeof RTDB_PATH !== 'undefined' && RTDB_PATH) ? RTDB_PATH : 'turni_data_v47_pdf';
-        fetch('https://turni-corvetto-fca14-default-rtdb.firebaseio.com/' + pathR + '.json', { cache: 'no-store', mode: 'cors' })
-          .then(function(r) { return r.ok ? r.json() : null; })
-          .then(function(data) {
-            if (data && data.workers && data.workers.length) {
-              appData = data;
-              try { normalizeAppData(); } catch (e) {}
-              try { localStorage.setItem('turni_corvetto_test_data', JSON.stringify(appData)); } catch (e) {}
-              try { finishInitRender(); } catch (e) {}
-              try { setSyncStatus('ok', 'cloud'); } catch (e) {}
-            }
-          }).catch(function() {});
-      }
-    } catch (e) {}
-  }, 2000);
-
-    try { registerCorvettoServiceWorker();
-
-  // Recupero cloud automatico se tabella povera / solo locale
-  setTimeout(function() {
-    try {
-      const score = (typeof dataRichness === 'function') ? dataRichness(appData) : 0;
-      if (score < 40) {
-        
-        autoPullCloudIfSparse();
-      }
-    } catch (e) { console.warn(e); }
-  }, 1200);
- setupPwaInstallUI(); } catch (e) {}
+  window.addEventListener('DOMContentLoaded', function() {
+    try { initTheme(); } catch (e) { console.warn(e); }
+    try { initAuth(); } catch (e) { console.warn(e); }
+    try { initApp(); } catch (e) { console.error('initApp', e); }
+    try { if (typeof registerCorvettoServiceWorker === 'function') registerCorvettoServiceWorker(); } catch (e) {}
+    try { if (typeof setupPwaInstallUI === 'function') setupPwaInstallUI(); } catch (e) {}
   });
+
 </script>
 <script>
   window.smartRegressionVersion='6.3.28-M37-M47';
