@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.3.6</title>
+  <title>Turni Corvetto v9.3.7</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.3.6';
+    const APP_VERSION = '9.3.7';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.6</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.3.7</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1922,11 +1922,11 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.3.6</small>
+          <small id="appVersionLabel">CORVETTO · V9.3.7</small>
         </div>
       </div>
       <div class="nav-meta">
-        <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span>
+        <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale — tocca qui</span>
         <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
       </div>
     </div>
@@ -1947,6 +1947,7 @@
       <button class="alt" onclick="changeWeek(-1)" title="Settimana precedente">◀</button>
       <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
       <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
+      <button type="button" class="success" id="btnCloudRescueMain" onclick="forceReloadFromCloud()" style="width:100%;min-height:48px;font-size:15px;font-weight:800;margin-bottom:8px;background:#dc2626;border-color:#fecaca;color:#fff;">☁️ SCARICA DATI DAL CLOUD</button>
       <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
       <button class="alt" onclick="openGlobalAiAssistant()" title="Assistente AI — turni, ferie, malattia, impegni" style="border-color:#059669;color:#065f46;font-weight:800;">🧠 Assistente</button>
       <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
@@ -6456,7 +6457,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.3.6', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.3.7', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -15494,6 +15495,20 @@ async function downloadJpgFromPreview() {
     initTheme();
     initAuth();
     initApp();
+
+  // Boot di emergenza: se dopo 2s i dati sono poveri, forza REST cloud
+  setTimeout(function() {
+    try {
+      var score = (typeof dataRichness === 'function') ? dataRichness(appData) : 0;
+      var label = document.getElementById('weekLabel');
+      var stillPlaceholder = label && /\\.{3}|dal \\.\\.\\./.test(label.innerText || '');
+      if (score < 40 || stillPlaceholder) {
+        console.warn('Boot emergenza cloud, score=', score);
+        if (typeof forceReloadFromCloud === 'function') forceReloadFromCloud();
+      }
+    } catch (e) { console.warn(e); }
+  }, 2000);
+
     try { registerCorvettoServiceWorker();
 
   // Recupero cloud automatico se tabella povera / solo locale
