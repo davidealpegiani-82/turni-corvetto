@@ -1,11 +1,13 @@
-/* Turni Corvetto PWA SW v8.7.0 — force update */
-const CACHE_CORE = 'corvetto-core-v9.1.0';
-const CACHE_CDN = 'corvetto-cdn-v9.1.0';
+/* Turni Corvetto PWA SW v9.2.0 */
+const CACHE_CORE = 'corvetto-core-v9.2.0';
+const CACHE_CDN = 'corvetto-cdn-v9.2.0';
+const APP_SW_VERSION = '9.2.0';
 
 const CORE_ASSETS = [
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png'
 ];
 const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -37,10 +39,15 @@ self.addEventListener('activate', (event) => {
       if (k !== CACHE_CORE && k !== CACHE_CDN) return caches.delete(k);
     }));
     await self.clients.claim();
-    // Avvisa le pagine aperte di ricaricare
     const clients = await self.clients.matchAll({ type: 'window' });
-    clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: '8.9.3' }));
+    clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: APP_SW_VERSION }));
   })());
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
@@ -48,7 +55,6 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // HTML / navigazione: SEMPRE network-first, non usare cache se la rete risponde
   const isHTML = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/') ||
     (req.headers.get('accept') || '').includes('text/html');
   if (url.origin === self.location.origin && isHTML) {

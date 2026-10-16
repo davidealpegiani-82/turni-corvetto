@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.1.0</title>
+  <title>Turni Corvetto v9.2.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.1.0';
+    const APP_VERSION = '9.2.0';
   const APP_CHANGELOG = [
     '9.0.0 — Assistente: annulla assenze/impegni, anteprima dettagliata, comandi multipli',
     '8.9.0 — Assistente AI globale: turni, ferie, malattia, impegni (schermata principale)',
@@ -1903,7 +1903,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.1.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.2.0</strong> <span class="sync-indicator sync-local" id="syncIndicator">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1921,7 +1921,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.1.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.2.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6136,13 +6136,12 @@ function annotateEventOnWeek(e,weekKey){
     if (!('serviceWorker' in navigator)) return;
     try {
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        console.warn('SW: serve HTTPS');
+        console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.1.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.2.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
-        // Nuovo SW in attesa → attiva subito
         if (reg.waiting) {
           try { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
         }
@@ -6151,14 +6150,14 @@ function annotateEventOnWeek(e,weekKey){
           if (!nw) return;
           nw.addEventListener('statechange', function() {
             if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('Nuova versione pronta');
+              try { nw.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
+              try { showToast('Aggiornamento pronto — ricarico…', 'info'); } catch (e2) {}
             }
           });
         });
       }).catch(function(err) {
         console.warn('SW register fail', err);
       });
-      // Ricarica quando il nuovo SW prende controllo
       var refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', function() {
         if (refreshing) return;
@@ -6170,6 +6169,8 @@ function annotateEventOnWeek(e,weekKey){
           console.log('SW_UPDATED', ev.data.version);
         }
       });
+      try { maybeDailyBackup(); } catch (e) {}
+      try { updateBackupHistoryUI(); } catch (e) {}
     } catch (e) {
       console.warn(e);
     }
@@ -10956,6 +10957,137 @@ function minLunchBreakMinutes(wId) {
   // ========== ASSISTENTE GLOBALE (schermata principale) ==========
   window._pendingGlobalAiActions = null;
 
+  
+  // ========== PWA force update + backup history + rebalance offer ==========
+  const BACKUP_HISTORY_KEY = 'turni_corvetto_backup_history_v1';
+  const BACKUP_HISTORY_MAX = 30;
+
+  async function forceAppUpdate() {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(function(k) { return caches.delete(k); }));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function(r) { return r.unregister(); }));
+      }
+      showToast('Cache cancellata — ricarico…', 'success');
+      setTimeout(function() { location.href = location.pathname + '?v=' + Date.now(); }, 500);
+    } catch (e) {
+      try { location.reload(true); } catch (e2) { location.reload(); }
+    }
+  }
+
+  function pushBackupHistory(label) {
+    try {
+      normalizeAppData();
+      const entry = {
+        id: 'bk_' + Date.now(),
+        at: new Date().toISOString(),
+        label: label || 'Auto',
+        appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''),
+        data: JSON.parse(JSON.stringify(appData))
+      };
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(BACKUP_HISTORY_KEY) || '[]'); } catch (e) { list = []; }
+      if (!Array.isArray(list)) list = [];
+      list.unshift(entry);
+      if (list.length > BACKUP_HISTORY_MAX) list = list.slice(0, BACKUP_HISTORY_MAX);
+      localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(list));
+      try { updateBackupHistoryUI(); } catch (eU) {}
+      return entry.id;
+    } catch (e) {
+      console.warn('backup history', e);
+      return null;
+    }
+  }
+
+  function listBackupHistory() {
+    try {
+      const list = JSON.parse(localStorage.getItem(BACKUP_HISTORY_KEY) || '[]');
+      return Array.isArray(list) ? list : [];
+    } catch (e) { return []; }
+  }
+
+  function restoreBackupHistoryId(id) {
+    const list = listBackupHistory();
+    const entry = list.find(function(x) { return x.id === id; });
+    if (!entry || !entry.data) { showToast('Backup non trovato', 'error'); return; }
+    if (!confirm('Ripristinare il backup del ' + (entry.at || '').replace('T', ' ').slice(0, 19) + '?\nI dati attuali verranno sostituiti (verrà creato un backup di sicurezza prima).')) return;
+    pushBackupHistory('Prima del ripristino');
+    appData = entry.data;
+    try { if (typeof normalizeAppData === 'function') normalizeAppData(); } catch (e) {}
+    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
+    try { if (typeof syncToCloud === 'function') syncToCloud(); } catch (e) {}
+    try { if (typeof render === 'function') render(); } catch (e) {}
+    try { if (typeof renderWeek === 'function') renderWeek(); } catch (e) {}
+    try { if (typeof renderTable === 'function') renderTable(); } catch (e) {}
+    showToast('Backup ripristinato', 'success');
+  }
+
+  function updateBackupHistoryUI() {
+    const box = document.getElementById('backupHistoryList');
+    if (!box) return;
+    const list = listBackupHistory();
+    if (!list.length) {
+      box.innerHTML = '<p style="font-size:12px;color:var(--text-muted);">Nessun backup automatico ancora.</p>';
+      return;
+    }
+    box.innerHTML = list.slice(0, 15).map(function(e) {
+      const when = (e.at || '').replace('T', ' ').slice(0, 19);
+      const lab = e.label || 'Backup';
+      const ver = e.appVersion ? (' · v' + e.appVersion) : '';
+      return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+        '<span>' + when + ' — ' + lab + ver + '</span>' +
+        '<button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="restoreBackupHistoryId(\'' + e.id + '\')">Ripristina</button></div>';
+    }).join('');
+  }
+
+  function maybeDailyBackup() {
+    try {
+      const dayKey = 'turni_corvetto_last_daily_backup';
+      const today = new Date().toISOString().slice(0, 10);
+      if (localStorage.getItem(dayKey) === today) return;
+      pushBackupHistory('Backup giornaliero');
+      localStorage.setItem(dayKey, today);
+    } catch (e) {}
+  }
+
+  // Banner ribilanciamento post-assenza
+  function offerRebalanceAfterAbsence(detail) {
+    let bar = document.getElementById('rebalanceOfferBar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'rebalanceOfferBar';
+      bar.style.cssText = 'display:none;position:sticky;top:0;z-index:50;margin:8px 0;padding:10px 12px;border-radius:12px;background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;font-size:13px;';
+      const host = document.querySelector('.app-shell') || document.querySelector('main') || document.body;
+      host.insertBefore(bar, host.firstChild);
+    }
+    bar.style.display = 'block';
+    bar.innerHTML = '<strong>Assenza applicata.</strong> ' + (detail ? (detail + ' ') : '') +
+      'Vuoi rigenerare la proposta turni della settimana per ribilanciare aperture/chiusure/pause?' +
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">' +
+      '<button type="button" class="success" onclick="runRebalanceProposalFromOffer()">✨ Rigenera proposta</button>' +
+      '<button type="button" class="alt" onclick="dismissRebalanceOffer()">Non ora</button></div>';
+  }
+
+  function dismissRebalanceOffer() {
+    const bar = document.getElementById('rebalanceOfferBar');
+    if (bar) bar.style.display = 'none';
+  }
+
+  function runRebalanceProposalFromOffer() {
+    dismissRebalanceOffer();
+    try {
+      if (typeof generateAutoProposal === 'function') generateAutoProposal();
+      else showToast('Apri Tabella e usa Genera proposta', 'info');
+    } catch (e) {
+      showToast('Errore generazione: ' + (e.message || e), 'error');
+    }
+  }
+
+
   function openGlobalAiAssistant() {
     const modal = document.getElementById('globalAiModal');
     if (!modal) {
@@ -11720,6 +11852,7 @@ function applyGlobalAiActions(actions) {
     });
     if (window._globalAiUndoStack.length > 10) window._globalAiUndoStack.shift();
 
+    try { pushBackupHistory('Prima azione assistente'); } catch (eB) {}
     const result = applyGlobalAiActions(actions);
     appendGlobalAiChat('assistant', 'Applicato: ' + result.applied + (result.messages.length ? '\n· ' + result.messages.join('\n· ') : ''));
     window._pendingGlobalAiActions = null;
@@ -11730,6 +11863,11 @@ function applyGlobalAiActions(actions) {
     if (undoBar) undoBar.style.display = 'block';
     if (undoMsg) undoMsg.textContent = 'Ultima azione: ' + result.applied + ' modifiche applicate.';
     showToast(result.applied ? ('Applicate ' + result.applied + ' modifiche') : 'Nessuna modifica', result.applied ? 'success' : 'info');
+    // Offri ribilanciamento se c'erano assenze
+    const hadLeave = (actions || []).some(function(a) { return a && (a.type === 'leave' || a.type === 'cancel_leave'); });
+    if (hadLeave && result.applied) {
+      try { offerRebalanceAfterAbsence(result.messages.slice(0, 2).join('; ')); } catch (eR) {}
+    }
   }
 
   function undoLastGlobalAiAction() {
