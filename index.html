@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.7.4</title>
+  <title>Turni Corvetto v9.7.5</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.7.4';
+    const APP_VERSION = '9.7.5';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.4</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.5</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.7.4</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.5</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3919,6 +3919,114 @@ function isUsableAppData(value) {
   }
 
   
+  
+  /** Test scenario sintetici allineati a OFFICIAL_POLICY (W42/W43 style). */
+  function runScenarioRulesTests() {
+    const fails = [];
+    function ok(cond, msg) { if (!cond) fails.push(msg); }
+    try {
+      // --- Severin orari fissi ---
+      if (typeof getSeverinHours === 'function') {
+        const lun = getSeverinHours(0);
+        ok(!!lun && lun.mIn === '07:30' && lun.mOut === '12:30', 'W-sev lun 07:30-12:30');
+        const mar = getSeverinHours(1);
+        ok(!!mar && mar.mIn === '06:30' && mar.pIn === '13:00', 'W-sev mar pausa 13:00');
+        ok(getSeverinHours(4) == null || getSeverinHours(4) === null, 'W-sev ven senza orario fisso obbligatorio o null');
+      } else fails.push('getSeverinHours missing');
+
+      // --- putGenerated non sovrascrive Severin ---
+      if (typeof putGenerated === 'function' && typeof SEVERIN_ID === 'function') {
+        const sev = SEVERIN_ID();
+        const week = {};
+        week[sev] = { 1: { mIn: '06:30', mOut: '12:30', pIn: '13:00', pOut: '17:30' } };
+        putGenerated(week, sev, 1, { mIn: '09:00', mOut: '18:00', pIn: '13:00', pOut: '18:00' });
+        ok(week[sev][1].mIn === '06:30', 'W-sev putGenerated non cambia mIn');
+      }
+
+      // --- enforceSeverinPolicy propone non forza pausa fuori slot ---
+      if (typeof enforceSeverinPolicy === 'function' && typeof SEVERIN_ID === 'function') {
+        const sev = SEVERIN_ID();
+        const week = {};
+        week[sev] = { 1: { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '17:30' } }; // pausa 60' non conforme
+        const notes = enforceSeverinPolicy(week, []);
+        ok(week[sev][1].mIn === '06:30', 'W-sev enforce tiene mIn');
+        ok(Array.isArray(notes), 'W-sev notes array');
+      }
+
+      // --- Pause: 2 persone schema ---
+      if (typeof balanceOfficeLunchCoverage === 'function' && typeof SABATO_UFFICIO_IDS === 'function') {
+        const ids = (SABATO_UFFICIO_IDS() || []).slice(0, 2);
+        if (ids.length >= 2) {
+          const week = {};
+          // entrambi apertura-like
+          week[ids[0]] = { 0: { mIn: '06:30', mOut: '12:00', pIn: '13:00', pOut: '15:30', generated: true } };
+          week[ids[1]] = { 0: { mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30', generated: true } };
+          const notes = balanceOfficeLunchCoverage(week) || [];
+          ok(true, 'W-lunch 2p eseguito');
+        }
+      }
+
+      // --- workIntervals esclude eventBlocks ---
+      if (typeof workIntervals === 'function') {
+        const cell = {
+          mIn: '08:30', mOut: '13:00', pIn: '14:00', pOut: '17:30',
+          eventBlocks: [[timeToMin('09:00'), timeToMin('11:00')]]
+        };
+        const iv = workIntervals(cell);
+        const coveredNine = iv.some(function(x) { return 9*60 >= x[0] && 9*60 < x[1]; });
+        ok(!coveredNine, 'W-event 09:00 non in copertura');
+        const coveredFifteen = iv.some(function(x) { return 15*60 >= x[0] && 15*60 < x[1]; });
+        ok(coveredFifteen, 'W-lavoro 15:00 in copertura');
+      }
+
+      // --- dedupe choices ---
+      if (typeof dedupeProposalChoices === 'function') {
+        const d = dedupeProposalChoices([
+          { id: 'mag-open-0', day: 0, options: [{ id: 'w_6' }, { id: 'w_6' }, { id: 'w_8' }] },
+          { id: 'mag-open-0', day: 0, options: [{ id: 'w_7' }] }
+        ]);
+        ok(d.length === 1, 'W-dedupe una sola domanda');
+        ok(d[0].options.length === 2, 'W-dedupe options uniche');
+      }
+
+      // --- nastro full-day leave hours ---
+      if (typeof inferLeaveHoursFromWeek === 'function' && typeof SEVERIN_ID === 'function') {
+        // non assertiamo valore esatto (dipende rotazione), ma finite 7 o 8 tipici feriali
+        const wid = (appData.workers && appData.workers[0]) ? appData.workers[0].id : null;
+        if (wid) {
+          const d = new Date();
+          // prossimo lunedì
+          const day = d.getDay();
+          const diff = (day === 0 ? 1 : (day === 1 ? 0 : 8 - day));
+          d.setDate(d.getDate() + diff);
+          const h = inferLeaveHoursFromWeek(wid, d);
+          ok(h === 7 || h === 8 || h === 5 || h === 0 || (h >= 5 && h <= 10), 'W-nastro leave ore plausibili:' + h);
+        }
+      }
+
+      // --- OFFICIAL_POLICY hard ---
+      if (typeof OFFICIAL_POLICY !== 'undefined') {
+        ok(OFFICIAL_POLICY.severin.shiftFixed === true, 'W-policy sev fixed');
+        ok(OFFICIAL_POLICY.coverage.minCloseOffice === 1, 'W-policy minClose 1');
+        ok(OFFICIAL_POLICY.events.countsForMinCoverage === false, 'W-policy event no cov');
+        ok(OFFICIAL_POLICY.generation.neverTouchManualEdit === true, 'W-policy manual');
+      }
+
+      // --- manualEdit intoccabile da putGenerated ---
+      if (typeof putGenerated === 'function') {
+        const week = { w_test: { 0: { mIn: '08:00', mOut: '12:00', pIn: '13:00', pOut: '17:00', manualEdit: true } } };
+        putGenerated(week, 'w_test', 0, { mIn: '09:00', mOut: '18:00' });
+        ok(week.w_test[0].mIn === '08:00', 'W-manual putGenerated blocked');
+      }
+
+    } catch (e) {
+      fails.push('scenario exception: ' + (e && e.message ? e.message : e));
+    }
+    return { ok: fails.length === 0, fails: fails, name: 'scenario-W42-W43' };
+  }
+  window.runScenarioRulesTests = runScenarioRulesTests;
+
+
   function runOfficialPolicyTests() {
     const P = OFFICIAL_POLICY;
     const fails = [];
@@ -6567,7 +6675,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.7.4', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.5', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8243,7 +8351,18 @@ function minLunchBreakMinutes(wId) {
   }
   window.openDiagnosticsModal = openDiagnosticsModal;
 
-  function runSystemDiagnostics() {
+  function runSystemDiagnostics(){
+    try {
+      var a = (typeof runOfficialPolicyTests==='function') ? runOfficialPolicyTests() : null;
+      var b = (typeof runScenarioRulesTests==='function') ? runScenarioRulesTests() : null;
+      console.log('Diagnostics policy', a, 'scenario', b);
+      if (a && !a.ok) showToast('Policy test FAIL: ' + (a.fails||[]).slice(0,3).join('; '), 'error', 5000);
+      else if (b && !b.ok) showToast('Scenario test FAIL: ' + (b.fails||[]).slice(0,3).join('; '), 'error', 5000);
+      else if (a || b) showToast('Test regole: OK', 'success', 2500);
+    } catch (eDiag) {}
+    return runSystemDiagnosticsInner ? runSystemDiagnosticsInner.apply(this, arguments) : undefined;
+  }
+  function runSystemDiagnosticsInner() {
     const box = document.getElementById('diagnosticsResults');
     if (!box) return;
     const san = sanitizeAppData();
@@ -15835,6 +15954,11 @@ async function downloadJpgFromPreview() {
       if (!tr.ok) console.warn('OFFICIAL_POLICY tests FAIL', tr.fails);
       else console.log('OFFICIAL_POLICY OK', tr.policyVersion);
     } catch (e) {}
+    try {
+      var sr = runScenarioRulesTests();
+      if (!sr.ok) console.warn('SCENARIO tests FAIL', sr.fails);
+      else console.log('SCENARIO tests OK', sr.name);
+    } catch (e2) { console.warn('SCENARIO tests error', e2); }
     try { if (typeof registerCorvettoServiceWorker === 'function') registerCorvettoServiceWorker(); } catch (e) {}
     try { if (typeof setupPwaInstallUI === 'function') setupPwaInstallUI(); } catch (e) {}
   });
