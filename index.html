@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.6.3</title>
+  <title>Turni Corvetto v9.7.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.6.3';
+    const APP_VERSION = '9.7.0';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.6.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.7.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.6.3</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2974,7 +2974,91 @@
     general: { doNothingIfCovered: true, coordinatedMoves: true, askWhenAmbiguous: true }
   };
 
+  
+  // ========== REGOLAMENTO UFFICIALE (questionario utente 17/10/2026) ==========
+  // Fonte di verità per generatore, validazione e test. Non reinterpretare.
+  const OFFICIAL_POLICY = {
+    version: '2026-10-17',
+    coverage: {
+      minOpenOffice: 2,
+      minCloseOffice: 1,
+      preferMoreOpenWhenCloseOk: true,
+      lunchBand: { from: '12:00', to: '14:00' },
+      lunchMinWorking: { slot12to13: 2, slot13to14: 2 },
+      lunchStaggerWhen3: ['12:00', '12:30', '13:00'],
+      lunchWhen2: { a: ['12:00','13:00'], b: ['13:00','14:00'] },
+      conflictOpenAndClose: 'fixed_constraints_first' // Severin/manual prima
+    },
+    nastro: {
+      nonSabatistaHours: 8,
+      sabatistaHours: 7,
+      sabatistaRole: 'apertura',
+      saturdayAbsence: 'next_in_rotation'
+    },
+    severin: {
+      shiftFixed: true,
+      onlyPauseAdjustable: true,
+      pauseMinutes: 30,
+      pauseOptions: ['12:30-13:00', '13:00-13:30'],
+      proposePauseMoveNotSilent: true
+    },
+    pauses: {
+      minMinutesExceptSeverin: 60,
+      defaultClose8h: ['13:00','14:00'],
+      defaultOpen8h: ['12:00','13:00'],
+      defaultSabatista: ['12:00','13:00'],
+      open8hMovable: true,
+      sabatistaFixed: true,
+      afterCommitment: 'move_pause_after',
+      fourPeoplePattern: 'two_12_13_two_13_14',
+      ifMoveBreaksOpening: 'do_not_move_signal'
+    },
+    events: {
+      insideShift: 'show_work_and_event_no_coverage',
+      outsideShift: 'keep_shift_overtime_no_stretch',
+      straddlingEnd: 'branch_until_event_start',
+      overtimeAutoChange: 'only_if_coverage_safe',
+      countsForMinCoverage: false
+    },
+    absences: {
+      fullDayHours: 'nastro_of_day',
+      partialDisplay: 'like_events',
+      illnessOpenEnded: true,
+      onChange: 'auto_recalc_with_message',
+      generateMode: 'ask_user', // all / empty / non-manual
+      weeklyTotalIncludesLeaveNastro: true
+    },
+    generation: {
+      neverTouchManualEdit: true,
+      candidateChoice: 'ask_once_clear',
+      ifNoCleanSolution: 'complete_anyway_flag_coverage',
+      magazziniereMonday: 'may_ask_twice'
+    },
+    // Schema Y + eccezione T1: Severin/manual intoccabili sempre
+    priorities: [
+      'nastro_e_rotazione',
+      'coperture',
+      'vincoli_fissi', // dopo nastro/coperture ma Severin/manual sono hard assoluti
+      'pause',
+      'assenze'
+    ],
+    hardAbsolute: ['severin_shift_fixed', 'manualEdit_never'],
+    softMayBreakHard: {
+      allowed: true,
+      neverBreak: ['severin_shift_fixed', 'manualEdit_never'],
+      mayBreak: ['coperture_minime', 'pause_preferenze']
+    }
+  };
+  window.OFFICIAL_POLICY = OFFICIAL_POLICY;
+
+
   const defaultRules = {
+    minAperturaImp: 2,
+    minChiusuraImp: 1,
+    minAperturaMag: 2,
+    minChiusuraMag: 1,
+    minSabatoImp: 1,
+    minSabatoMag: 1,
     sabatoUfficioIds: ["w_1", "w_3", "w_2"], // ordine rotazione: Alpegiani → Poppa → Caregnato
     magPairA: ["w_6", "w_8"], // Pino + Massimo
     magPairB: ["w_7", "w_9"], // Vincenzo + Mattia
@@ -3004,7 +3088,7 @@
     generalCoverageRules: JSON.parse(JSON.stringify(intelligentRulePack.general)),
     officeCoverage: {
       minOpen: 2,
-      minClose: 2,
+      minClose: 1,
       maxClose: 2,
       lunchSabatista: { from: "12:00", to: "13:00", fixed: true },
       lunchChiusura: { from: "13:00", to: "14:00", fixed: true },
@@ -3013,12 +3097,11 @@
     },
     // Priorità globali del motore (ordine decrescente di importanza)
     rulePriorities: [
-      "copertura_minima",   // apertura/chiusura filiale
-      "assenze_e_impegni",  // non contare chi è fuori
-      "nastro_settimanale", // 7h/8h e sabatista
-      "pause_pranzo",       // 1h (30' Severin) + scaglione
-      "preferenze_ruolo",   // Severin fisso, Sandrini fisso
-      "equita_carichi"      // rotazioni sabato, apertura/chiusura
+      "nastro_e_rotazione",
+      "copertura_minima",
+      "vincoli_fissi",
+      "pause",
+      "assenze_e_impegni"
     ]
   };
 
@@ -3834,6 +3917,30 @@ function isUsableAppData(value) {
     if (typeof renderLeaveView === 'function' && currentView === 'ferie') renderLeaveView();
     if (typeof renderEventsView === 'function' && currentView === 'eventi') renderEventsView();
   }
+
+  
+  function runOfficialPolicyTests() {
+    const P = OFFICIAL_POLICY;
+    const fails = [];
+    function ok(cond, msg) { if (!cond) fails.push(msg); }
+    ok(P.coverage.minOpenOffice === 2, 'minOpen=2');
+    ok(P.coverage.minCloseOffice === 1, 'minClose=1');
+    ok(P.severin.shiftFixed === true, 'Severin fisso');
+    ok(P.severin.pauseMinutes === 30, 'Severin 30min');
+    ok(P.pauses.minMinutesExceptSeverin === 60, 'pausa 60min');
+    ok(P.events.countsForMinCoverage === false, 'impegno non conta copertura');
+    ok(P.generation.neverTouchManualEdit === true, 'manualEdit intoccabile');
+    ok(P.nastro.nonSabatistaHours === 8, 'nastro 8');
+    ok(P.nastro.sabatistaHours === 7, 'nastro 7');
+    const r = (typeof getRules === 'function') ? getRules() : {};
+    ok((r.minAperturaImp ?? r.officeCoverage?.minOpen ?? 2) >= 2, 'rules minOpen');
+    ok((r.minChiusuraImp ?? r.officeCoverage?.minClose ?? 1) === 1, 'rules minClose=1');
+    const oc = r.officeCoverage || {};
+    if (oc.minClose != null) ok(oc.minClose === 1, 'officeCoverage.minClose=1');
+    return { ok: fails.length === 0, fails, policyVersion: P.version };
+  }
+  window.runOfficialPolicyTests = runOfficialPolicyTests;
+
 
   function initApp() {
     try {
@@ -6434,7 +6541,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.6.3', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -7443,7 +7550,19 @@ function minLunchBreakMinutes(wId) {
   // ========== GENERAZIONE AUTOMATICA PROPOSTA TURNI ==========
   // Helper: leggi regole attuali (da appData, con fallback default)
   function getRules() {
-    return { ...defaultRules, ...(appData.rules || {}) };
+    const base = Object.assign({}, defaultRules, (appData && appData.rules) || {});
+    // Sovrascrive sempre i minimi del regolamento ufficiale (evita rules salvate obsolete)
+    try {
+      if (typeof OFFICIAL_POLICY !== 'undefined' && OFFICIAL_POLICY.coverage) {
+        base.minAperturaImp = OFFICIAL_POLICY.coverage.minOpenOffice;
+        base.minChiusuraImp = OFFICIAL_POLICY.coverage.minCloseOffice;
+        base.officeCoverage = Object.assign({}, base.officeCoverage || {}, {
+          minOpen: OFFICIAL_POLICY.coverage.minOpenOffice,
+          minClose: OFFICIAL_POLICY.coverage.minCloseOffice
+        });
+      }
+    } catch (e) {}
+    return base;
   }
   function R() { return getRules(); } // shorthand
   // Compatibilità nomi usati nella generazione
@@ -15494,6 +15613,11 @@ async function downloadJpgFromPreview() {
     try { initTheme(); } catch (e) { console.warn(e); }
     try { initAuth(); } catch (e) { console.warn(e); }
     try { initApp(); } catch (e) { console.error('initApp', e); }
+    try {
+      var tr = runOfficialPolicyTests();
+      if (!tr.ok) console.warn('OFFICIAL_POLICY tests FAIL', tr.fails);
+      else console.log('OFFICIAL_POLICY OK', tr.policyVersion);
+    } catch (e) {}
     try { if (typeof registerCorvettoServiceWorker === 'function') registerCorvettoServiceWorker(); } catch (e) {}
     try { if (typeof setupPwaInstallUI === 'function') setupPwaInstallUI(); } catch (e) {}
   });
