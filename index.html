@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.7.0</title>
+  <title>Turni Corvetto v9.7.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.7.0';
+    const APP_VERSION = '9.7.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.7.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" title="Tocca per forzare aggiornamento" style="cursor:pointer;text-decoration:underline;">v9.7.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.7.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3937,6 +3937,31 @@ function isUsableAppData(value) {
     ok((r.minChiusuraImp ?? r.officeCoverage?.minClose ?? 1) === 1, 'rules minClose=1');
     const oc = r.officeCoverage || {};
     if (oc.minClose != null) ok(oc.minClose === 1, 'officeCoverage.minClose=1');
+    // Guard Severin
+    try {
+      ok(typeof isSeverinWorker === 'function', 'isSeverinWorker');
+      ok(typeof getSeverinHours === 'function', 'getSeverinHours');
+      ok(typeof enforceSeverinPolicy === 'function', 'enforceSeverinPolicy');
+      if (typeof getSeverinHours === 'function') {
+        const d0 = getSeverinHours(0);
+        ok(d0 && d0.mIn === '07:30', 'Severin lun 07:30');
+        const d1 = getSeverinHours(1);
+        ok(d1 && d1.mIn === '06:30' && d1.mOut === '12:30', 'Severin mar mOut 12:30');
+      }
+      // putGenerated non deve sovrascrivere Severin già pieno
+      if (typeof putGenerated === 'function' && typeof SEVERIN_ID === 'function') {
+        const sev = SEVERIN_ID();
+        const w = {};
+        w[sev] = { 0: { mIn: '07:30', mOut: '12:30', pIn: '13:00', pOut: '17:30', manualEdit: false } };
+        putGenerated(w, sev, 0, { mIn: '09:00', mOut: '12:00', pIn: '13:00', pOut: '18:00' });
+        ok(w[sev][0].mIn === '07:30', 'putGenerated non sovrascrive Severin');
+        const w2 = {};
+        w2[sev] = { 0: { mIn: '07:30', mOut: '12:30', pIn: '12:00', pOut: '13:00' } };
+        const notes = enforceSeverinPolicy(w2, []);
+        ok(w2[sev][0].mIn === '07:30', 'enforce mantiene mIn');
+        ok(Array.isArray(notes), 'enforce notes array');
+      }
+    } catch (e) { fails.push('Severin tests: ' + e.message); }
     return { ok: fails.length === 0, fails, policyVersion: P.version };
   }
   window.runOfficialPolicyTests = runOfficialPolicyTests;
@@ -6541,7 +6566,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.7.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -9366,8 +9391,68 @@ function minLunchBreakMinutes(wId) {
   function cellAt(week,wid,day){ return week[wid] && week[wid][day] ? week[wid][day] : null; }
   function putGenerated(week,wid,day,shift,extra={}){
     if(!week[wid]) week[wid]={};
-    week[wid][day]={...shift, generated:true, ...extra};
+    const prev = week[wid][day];
+    // Hard: mai toccare modifiche manuali
+    if (prev && prev.manualEdit) return;
+    // Hard: Severin — solo semina se vuota; orari da getSeverinHours, mai sovrascrivere un turno già presente
+    if (typeof isSeverinWorker === 'function' && isSeverinWorker(wid)) {
+      const hasContent = prev && (prev.mIn || prev.pOut || prev.status || prev.note);
+      if (hasContent) return;
+      try {
+        const fixed = (typeof getSeverinHours === 'function') ? getSeverinHours(day) : null;
+        if (fixed) shift = Object.assign({}, fixed);
+      } catch (e) {}
+    }
+    week[wid][day]=Object.assign({}, shift, { generated: true }, extra);
   }
+
+  /** Ripristina orari Severin e raccoglie proposte pausa (mai silent move). */
+  function enforceSeverinPolicy(week, notes) {
+    notes = notes || [];
+    try {
+      const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
+      if (!sev || !week) return notes;
+      const allowedPauses = [
+        { pIn: '12:30', pOut: '13:00' },
+        { pIn: '13:00', pOut: '13:30' }
+      ];
+      for (let day = 0; day <= 4; day++) {
+        if (!week[sev]) week[sev] = {};
+        const cell = week[sev][day];
+        if (cell && cell.manualEdit) continue;
+        const fixed = (typeof getSeverinHours === 'function') ? getSeverinHours(day) : null;
+        if (!fixed) continue; // venerdì o giorni senza orario fisso
+        if (!cell || !(cell.mIn || cell.pOut)) {
+          week[sev][day] = Object.assign({}, fixed, { generated: true });
+          continue;
+        }
+        // Ripristina fascia lavoro fissa, conserva solo pausa se già ammessa
+        const pIn = cell.pIn || fixed.pIn;
+        const pOut = cell.pOut || fixed.pOut;
+        const pauseOk = allowedPauses.some(function(p) { return p.pIn === pIn && p.pOut === pOut; });
+        week[sev][day] = Object.assign({}, cell, {
+          mIn: fixed.mIn,
+          mOut: fixed.mOut,
+          pIn: pauseOk ? pIn : fixed.pIn,
+          pOut: pauseOk ? pOut : fixed.pOut,
+          generated: true
+        });
+        if (!pauseOk) {
+          notes.push({
+            type: 'propose_severin_pause',
+            day: day,
+            workerId: sev,
+            msg: 'Severin: pausa attuale non conforme. Proposta: 12:30-13:00 oppure 13:00-13:30 (non applicata in automatico).'
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('enforceSeverinPolicy', e);
+    }
+    return notes;
+  }
+  window.enforceSeverinPolicy = enforceSeverinPolicy;
+
   function partialLeaveWindow(d){
     if(!d || String(d.status||'').toUpperCase()!=='ROL') return null;
     if(d.rolFrom && d.rolTo) return [timeToMin(d.rolFrom),timeToMin(d.rolTo)];
@@ -10891,6 +10976,9 @@ function minLunchBreakMinutes(wId) {
       if(!base || !base.week){
         throw new Error('Il motore base non ha restituito una proposta.');
       }
+      try {
+        base.notes = enforceSeverinPolicy(base.week, base.notes || []);
+      } catch (eSev) { console.warn(eSev); }
 
       let proposal=base;
       const baseScore=smartScoreProposal(base.week);
@@ -10902,6 +10990,9 @@ function minLunchBreakMinutes(wId) {
       // produrre score e report, ma non deve rallentare la generazione.
       if(hasChoices || hasCoverageGaps){
         proposal=smartOptimizeProposal(base);
+        try {
+          if (proposal && proposal.week) proposal.notes = enforceSeverinPolicy(proposal.week, proposal.notes || []);
+        } catch (eSev2) {}
       }else{
         const fair=smartFairnessPenalty(base.week);
         const fairReport=smartFairnessReport(base.week);
