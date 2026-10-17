@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.8.1</title>
+  <title>Turni Corvetto v9.8.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.8.1';
+    const APP_VERSION = '9.8.2';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.8.1</small>
+          <small id="appVersionLabel">CORVETTO · V9.8.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6436,64 +6436,23 @@ function annotateEventOnWeek(e,weekKey){
   async function shareIcsLikeEmail(opts) {
     opts = opts || {};
     const title = String(opts.title || 'Impegno Corvetto');
-    let text = String(opts.text || title).trim() || title;
-    text = text.replace(/Apri il file \\.ics allegato[^\n]*/gi, '').replace(/Se e presente un allegato[^\n]*/gi, '').trim();
-    const fileName = String(opts.fileName || 'impegno.ics').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\\.ics$/i, '') + '.ics';
-    const icsBody = String(opts.icsBody || '');
-
-    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
-      showToast('Condividi non supportato su questo browser.', 'error', 4000);
-      return { ok: false, reason: 'no-api' };
-    }
-
-    // Prepara al massimo UN file (se il browser dichiara di poterlo condividere).
-    // Non fare loop di share: su Android si perde il "user gesture" e resta solo clipboard.
-    var fileToShare = null;
-    if (icsBody && typeof File === 'function') {
+    const text = String(opts.text || title).trim() || title;
+    // Solo testo, un tentativo — stesso comportamento affidabile di Condividi
+    if (typeof navigator.share === 'function') {
       try {
-        var f = new File([icsBody], fileName, { type: 'application/octet-stream', lastModified: Date.now() });
-        var can = true;
-        if (typeof navigator.canShare === 'function') {
-          try { can = !!navigator.canShare({ files: [f] }); } catch (eCan) { can = false; }
-        }
-        if (can) fileToShare = f;
-      } catch (eFile) {
-        fileToShare = null;
+        await navigator.share({ title: title, text: text });
+        return { ok: true, textOnly: true };
+      } catch (err) {
+        if (err && err.name === 'AbortError') return { ok: false, aborted: true };
       }
     }
-
-    // 1) Un solo tentativo con file (se supportato)
-    if (fileToShare) {
-      try {
-        await navigator.share({ title: title, text: text, files: [fileToShare] });
-        showToast('Condiviso', 'success', 2000);
-        return { ok: true, file: true };
-      } catch (e1) {
-        if (e1 && e1.name === 'AbortError') return { ok: false, aborted: true };
-        // continua con solo testo
-      }
-    }
-
-    // 2) Un solo tentativo SOLO TESTO → apre il foglio Condividi (come prima)
-    try {
-      await navigator.share({ title: title, text: text });
-      showToast('Condiviso (testo). Per il .ics: su molti telefoni WhatsApp non accetta allegati calendario dal browser.', 'info', 4000);
-      return { ok: true, textOnly: true };
-    } catch (e2) {
-      if (e2 && e2.name === 'AbortError') return { ok: false, aborted: true };
-      console.warn('share text', e2);
-    }
-
-    // 3) Clipboard solo se share e davvero impossibile
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-        showToast('Testo copiato. Incolla in WhatsApp.', 'success', 4000);
+        showToast('Testo copiato: incolla in WhatsApp', 'info', 4000);
         return { ok: true, clipboard: true };
       }
-    } catch (e3) {}
-
-    showToast('Condivisione non riuscita.', 'error', 3500);
+    } catch (e2) {}
     return { ok: false };
   }
   window.shareIcsLikeEmail = shareIcsLikeEmail;
@@ -6504,38 +6463,53 @@ function annotateEventOnWeek(e,weekKey){
 
 
 
+
 ;
 
   async function shareEventWhatsApp(id) {
-    const e=(appData.events||[]).find(x=>String(x.id)===String(id));
-    if(!e){showToast('Evento non trovato','error',2500);return;}
-    // Testo subito (mantiene il "user gesture" per navigator.share)
-    let text = '';
-    try { text = formatEventWhatsAppText(e) || (e.title || 'Impegno'); } catch (e1) { text = e.title || 'Impegno'; }
-    let icsBody = '';
-    try { icsBody = buildCalendarICS([e], e.title || 'Impegno'); } catch (e2) { icsBody = ''; }
+    const e = (appData.events || []).find(function(x) { return String(x.id) === String(id); });
+    if (!e) { showToast('Evento non trovato', 'error', 2500); return; }
+
+    var text = '';
     try {
-      await shareIcsLikeEmail({
-        title: e.title || 'Impegno Corvetto',
-        text: text,
-        fileName: 'evento_' + (e.date || 'data') + '_' + safeFilePart(e.title) + '.ics',
-        icsBody: icsBody
-      });
-    } catch (err) {
-      console.warn(err);
-      // fallback immediato testo
+      text = (typeof formatEventWhatsAppText === 'function') ? formatEventWhatsAppText(e) : (e.title || 'Impegno');
+    } catch (eFmt) {
+      text = e.title || 'Impegno';
+    }
+    text = String(text || e.title || 'Impegno').trim();
+    var title = e.title || 'Impegno Corvetto';
+
+    // CRITICO: navigator.share deve essere la prima await dopo il tap (user gesture).
+    // Niente build ICS / loop file prima, altrimenti Android passa solo agli appunti.
+    if (typeof navigator.share === 'function') {
       try {
-        if (navigator.share) {
-          await navigator.share({ title: e.title || 'Impegno', text: text });
-          return;
-        }
-      } catch (e3) {
-        if (e3 && e3.name === 'AbortError') return;
+        await navigator.share({ title: title, text: text });
+        showToast('Scegli WhatsApp (o altra app) dal foglio Condividi', 'success', 2800);
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        console.warn('navigator.share', err);
       }
-      showToast('Condivisione non riuscita: ' + (err && err.message ? err.message : 'errore'), 'error', 4000);
+    }
+
+    // Fallback clipboard
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast('Testo copiato: incolla in WhatsApp', 'info', 4000);
+        return;
+      }
+    } catch (e2) {}
+
+    // Ultimo fallback: prompt selezionabile
+    try {
+      window.prompt('Copia il testo e incollalo in WhatsApp:', text);
+    } catch (e3) {
+      showToast('Condivisione non disponibile', 'error', 3000);
     }
   }
   window.shareEventWhatsApp = shareEventWhatsApp;
+
 
   function shareEventWhatsAppFromModal() {
     if (editingEventId) { shareEventWhatsApp(editingEventId); return; }
@@ -6717,7 +6691,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.8.1', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.8.2', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
