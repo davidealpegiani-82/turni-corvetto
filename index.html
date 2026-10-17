@@ -6505,19 +6505,28 @@ function downloadBlob(name,text,type='text/calendar;charset=utf-8') {
 
   function formatEventWhatsAppText(e) {
     if (!e) return '';
-    const names = (e.participantIds || []).map(id => {
-      const w = (appData.workers || []).find(x => x.id === id); return w ? w.name : id;
+    const names = (e.participantIds || []).map(function(id) {
+      const w = (appData.workers || []).find(function(x) { return x.id === id; });
+      return w ? w.name : id;
     }).filter(Boolean);
-    const when = e.allDay ? 'Giornata intera' : ((e.fromTime || e.from || '') + ((e.toTime || e.to) ? ' – ' + (e.toTime || e.to) : ''));
-    const lines = ['📌 *' + (e.title || 'Impegno') + '*','Tipo: ' + (e.type || 'Evento'),'📅 ' + (typeof formatEventDate === 'function' ? formatEventDate(e.date) : e.date),'⏰ ' + when];
-    if (e.location) lines.push('📍 ' + e.location);
+    const when = e.allDay
+      ? 'Giornata intera'
+      : ((e.fromTime || e.from || '') + ((e.toTime || e.to) ? ' – ' + (e.toTime || e.to) : ''));
+    const loc = String(e.location || e.luogo || e.place || e.address || e.sede || '').trim();
+    const lines = [
+      '📌 *' + (e.title || 'Impegno') + '*',
+      'Tipo: ' + (e.type || 'Evento'),
+      '📅 ' + (typeof formatEventDate === 'function' ? formatEventDate(e.date) : e.date),
+      '⏰ ' + when
+    ];
+    if (loc) lines.push('📍 ' + loc);
     if (names.length) lines.push('👥 ' + names.join(', '));
     if (e.notes) lines.push('📝 ' + e.notes);
-    lines.push('', '_Inviato da Turni Corvetto_', 'Se e presente un allegato .ics, aprilo per aggiungerlo al calendario.');
+    lines.push('', '_Inviato da Turni Corvetto_');
     return lines.join('\n');
   }
 
-  function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 'Impegni Turni Corvetto'); }
+function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 'Impegni Turni Corvetto'); }
 
   async function shareIcsLikeEmail(opts) {
     opts = opts || {};
