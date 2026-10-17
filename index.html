@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.7.8</title>
+  <title>Turni Corvetto v9.7.9</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.7.8';
+    const APP_VERSION = '9.7.9';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.8</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.9</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.7.8</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.9</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6434,57 +6434,76 @@ function annotateEventOnWeek(e,weekKey){
   function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 'Impegni Turni Corvetto'); }
 
   async function shareIcsLikeEmail(opts) {
-    const title = (opts && opts.title) || 'Impegno Corvetto';
-    const text = String((opts && opts.text) || title).trim();
-    const fileName = String((opts && opts.fileName) || 'impegno.ics').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.ics$/i, '') + '.ics';
-    const icsBody = (opts && opts.icsBody) || '';
-    if (!icsBody) {
-      showToast('Nessun contenuto da condividere', 'error', 3000);
-      return { ok: false };
+    opts = opts || {};
+    const title = String(opts.title || 'Impegno Corvetto');
+    const text = String(opts.text || title).trim() || title;
+    const fileName = String(opts.fileName || 'impegno.ics').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.ics$/i, '') + '.ics';
+    const icsBody = String(opts.icsBody || '');
+
+    // 0) Supporto API
+    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+      showToast('Questo browser non supporta Condividi. Prova Chrome (non WebView).', 'error', 4500);
+      return { ok: false, reason: 'no-api' };
     }
 
-    if (typeof navigator.share !== 'function') {
-      showToast('Condividi non disponibile su questo browser. Usa Chrome aggiornato.', 'warn', 4000);
-      return { ok: false };
-    }
-
-    const filesTry = [
-      new File([icsBody], fileName, { type: 'text/calendar', lastModified: Date.now() }),
-      new File([icsBody], fileName, { type: 'application/octet-stream', lastModified: Date.now() }),
-      new File([icsBody], fileName, { type: 'text/plain', lastModified: Date.now() })
-    ];
-
-    // 1) File: apre Condividi nativo se il telefono accetta .ics
-    for (var i = 0; i < filesTry.length; i++) {
-      try {
-        await navigator.share({ files: [filesTry[i]] });
-        return { ok: true, file: true };
-      } catch (e) {
-        if (e && e.name === 'AbortError') return { ok: false, aborted: true };
-      }
-    }
-    for (var j = 0; j < filesTry.length; j++) {
-      try {
-        await navigator.share({ title: title, text: text, files: [filesTry[j]] });
-        return { ok: true, file: true };
-      } catch (e2) {
-        if (e2 && e2.name === 'AbortError') return { ok: false, aborted: true };
-      }
-    }
-
-    // 2) Solo testo: apre SEMPRE il foglio Condividi (WhatsApp, Gmail, Telegram...)
+    // 1) PRIMA il testo → foglio di sistema (funziona su quasi tutti gli Android, anche se .ics e bloccato)
     try {
-      await navigator.share({ title: title, text: text });
+      const payload = { title: title, text: text };
+      if (typeof navigator.canShare === 'function') {
+        try {
+          if (!navigator.canShare(payload) && navigator.canShare({ text: text })) {
+            await navigator.share({ text: text });
+            return { ok: true, textOnly: true };
+          }
+        } catch (eCan) {}
+      }
+      await navigator.share(payload);
       return { ok: true, textOnly: true };
-    } catch (e3) {
-      if (e3 && e3.name === 'AbortError') return { ok: false, aborted: true };
-      console.warn('navigator.share text failed', e3);
+    } catch (eText) {
+      if (eText && eText.name === 'AbortError') return { ok: false, aborted: true };
+      console.warn('share text', eText);
     }
 
-    showToast('Impossibile aprire Condividi. Controlla i permessi del browser.', 'error', 4000);
+    // 2) Solo text minimo
+    try {
+      await navigator.share({ text: text.slice(0, 1200) });
+      return { ok: true, textOnly: true };
+    } catch (eMin) {
+      if (eMin && eMin.name === 'AbortError') return { ok: false, aborted: true };
+    }
+
+    // 3) File .ics (se il telefono li accetta)
+    if (icsBody && typeof File === 'function') {
+      const mimeList = ['text/plain', 'application/octet-stream', 'text/calendar'];
+      for (var m = 0; m < mimeList.length; m++) {
+        try {
+          var f = new File([icsBody], fileName, { type: mimeList[m], lastModified: Date.now() });
+          var data = { files: [f] };
+          if (typeof navigator.canShare === 'function') {
+            try { if (!navigator.canShare(data)) continue; } catch (eC) { continue; }
+          }
+          await navigator.share(data);
+          return { ok: true, file: true };
+        } catch (eFile) {
+          if (eFile && eFile.name === 'AbortError') return { ok: false, aborted: true };
+        }
+      }
+    }
+
+    // 4) Ultimo: clipboard + messaggio chiaro (niente download, niente wa.me)
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast('Testo copiato. Incolla in WhatsApp o email.', 'success', 4500);
+        return { ok: true, clipboard: true };
+      }
+    } catch (eClip) {}
+
+    showToast('Condividi non disponibile qui. Apri il sito in Chrome (non Brave/WebView) oppure usa Esporta PDF.', 'error', 5500);
     return { ok: false };
   }
   window.shareIcsLikeEmail = shareIcsLikeEmail;
+
 
 
 
@@ -6494,9 +6513,31 @@ function annotateEventOnWeek(e,weekKey){
   async function shareEventWhatsApp(id) {
     const e=(appData.events||[]).find(x=>String(x.id)===String(id));
     if(!e){showToast('Evento non trovato','error',2500);return;}
+    // Testo subito (mantiene il "user gesture" per navigator.share)
+    let text = '';
+    try { text = formatEventWhatsAppText(e) || (e.title || 'Impegno'); } catch (e1) { text = e.title || 'Impegno'; }
+    let icsBody = '';
+    try { icsBody = buildCalendarICS([e], e.title || 'Impegno'); } catch (e2) { icsBody = ''; }
     try {
-      await shareIcsLikeEmail({title:e.title||'Impegno Corvetto',text:formatEventWhatsAppText(e),fileName:'evento_'+(e.date||'data')+'_'+safeFilePart(e.title)+'.ics',icsBody:buildCalendarICS([e],e.title||'Impegno')});
-    } catch(err) { console.warn(err); showToast('Non riesco a preparare la condivisione dell’impegno.', 'error', 3500); }
+      await shareIcsLikeEmail({
+        title: e.title || 'Impegno Corvetto',
+        text: text,
+        fileName: 'evento_' + (e.date || 'data') + '_' + safeFilePart(e.title) + '.ics',
+        icsBody: icsBody
+      });
+    } catch (err) {
+      console.warn(err);
+      // fallback immediato testo
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: e.title || 'Impegno', text: text });
+          return;
+        }
+      } catch (e3) {
+        if (e3 && e3.name === 'AbortError') return;
+      }
+      showToast('Condivisione non riuscita: ' + (err && err.message ? err.message : 'errore'), 'error', 4000);
+    }
   }
   window.shareEventWhatsApp = shareEventWhatsApp;
 
@@ -6680,7 +6721,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.7.8', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.9', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
