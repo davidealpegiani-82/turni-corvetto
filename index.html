@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.7.2</title>
+  <title>Turni Corvetto v9.7.3</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.7.2';
+    const APP_VERSION = '9.7.3';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.7.2</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.3</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6566,7 +6566,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.7.2', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.3', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -7247,7 +7247,13 @@ function minLunchBreakMinutes(wId) {
     if (!cell || isHardUnavailableCell(cell)) return cell;
     const events = getWorkerDayEventIntervals(wId, dateObj);
     let out = { ...cell };
-    // Sottrai intervalli evento dal lavoro generato/modificabile
+    // Blocchi evento per copertura (persona non disponibile in filiale)
+    if (events.length) {
+      out.eventBlocks = events.map(function(ev) { return { start: ev[0], end: ev[1] }; });
+      // se subtractCoverageBlocks vuole [a,b] arrays:
+      out.eventBlocks = events.slice();
+    }
+    // Sottrai intervalli evento SOLO se sovrapposti al turno (mai allungare fuori)
     if (events.length && (out.mIn || out.pIn) && out.generated === true) {
       const intervals = [];
       if (out.mIn && out.mOut) intervals.push([timeToMin(out.mIn), timeToMin(out.mOut)]);
@@ -9538,7 +9544,12 @@ function minLunchBreakMinutes(wId) {
     const a=[];
     if(d.mIn&&d.mOut) a.push([timeToMin(d.mIn),timeToMin(d.mOut)]);
     if(d.pIn&&d.pOut) a.push([timeToMin(d.pIn),timeToMin(d.pOut)]);
-    return subtractCoverageBlocks(a,d.coverageBlockedIntervals||[]);
+    let blocks = d.coverageBlockedIntervals || [];
+    // Eventi in cella: non contano per copertura (OFFICIAL_POLICY.events.countsForMinCoverage=false)
+    if (Array.isArray(d.eventBlocks) && d.eventBlocks.length) {
+      blocks = blocks.concat(d.eventBlocks);
+    }
+    return subtractCoverageBlocks(a, blocks);
   }
   function coveredAt(d,t){ return workIntervals(d).some(x=>t>=x[0]&&t<x[1]); }
   function countCovered(week,ids,day,t){
@@ -10982,11 +10993,43 @@ function minLunchBreakMinutes(wId) {
     // Percorso robusto: prima costruiamo sempre la proposta base M1-M45.
     // Lo Smart Brain ottimizza solo se c'è realmente qualcosa da ottimizzare.
     currentWeekKey=getWeekKey(currentDate);
-    // Svuota automaticamente la settimana corrente prima di rigenerare
+
+    // OFFICIAL_POLICY absences.generateMode = ask_user
+    var clearMode = window._generateClearMode || '';
+    if (!clearMode) {
+      var ans = window.prompt(
+        'Genera proposta — cosa fare della settimana corrente?\n\n' +
+        '1 = Svuota tutto e rigenera\n' +
+        '2 = Solo celle vuote\n' +
+        '3 = Solo celle non modificate a mano\n\n' +
+        'Scrivi 1, 2 o 3',
+        '1'
+      );
+      if (ans === null) { showToast('Generazione annullata', 'info', 2500); return; }
+      ans = String(ans).trim();
+      clearMode = (ans === '2') ? 'empty' : (ans === '3') ? 'nonmanual' : 'all';
+    }
+    window._generateClearMode = null;
+
     try {
       if (!appData.weeks) appData.weeks = {};
-      appData.weeks[currentWeekKey] = {};
+      if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
+      if (clearMode === 'all') {
+        appData.weeks[currentWeekKey] = {};
+      } else if (clearMode === 'empty') {
+        // lascia tutto com'è: il motore riempie i buchi
+      } else if (clearMode === 'nonmanual') {
+        const wk = appData.weeks[currentWeekKey];
+        Object.keys(wk).forEach(function(wid) {
+          const days = wk[wid] || {};
+          Object.keys(days).forEach(function(d) {
+            if (days[d] && days[d].manualEdit) return;
+            delete days[d];
+          });
+        });
+      }
     } catch (eClr) {}
+
     try{
       const base=generateAutoProposalLegacy({silent:true});
 
@@ -10996,6 +11039,22 @@ function minLunchBreakMinutes(wId) {
       try {
         base.notes = enforceSeverinPolicy(base.week, base.notes || []);
       } catch (eSev) { console.warn(eSev); }
+      try {
+        if (typeof syncApprovedLeavesIntoWeek === 'function') {
+          // Applica ferie/malattia/permessi sulla proposta generata
+          const tmp = appData.weeks[currentWeekKey];
+          appData.weeks[currentWeekKey] = base.week;
+          syncApprovedLeavesIntoWeek(currentWeekKey, currentDate);
+          base.week = appData.weeks[currentWeekKey];
+          appData.weeks[currentWeekKey] = tmp;
+        }
+      } catch (eLeave) { console.warn(eLeave); }
+      try {
+        if (typeof balanceOfficeLunchCoverage === 'function') {
+          const lunchNotes = balanceOfficeLunchCoverage(base.week) || [];
+          base.notes = (base.notes || []).concat(lunchNotes);
+        }
+      } catch (eLunch) {}
 
       let proposal=base;
       const baseScore=smartScoreProposal(base.week);
