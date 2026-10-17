@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.7.3</title>
+  <title>Turni Corvetto v9.7.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.7.3';
+    const APP_VERSION = '9.7.4';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.4</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.7.3</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5939,11 +5939,12 @@ function renderWeek() {
     if (typeof renderEventsView === 'function') renderEventsView();
     if (typeof renderLeaveView === 'function' && currentView === 'ferie') renderLeaveView();
 
-    showChangeReport('Turni aggiornati automaticamente', reason + (detail ? ' — ' + detail : ''), changes);
+    const causeMsg = reason + (detail ? ' — ' + detail : '');
+    showChangeReport('Turni aggiornati automaticamente', causeMsg, changes);
     if (changes.length) {
-      showToast('Turni aggiornati: ' + changes.length + ' modifica/e · ' + reason, 'success', 4000);
+      showToast('Aggiornato per: ' + causeMsg + ' · ' + changes.length + ' modifica/e', 'success', 4500);
     } else {
-      showToast('Dati salvati. Nessun orario da ricalcolare.', 'info', 2800);
+      showToast('Salvato · causa: ' + causeMsg + ' · nessun orario da ricalcolare', 'info', 3200);
     }
   }
 
@@ -6566,7 +6567,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.7.3', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.4', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -7275,9 +7276,25 @@ function minLunchBreakMinutes(wId) {
       out.pIn = result[1] ? minToTime(result[1][0]) : '';
       out.pOut = result[1] ? minToTime(result[1][1]) : '';
     }
-    // Se il turno ha ancora mattina/pomeriggio, garantisci pausa (anche celle manuali)
+    // Straordinario fuori turno: NON allungare gli orari (OFFICIAL_POLICY)
+    try {
+      if (events.length && (cell.mIn || cell.pIn)) {
+        const mIn = cell.mIn ? timeToMin(cell.mIn) : null;
+        const pOut = cell.pOut ? timeToMin(cell.pOut) : (cell.mOut ? timeToMin(cell.mOut) : null);
+        events.forEach(function(ev) {
+          const a = ev[0], b = ev[1];
+          if (mIn != null && pOut != null && (b <= mIn || a >= pOut)) {
+            out.overtimeNote = (out.overtimeNote ? out.overtimeNote + '; ' : '') +
+              ('Straordinario ' + minToTime(a) + '-' + minToTime(b) + ' (fuori turno, orario filiale invariato)');
+          }
+        });
+      }
+    } catch (eOt) {}
+    // Pausa solo se c'è ancora lavoro in filiale; non forzare su sole ore fuori sede
     if ((out.mIn || out.pIn) && (!out.status || out.status === 'LAVORO' || out.status === 'ROL')) {
-      out = normalizeShiftWithBreak(out, wId, events);
+      if (!out.manualEdit) {
+        out = normalizeShiftWithBreak(out, wId, events);
+      }
     }
     return out;
   }
@@ -10243,6 +10260,7 @@ function minLunchBreakMinutes(wId) {
     };
     window._proposalChoiceAnswers = null;
     if (options && options.silent) return window.pendingTurnProposal;
+    try{ if(window.pendingTurnProposal) window.pendingTurnProposal.choices=dedupeProposalChoices(window.pendingTurnProposal.choices||[]);}catch(e){}
     showProposalReviewModal();
     return window.pendingTurnProposal;
   }
@@ -11195,7 +11213,8 @@ function minLunchBreakMinutes(wId) {
 
       window.pendingTurnProposal=proposal;
       window._proposalChoiceAnswers=null;
-      showProposalReviewModal();
+      try{ if(window.pendingTurnProposal) window.pendingTurnProposal.choices=dedupeProposalChoices(window.pendingTurnProposal.choices||[]);}catch(e){}
+    showProposalReviewModal();
       return proposal;
     }catch(err){
       console.error('Genera Proposta:',err);
@@ -11209,7 +11228,8 @@ function minLunchBreakMinutes(wId) {
             '⚠️ Smart Brain non completato: mostrata la proposta base del motore regole.'];
           window.pendingTurnProposal=fallback;
           window._proposalChoiceAnswers=null;
-          showProposalReviewModal();
+          try{ if(window.pendingTurnProposal) window.pendingTurnProposal.choices=dedupeProposalChoices(window.pendingTurnProposal.choices||[]);}catch(e){}
+    showProposalReviewModal();
           return fallback;
         }
       }catch(fallbackErr){
@@ -12758,7 +12778,8 @@ function confirmGlobalAiActions() {
       const lines = result.messages && result.messages.length ? ('\n· ' + result.messages.slice(0, 8).join('\n· ')) : '';
       appendProposalAiChat('assistant', summary + lines);
       if (status) status.textContent = result.applied ? ('Bozza aggiornata (' + result.applied + ' · ' + source + ')') : 'Nessuna modifica';
-      try { showProposalReviewModal(); } catch (eR) {}
+      try { try{ if(window.pendingTurnProposal) window.pendingTurnProposal.choices=dedupeProposalChoices(window.pendingTurnProposal.choices||[]);}catch(e){}
+    showProposalReviewModal(); } catch (eR) {}
       showToast(result.applied ? 'Bozza aggiornata — controlla e applica' : 'Nessuna modifica', result.applied ? 'success' : 'info');
       return true;
     }
@@ -12794,7 +12815,32 @@ function confirmGlobalAiActions() {
   }
 
 
-  function showProposalReviewModal() {
+  
+  function dedupeProposalChoices(choices) {
+    const seen = new Set();
+    const out = [];
+    (choices || []).forEach(function(ch) {
+      if (!ch) return;
+      const id = String(ch.id || ((ch.area || '') + '-' + (ch.kind || '') + '-' + (ch.day != null ? ch.day : '') + '-' + (ch.label || '')));
+      if (seen.has(id)) return;
+      seen.add(id);
+      // dedupe options by option id too
+      if (Array.isArray(ch.options)) {
+        const os = new Set();
+        ch.options = ch.options.filter(function(o) {
+          const oid = String(o && (o.id != null ? o.id : o.label));
+          if (os.has(oid)) return false;
+          os.add(oid);
+          return true;
+        });
+      }
+      out.push(ch);
+    });
+    return out;
+  }
+  window.dedupeProposalChoices = dedupeProposalChoices;
+
+function showProposalReviewModal() {
     try {
       const p0 = window.pendingTurnProposal;
       if (p0 && p0.week && typeof validateProposalWeek === 'function') {
@@ -12807,6 +12853,9 @@ function confirmGlobalAiActions() {
 
     const p = window.pendingTurnProposal;
     if (!p) return;
+    try {
+      p.choices = dedupeProposalChoices(p.choices || []);
+    } catch (e) {}
     const modal = document.getElementById('proposalModal');
     if (!modal) { showToast('Modale proposta non trovata', 'error', 3000); return; }
     const sum = document.getElementById('proposalSummary');
@@ -13108,6 +13157,7 @@ function confirmGlobalAiActions() {
         });
       }
     } catch (e) {}
+    try{ if(window.pendingTurnProposal) window.pendingTurnProposal.choices=dedupeProposalChoices(window.pendingTurnProposal.choices||[]);}catch(e){}
     showProposalReviewModal();
     try { showToast('Scelta registrata: ' + (ch.options.find(o => String(o.id) === oid)?.name || oid), 'success', 1800); } catch (e2) {}
   }
