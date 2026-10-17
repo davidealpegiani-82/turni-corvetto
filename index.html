@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.8.0</title>
+  <title>Turni Corvetto v9.8.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.8.0';
+    const APP_VERSION = '9.8.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.8.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.8.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6437,91 +6437,67 @@ function annotateEventOnWeek(e,weekKey){
     opts = opts || {};
     const title = String(opts.title || 'Impegno Corvetto');
     let text = String(opts.text || title).trim() || title;
-    // Non promettere allegato se potremmo non riuscirci
-    text = text.replace(/Apri il file \\.ics allegato[^\n]*/gi, '').trim();
+    text = text.replace(/Apri il file \\.ics allegato[^\n]*/gi, '').replace(/Se e presente un allegato[^\n]*/gi, '').trim();
     const fileName = String(opts.fileName || 'impegno.ics').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\\.ics$/i, '') + '.ics';
     const icsBody = String(opts.icsBody || '');
 
     if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
-      showToast('Condividi non supportato. Usa Chrome aggiornato.', 'error', 4000);
+      showToast('Condividi non supportato su questo browser.', 'error', 4000);
       return { ok: false, reason: 'no-api' };
     }
 
-    // --- FILE PRIMA (obiettivo: allegato in WhatsApp) ---
+    // Prepara al massimo UN file (se il browser dichiara di poterlo condividere).
+    // Non fare loop di share: su Android si perde il "user gesture" e resta solo clipboard.
+    var fileToShare = null;
     if (icsBody && typeof File === 'function') {
-      const variants = [];
       try {
-        // Tipi che WhatsApp/Android accettano piu spesso come documento
-        variants.push(new File([icsBody], fileName, { type: 'application/octet-stream', lastModified: Date.now() }));
-        variants.push(new File([icsBody], fileName, { type: 'text/calendar', lastModified: Date.now() }));
-        variants.push(new File([icsBody], fileName, { type: 'text/plain', lastModified: Date.now() }));
-        variants.push(new File([icsBody], fileName.replace(/\\.ics$/i, '') + '.txt', { type: 'text/plain', lastModified: Date.now() }));
-        // Alcuni OEM vogliono message/rfc822 o application/ics
-        variants.push(new File([icsBody], fileName, { type: 'application/ics', lastModified: Date.now() }));
-      } catch (eMake) {
-        console.warn('File()', eMake);
-      }
-
-      // A) file + testo
-      for (var i = 0; i < variants.length; i++) {
-        try {
-          var data = { title: title, text: text, files: [variants[i]] };
-          if (typeof navigator.canShare === 'function') {
-            try { if (!navigator.canShare({ files: [variants[i]] })) continue; } catch (e1) { continue; }
-          }
-          await navigator.share(data);
-          showToast('Condiviso con file calendario', 'success', 2500);
-          return { ok: true, file: true };
-        } catch (err) {
-          if (err && err.name === 'AbortError') return { ok: false, aborted: true };
+        var f = new File([icsBody], fileName, { type: 'application/octet-stream', lastModified: Date.now() });
+        var can = true;
+        if (typeof navigator.canShare === 'function') {
+          try { can = !!navigator.canShare({ files: [f] }); } catch (eCan) { can = false; }
         }
-      }
-      // B) solo file
-      for (var j = 0; j < variants.length; j++) {
-        try {
-          if (typeof navigator.canShare === 'function') {
-            try { if (!navigator.canShare({ files: [variants[j]] })) continue; } catch (e2) { continue; }
-          }
-          await navigator.share({ files: [variants[j]] });
-          showToast('Condiviso file calendario', 'success', 2500);
-          return { ok: true, file: true };
-        } catch (err2) {
-          if (err2 && err2.name === 'AbortError') return { ok: false, aborted: true };
-        }
-      }
-      // C) canShare mente su alcuni device: prova senza controllo
-      for (var k = 0; k < Math.min(variants.length, 3); k++) {
-        try {
-          await navigator.share({ files: [variants[k]], title: title, text: text });
-          return { ok: true, file: true };
-        } catch (err3) {
-          if (err3 && err3.name === 'AbortError') return { ok: false, aborted: true };
-        }
+        if (can) fileToShare = f;
+      } catch (eFile) {
+        fileToShare = null;
       }
     }
 
-    // --- Solo testo (foglio Condividi senza allegato) ---
-    const textOnly = text + '\\n\\n(File .ics non allegabile da questo telefono: in WhatsApp il calendario va aggiunto a mano oppure usa un altro dispositivo.)';
+    // 1) Un solo tentativo con file (se supportato)
+    if (fileToShare) {
+      try {
+        await navigator.share({ title: title, text: text, files: [fileToShare] });
+        showToast('Condiviso', 'success', 2000);
+        return { ok: true, file: true };
+      } catch (e1) {
+        if (e1 && e1.name === 'AbortError') return { ok: false, aborted: true };
+        // continua con solo testo
+      }
+    }
+
+    // 2) Un solo tentativo SOLO TESTO → apre il foglio Condividi (come prima)
     try {
-      await navigator.share({ title: title, text: textOnly });
-      showToast('Condiviso il testo (senza file: limite del telefono sui .ics)', 'warn', 4500);
+      await navigator.share({ title: title, text: text });
+      showToast('Condiviso (testo). Per il .ics: su molti telefoni WhatsApp non accetta allegati calendario dal browser.', 'info', 4000);
       return { ok: true, textOnly: true };
-    } catch (eText) {
-      if (eText && eText.name === 'AbortError') return { ok: false, aborted: true };
+    } catch (e2) {
+      if (e2 && e2.name === 'AbortError') return { ok: false, aborted: true };
+      console.warn('share text', e2);
     }
 
+    // 3) Clipboard solo se share e davvero impossibile
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(icsBody || text);
-        showToast('Contenuto copiato negli appunti.', 'success', 4000);
+        await navigator.clipboard.writeText(text);
+        showToast('Testo copiato. Incolla in WhatsApp.', 'success', 4000);
         return { ok: true, clipboard: true };
       }
-    } catch (eClip) {}
+    } catch (e3) {}
 
-    showToast('Condivisione non riuscita su questo browser.', 'error', 4000);
+    showToast('Condivisione non riuscita.', 'error', 3500);
     return { ok: false };
   }
   window.shareIcsLikeEmail = shareIcsLikeEmail;
+
 
 
 
@@ -6741,7 +6717,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.8.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.8.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
