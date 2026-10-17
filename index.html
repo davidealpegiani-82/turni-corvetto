@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.8.7</title>
+  <title>Turni Corvetto v9.8.8</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.8.7';
+    const APP_VERSION = '9.8.8';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.7</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.8</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.8.7</small>
+          <small id="appVersionLabel">CORVETTO · V9.8.8</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6479,22 +6479,17 @@ function downloadBlob(name,text,type='text/calendar;charset=utf-8') {
         showToast('Impossibile creare il file ICS (controlla data/orari)', 'error', 4000);
         return;
       }
-      const name = 'evento_' + (e.date || 'data') + '_' + safeFilePart(e.title) + '.ics';
-      // Download diretto: file apribile da Google Calendar / Calendario Samsung / Apple
+      const name = 'evento_' + (e.date || 'data') + '_' + (typeof safeFilePart === 'function' ? safeFilePart(e.title) : 'impegno') + '.ics';
       if (typeof downloadBlob === 'function') {
         downloadBlob(name, icsBody, 'text/calendar;charset=utf-8');
       } else {
         const blob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
       }
-      showToast('File .ics salvato: aprilo con Calendario', 'success', 3500);
+      showToast('File .ics scaricato', 'success', 3000);
     } catch (err) {
       console.warn(err);
       showToast((err && err.message) || 'Errore creazione ICS', 'error', 4000);
@@ -6502,8 +6497,7 @@ function downloadBlob(name,text,type='text/calendar;charset=utf-8') {
   }
   window.downloadEventICS = downloadEventICS;
 
-
-  function formatEventWhatsAppText(e) {
+function formatEventWhatsAppText(e) {
     if (!e) return '';
     const names = (e.participantIds || []).map(function(id) {
       const w = (appData.workers || []).find(function(x) { return x.id === id; });
@@ -6624,12 +6618,11 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         }
       }
 
-      // Testo + download ICS per allegato manuale
+      // Solo testo (Condividi senza allegato) — niente download automatico
       try {
         await navigator.share({ title: title, text: text });
-        doDownload();
-        showToast('Testo in Condividi. File .ics scaricato: allegalo se serve.', 'info', 4500);
-        return { ok: true, shared: true, withFile: false, downloaded: true };
+        showToast('Testo condiviso. Per il file .ics usa il tasto ICS.', 'info', 4000);
+        return { ok: true, shared: true, withFile: false };
       } catch (err3) {
         if (err3 && err3.name === 'AbortError') return { ok: false, aborted: true };
         console.warn('share text', err3);
@@ -6661,10 +6654,10 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
 ;
 
   async function shareEventWhatsApp(id) {
+    // CONDIVIDI = testo completo + allegato .ics dove il dispositivo lo consente
     const e = (appData.events || []).find(function(x) { return String(x.id) === String(id); });
     if (!e) { showToast('Evento non trovato', 'error', 2500); return; }
 
-    // Tutto sincrono prima di qualsiasi await (user gesture)
     var text = '';
     try { text = formatEventWhatsAppText(e); } catch (e1) { text = e.title || 'Impegno'; }
     text = String(text || e.title || 'Impegno').trim();
@@ -6674,12 +6667,21 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
     try {
       icsBody = buildCalendarICS([e], e.title || 'Impegno');
     } catch (eIcs) {
-      showToast('Errore creazione ICS: ' + (eIcs && eIcs.message ? eIcs.message : ''), 'error', 4000);
+      showToast('Errore ICS', 'error', 3000);
       return;
     }
-    await shareCalendarIcs({ title: title, text: text, fileName: fname, icsBody: icsBody });
+
+    await shareCalendarIcs({
+      title: title,
+      text: text,
+      fileName: fname,
+      icsBody: icsBody,
+      preferShare: true,
+      noForceDownloadOnTextShare: true
+    });
   }
   window.shareEventWhatsApp = shareEventWhatsApp;
+
 
 
 
@@ -6886,7 +6888,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.8.7', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.8.8', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
