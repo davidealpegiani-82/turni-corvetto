@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.7.5</title>
+  <title>Turni Corvetto v9.7.6</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.7.5';
+    const APP_VERSION = '9.7.6';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.5</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.7.6</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.7.5</small>
+          <small id="appVersionLabel">CORVETTO · V9.7.6</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6443,45 +6443,63 @@ function annotateEventOnWeek(e,weekKey){
       return { ok: false };
     }
 
-    // MIME multipli: su Android Chrome text/calendar spesso non è in canShare,
-    // ma application/octet-stream o text/plain aprono comunque il foglio Condividi.
-    const blobs = [
-      new File([icsBody], fileName, { type: 'text/calendar', lastModified: Date.now() }),
-      new File([icsBody], fileName, { type: 'application/ics', lastModified: Date.now() }),
-      new File([icsBody], fileName, { type: 'text/plain', lastModified: Date.now() }),
-      new File([icsBody], fileName, { type: 'application/octet-stream', lastModified: Date.now() })
-    ];
-
     if (typeof navigator.share !== 'function') {
-      showToast('Condivisione non disponibile su questo browser. Usa Chrome sul telefono.', 'warn', 4000);
+      showToast('Condivisione non disponibile. Apri l\\'app in Chrome sul telefono.', 'warn', 4000);
       return { ok: false };
     }
 
-    // 1) Prova SEMPRE con file — non fidarti di canShare (su Xiaomi/Chrome mente spesso)
-    for (var i = 0; i < blobs.length; i++) {
+    const blob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
+    const files = [
+      new File([icsBody], fileName, { type: 'text/calendar', lastModified: Date.now() }),
+      new File([icsBody], fileName, { type: 'application/octet-stream', lastModified: Date.now() }),
+      new File([icsBody], fileName, { type: 'text/plain', lastModified: Date.now() }),
+      new File([icsBody], fileName.replace(/\\.ics$/i, '.txt'), { type: 'text/plain', lastModified: Date.now() }),
+      new File([blob], fileName, { type: 'application/ics', lastModified: Date.now() })
+    ];
+
+    // Strategia A: SOLO files (su Xiaomi/Android title+text+files spesso fallisce)
+    for (var i = 0; i < files.length; i++) {
       try {
-        await navigator.share({ title: title, text: text, files: [blobs[i]] });
+        await navigator.share({ files: [files[i]] });
         return { ok: true, file: true };
       } catch (err) {
         if (err && err.name === 'AbortError') return { ok: false, aborted: true };
-        // continua col MIME successivo
       }
     }
 
-    // 2) Solo testo (alcuni dispositivi accettano almeno il messaggio)
-    try {
-      await navigator.share({ title: title, text: text + '\n\n(File calendario: ' + fileName + ')' });
-      showToast('Condiviso il testo. Se serve il file .ics, usa 📅 ICS dalla scheda.', 'info', 4500);
-      return { ok: true, textOnly: true };
-    } catch (err2) {
-      if (err2 && err2.name === 'AbortError') return { ok: false, aborted: true };
+    // Strategia B: files + testo corto
+    for (var j = 0; j < files.length; j++) {
+      try {
+        await navigator.share({ title: title, text: text, files: [files[j]] });
+        return { ok: true, file: true };
+      } catch (err2) {
+        if (err2 && err2.name === 'AbortError') return { ok: false, aborted: true };
+      }
     }
 
-    // 3) NESSUN download automatico: l'utente non lo vuole
-    showToast('Impossibile aprire Condividi con file su questo dispositivo.', 'error', 4500);
+    // Strategia C: foglio Condividi con testo completo (WhatsApp/email) — niente download
+    try {
+      const payload = text + '\\n\\n----- CALENDARIO (.ics) -----\\n' + icsBody;
+      await navigator.share({ title: title, text: payload });
+      showToast('Condiviso come testo. Su WhatsApp il destinatario puo salvare il messaggio come .ics', 'info', 4500);
+      return { ok: true, textOnly: true };
+    } catch (err3) {
+      if (err3 && err3.name === 'AbortError') return { ok: false, aborted: true };
+    }
+
+    // Strategia D: apri WhatsApp Web/App con testo (senza file)
+    try {
+      const wa = 'https://wa.me/?text=' + encodeURIComponent((text || title).slice(0, 1000));
+      window.open(wa, '_blank');
+      showToast('Aperto WhatsApp con il riepilogo. Per il file .ics usa un altro telefono/Chrome aggiornato.', 'warn', 5000);
+      return { ok: true, whatsappText: true };
+    } catch (err4) {}
+
+    showToast('Condivisione file non supportata da questo browser. Prova Chrome aggiornato.', 'error', 4500);
     return { ok: false };
   }
   window.shareIcsLikeEmail = shareIcsLikeEmail;
+
 
 
 ;
@@ -6675,7 +6693,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.7.5', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.7.6', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
