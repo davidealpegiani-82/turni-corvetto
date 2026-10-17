@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.8.2</title>
+  <title>Turni Corvetto v9.8.3</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.8.2';
+    const APP_VERSION = '9.8.3';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.8.2</small>
+          <small id="appVersionLabel">CORVETTO · V9.8.3</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6369,53 +6369,139 @@ function annotateEventOnWeek(e,weekKey){
     return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   }
   function eventToICS(e) {
-    if (!e || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.date || ''))) throw new Error('Data evento non valida per ICS');
-    const checkDate = new Date(e.date + 'T12:00:00');
-    if (!Number.isFinite(checkDate.getTime()) || localDateKey(checkDate) !== e.date) throw new Error('Data evento inesistente per ICS: ' + e.date);
-    const dt = e.date.replace(/-/g, '');
-    const eventId = String(e.id || ('event-' + dt)).replace(/[^a-zA-Z0-9._-]/g, '_');
-    const lines = [
-      'BEGIN:VEVENT', `UID:${eventId}@turni-corvetto`, `DTSTAMP:${icsUtcStamp()}`
-    ];
+    if (!e || !/^\d{4}-\d{2}-\d{2}$/.test(String(e.date || ''))) {
+      throw new Error('Data evento non valida per ICS');
+    }
+    const dt = String(e.date).replace(/-/g, '');
+    const uid = String(e.id || ('ev-' + dt + '-' + Date.now())).replace(/[^a-zA-Z0-9._-]/g, '_') + '@turni-corvetto.local';
+    const stamp = (typeof icsUtcStamp === 'function') ? icsUtcStamp() : (new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''));
+
+    // Partecipanti in descrizione
+    let people = '';
+    try {
+      people = (e.participantIds || []).map(function(id) {
+        const w = (appData.workers || []).find(function(x) { return x.id === id; });
+        return w ? w.name : id;
+      }).filter(Boolean).join(', ');
+    } catch (eP) {}
+
+    var descParts = [];
+    if (e.type) descParts.push('Tipo: ' + e.type);
+    if (people) descParts.push('Partecipanti: ' + people);
+    if (e.notes) descParts.push(String(e.notes));
+    descParts.push('Generato da Turni Corvetto');
+    const description = descParts.join('\\n');
+    const location = e.location || '';
+
+    const lines = ['BEGIN:VEVENT', 'UID:' + uid, 'DTSTAMP:' + stamp];
+
     if (e.allDay) {
-      const next = new Date(e.date + 'T12:00:00'); next.setDate(next.getDate() + 1);
-      lines.push(`DTSTART;VALUE=DATE:${dt}`, `DTEND;VALUE=DATE:${localDateKey(next).replace(/-/g, '')}`);
+      const next = new Date(e.date + 'T12:00:00');
+      next.setDate(next.getDate() + 1);
+      const endD = (typeof localDateKey === 'function')
+        ? localDateKey(next).replace(/-/g, '')
+        : (next.getFullYear() + ('0' + (next.getMonth() + 1)).slice(-2) + ('0' + next.getDate()).slice(-2));
+      // Formato DATE: massima compatibilita Google/Samsung/Apple
+      lines.push('DTSTART;VALUE=DATE:' + dt);
+      lines.push('DTEND;VALUE=DATE:' + endD);
     } else {
       const from = e.fromTime || e.from || e.start || '';
       const to = e.toTime || e.to || e.end || '';
-      const valid = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v));
-      if (!valid(from) || !valid(to) || timeToMin(to) <= timeToMin(from)) throw new Error('Orario evento non valido per ICS: ' + (e.title || 'Impegno'));
-      lines.push(`DTSTART;TZID=Europe/Rome:${dt}T${from.replace(':', '')}00`, `DTEND;TZID=Europe/Rome:${dt}T${to.replace(':', '')}00`);
+      const valid = function(v) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v)); };
+      if (!valid(from) || !valid(to)) {
+        throw new Error('Orario non valido per ICS');
+      }
+      // Orario locale "floating" (senza TZID): apre bene su Android Calendar / Google
+      const f = String(from).replace(':', '') + '00';
+      const t = String(to).replace(':', '') + '00';
+      // Se fine <= inizio, considera giorno successivo (eventi a cavallo mezzanotte)
+      var endDt = dt;
+      try {
+        if (typeof timeToMin === 'function' && timeToMin(to) <= timeToMin(from)) {
+          const n2 = new Date(e.date + 'T12:00:00');
+          n2.setDate(n2.getDate() + 1);
+          endDt = (typeof localDateKey === 'function')
+            ? localDateKey(n2).replace(/-/g, '')
+            : dt;
+        }
+      } catch (eN) {}
+      lines.push('DTSTART:' + dt + 'T' + f);
+      lines.push('DTEND:' + endDt + 'T' + t);
     }
-    lines.push(`SUMMARY:${icsEscape(e.title || 'Impegno')}`, `DESCRIPTION:${icsEscape(e.notes || '')}`, `LOCATION:${icsEscape(e.location || '')}`, 'END:VEVENT');
-    return lines.map(icsFoldLine).join('\r\n');
+
+    lines.push('SUMMARY:' + icsEscape(e.title || 'Impegno'));
+    if (description) lines.push('DESCRIPTION:' + icsEscape(description));
+    if (location) lines.push('LOCATION:' + icsEscape(location));
+    lines.push('STATUS:CONFIRMED');
+    lines.push('TRANSP:OPAQUE');
+    lines.push('END:VEVENT');
+
+    if (typeof icsFoldLine === 'function') {
+      return lines.map(icsFoldLine).join('\r\n');
+    }
+    return lines.join('\r\n');
   }
-  function buildCalendarICS(events, calendarName='Impegni Turni Corvetto') {
-    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Gestione Turni Corvetto//IT','CALSCALE:GREGORIAN','METHOD:PUBLISH',`X-WR-CALNAME:${icsEscape(calendarName)}`,'BEGIN:VTIMEZONE','TZID:Europe/Rome','X-LIC-LOCATION:Europe/Rome','BEGIN:DAYLIGHT','DTSTART:19700329T020000','TZOFFSETFROM:+0100','TZOFFSETTO:+0200','TZNAME:CEST','RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU','END:DAYLIGHT','BEGIN:STANDARD','DTSTART:19701025T030000','TZOFFSETFROM:+0200','TZOFFSETTO:+0100','TZNAME:CET','RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU','END:STANDARD','END:VTIMEZONE'];
-    (events || []).forEach(e => lines.push(eventToICS(e)));
+
+  function buildCalendarICS(events, calendarName) {
+    calendarName = calendarName || 'Impegni Turni Corvetto';
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Turni Corvetto//IT',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:' + icsEscape(calendarName)
+    ];
+    (events || []).forEach(function(e) {
+      try {
+        lines.push(eventToICS(e));
+      } catch (err) {
+        console.warn('ICS skip event', e && e.title, err);
+      }
+    });
     lines.push('END:VCALENDAR');
+    // RFC 5545: CRLF
     return lines.join('\r\n') + '\r\n';
   }
-  function downloadBlob(name,text,type='text/calendar;charset=utf-8') {
+
+function downloadBlob(name,text,type='text/calendar;charset=utf-8') {
     const blob = new Blob([text], {type}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
     a.href=url; a.download=name; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 1500);
   }
   function safeFilePart(value) { return String(value || 'impegno').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,70) || 'impegno'; }
-  async function downloadEventICS(id) {
-    const e=(appData.events||[]).find(x=>String(x.id)===String(id)); if(!e)return;
+  function downloadEventICS(id) {
+    const e = (appData.events || []).find(function(x) { return String(x.id) === String(id); });
+    if (!e) { showToast('Evento non trovato', 'error', 2500); return; }
     try {
-      await shareIcsLikeEmail({
-        title: e.title || 'Impegno Corvetto',
-        text: (typeof formatEventWhatsAppText === 'function') ? formatEventWhatsAppText(e) : (e.title || ''),
-        fileName: 'evento_' + (e.date || 'data') + '_' + safeFilePart(e.title) + '.ics',
-        icsBody: buildCalendarICS([e], e.title || 'Impegno')
-      });
-    } catch(err) {
-      console.warn('Condivisione ICS evento fallita', err);
-      showToast(err.message || 'Impossibile condividere il file ICS', 'error', 3500);
+      const icsBody = buildCalendarICS([e], e.title || 'Impegno');
+      if (!icsBody || icsBody.indexOf('BEGIN:VEVENT') < 0) {
+        showToast('Impossibile creare il file ICS (controlla data/orari)', 'error', 4000);
+        return;
+      }
+      const name = 'evento_' + (e.date || 'data') + '_' + safeFilePart(e.title) + '.ics';
+      // Download diretto: file apribile da Google Calendar / Calendario Samsung / Apple
+      if (typeof downloadBlob === 'function') {
+        downloadBlob(name, icsBody, 'text/calendar;charset=utf-8');
+      } else {
+        const blob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+      }
+      showToast('File .ics salvato: aprilo con Calendario', 'success', 3500);
+    } catch (err) {
+      console.warn(err);
+      showToast((err && err.message) || 'Errore creazione ICS', 'error', 4000);
     }
   }
+  window.downloadEventICS = downloadEventICS;
+
 
   function formatEventWhatsAppText(e) {
     if (!e) return '';
@@ -6532,21 +6618,26 @@ function annotateEventOnWeek(e,weekKey){
   }
   window.shareWeekEventsWhatsApp = shareWeekEventsWhatsApp;
 
-  async function exportCurrentWeekEventsICS() {
-    const es=getEventsForWeek();
-    if(!es.length){ showToast('Nessun evento nella settimana.', 'warn', 3000); return; }
+  function exportCurrentWeekEventsICS() {
+    const es = (typeof getEventsForWeek === 'function') ? getEventsForWeek() : [];
+    if (!es.length) { showToast('Nessun evento nella settimana.', 'warn', 3000); return; }
     try {
-      await shareIcsLikeEmail({
-        title: 'Impegni ' + (currentWeekKey || ''),
-        text: 'Impegni settimana ' + (currentWeekKey || ''),
-        fileName: 'Impegni_' + (currentWeekKey || 'sett') + '.ics',
-        icsBody: buildWeekEventsIcsText(es)
-      });
-    } catch(err) {
-      console.warn('Condivisione ICS settimana fallita', err);
-      showToast(err.message || 'Impossibile condividere il file ICS', 'error', 3500);
+      const icsBody = buildWeekEventsIcsText(es);
+      const name = 'Impegni_' + (currentWeekKey || 'sett') + '.ics';
+      if (typeof downloadBlob === 'function') downloadBlob(name, icsBody, 'text/calendar;charset=utf-8');
+      else {
+        const blob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+      }
+      showToast('File .ics settimana salvato', 'success', 3000);
+    } catch (err) {
+      showToast((err && err.message) || 'Errore ICS', 'error', 3500);
     }
   }
+
   // ========== NOTIFICHE / PWA ==========
   window._eventReminderTimers = window._eventReminderTimers || [];
 
@@ -6691,7 +6782,7 @@ function annotateEventOnWeek(e,weekKey){
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.8.2', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.8.3', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
