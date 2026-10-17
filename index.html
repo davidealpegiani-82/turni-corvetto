@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.8.4</title>
+  <title>Turni Corvetto v9.8.5</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.8.4';
+    const APP_VERSION = '9.8.5';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.4</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.8.5</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.8.4</small>
+          <small id="appVersionLabel">CORVETTO · V9.8.5</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6570,79 +6570,49 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
     text = String(text || e.title || 'Impegno').trim();
     var title = e.title || 'Impegno Corvetto';
 
-    // Prepara ICS in modo sincrono (veloce) PRIMA del share, senza await
-    var icsBody = '';
+    if (typeof navigator.share !== 'function') {
+      showToast('Condividi non disponibile. Usa Chrome oppure il tasto ICS per il file.', 'warn', 4000);
+      return;
+    }
+
+    // Prepara file solo se canShare lo consente — UN tentativo, senza bruciare il gesto
     var icsFile = null;
     try {
-      icsBody = buildCalendarICS([e], e.title || 'Impegno');
+      var icsBody = buildCalendarICS([e], e.title || 'Impegno');
       if (icsBody && icsBody.indexOf('BEGIN:VEVENT') >= 0 && typeof File === 'function') {
         var fname = 'evento_' + (e.date || 'data') + '_' + (typeof safeFilePart === 'function' ? safeFilePart(e.title) : 'impegno') + '.ics';
-        icsFile = new File([icsBody], fname, { type: 'text/calendar', lastModified: Date.now() });
-      }
-    } catch (eIcs) {
-      console.warn('ICS build', eIcs);
-      icsFile = null;
-    }
-
-    if (typeof navigator.share !== 'function') {
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
-          showToast('Testo copiato (Condividi non disponibile)', 'info', 3500);
+        var f = new File([icsBody], fname, { type: 'text/calendar', lastModified: Date.now() });
+        if (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [f] })) {
+          icsFile = f;
         }
-      } catch (eC) {}
-      return;
-    }
+      }
+    } catch (eIcs) { icsFile = null; }
 
-    // 1) Un solo tentativo: testo + file insieme (procedura automatica)
+    // 1) Preferisci testo+file in un colpo solo (se supportato)
     if (icsFile) {
       try {
-        var canFiles = true;
-        if (typeof navigator.canShare === 'function') {
-          try { canFiles = navigator.canShare({ files: [icsFile] }); } catch (eCan) { canFiles = false; }
-        }
-        if (canFiles) {
-          await navigator.share({ title: title, text: text, files: [icsFile] });
-          showToast('Condiviso con file .ics', 'success', 2500);
-          return;
-        }
-      } catch (errF) {
-        if (errF && errF.name === 'AbortError') return;
-        console.warn('share file+text', errF);
-      }
-      // 1b) solo file (alcuni telefoni preferiscono cosi)
-      try {
-        await navigator.share({ files: [icsFile] });
-        showToast('File .ics condiviso', 'success', 2500);
+        await navigator.share({ title: title, text: text, files: [icsFile] });
+        showToast('Condiviso', 'success', 2000);
         return;
-      } catch (errF2) {
-        if (errF2 && errF2.name === 'AbortError') return;
+      } catch (err1) {
+        if (err1 && err1.name === 'AbortError') return;
+        // non scaricare: passa al solo testo
       }
     }
 
-    // 2) Solo testo
+    // 2) Solo testo → apre SEMPRE il foglio Condividi (senza download)
     try {
       await navigator.share({ title: title, text: text });
-      showToast('Testo condiviso. Per il .ics: tasto ICS → poi allega in chat.', 'info', 4000);
+      showToast('Foglio Condividi aperto. Per il file calendario usa il tasto ICS.', 'info', 3500);
       return;
-    } catch (errT) {
-      if (errT && errT.name === 'AbortError') return;
-    }
-
-    // 3) Clipboard + salva ICS automaticamente per allegarlo a mano in 1 passo in meno
-    try {
-      if (icsBody && typeof downloadBlob === 'function') {
-        downloadBlob('evento_' + (e.date || 'data') + '_' + (typeof safeFilePart === 'function' ? safeFilePart(e.title) : 'impegno') + '.ics', icsBody, 'text/calendar;charset=utf-8');
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-      }
-      showToast('Testo copiato e file .ics scaricato: in WhatsApp → allega il file appena salvato', 'info', 5500);
-    } catch (err3) {
-      showToast('Condivisione non riuscita', 'error', 3000);
+    } catch (err2) {
+      if (err2 && err2.name === 'AbortError') return;
+      console.warn('share text', err2);
+      showToast('Condividi non riuscito. Prova il tasto ICS per salvare il file.', 'error', 4000);
     }
   }
   window.shareEventWhatsApp = shareEventWhatsApp;
+
 
 
 
@@ -6831,7 +6801,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.8.4', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.8.5', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
