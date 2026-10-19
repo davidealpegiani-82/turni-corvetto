@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.9.0</title>
+  <title>Turni Corvetto v9.9.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.9.0';
+    const APP_VERSION = '9.9.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.9.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.9.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6908,7 +6908,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.9.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.9.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8803,6 +8803,7 @@ function minLunchBreakMinutes(wId) {
     const day = 5;
     const rotation = SABATO_UFFICIO_IDS();
     const workedOffice = [];
+    const saturdayLike = []; // orario tipico sabato ufficio ~07:00-12:00
     if (appData.weeks[prevKey]) {
       rotation.forEach(id => {
         const d = appData.weeks[prevKey][id] && appData.weeks[prevKey][id][day];
@@ -8810,19 +8811,31 @@ function minLunchBreakMinutes(wId) {
         const st = String(d.status || '').toUpperCase();
         if (st === 'RIPOSO' || st === 'CHIUSO') return;
         if (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(d)) return;
-        if (d.mIn || d.pIn || st === 'LAVORO') workedOffice.push(id);
+        if (d.mIn || d.pIn || st === 'LAVORO') {
+          workedOffice.push(id);
+          const mIn = d.mIn || '';
+          const pOut = d.pOut || d.mOut || '';
+          // Sabato ufficio standard: ingresso 07:xx e fine ~12:xx
+          if (/^07:/.test(mIn) && /^12:/.test(pOut)) saturdayLike.push(id);
+        }
       });
     }
-    if (workedOffice.length === 1) {
+    if (saturdayLike.length === 1) {
+      result.ufficio = saturdayLike[0];
+    } else if (workedOffice.length === 1) {
       result.ufficio = workedOffice[0];
     } else if (workedOffice.length > 1) {
-      // Se più persone risultano presenti, preferisci chi è in rotazione e ha orario da sabato
-      // (non chi è finito lì per errore). Ordine: ultimo in rotation tra chi ha lavorato.
-      let pick = workedOffice[0];
-      rotation.forEach(id => { if (workedOffice.includes(id)) pick = id; });
-      result.ufficio = pick;
+      // Preferisci chi ha orario sabato; altrimenti ultimo in rotazione tra chi ha lavorato
+      if (saturdayLike.length) {
+        let pick = saturdayLike[0];
+        rotation.forEach(id => { if (saturdayLike.includes(id)) pick = id; });
+        result.ufficio = pick;
+      } else {
+        let pick = workedOffice[0];
+        rotation.forEach(id => { if (workedOffice.includes(id)) pick = id; });
+        result.ufficio = pick;
+      }
     } else if (appData.rules && appData.rules.lastSaturdayUfficioId && rotation.includes(appData.rules.lastSaturdayUfficioId)) {
-      // Fallback: ultima applicazione proposta salvata
       result.ufficio = appData.rules.lastSaturdayUfficioId;
     }
 
@@ -11084,26 +11097,38 @@ function minLunchBreakMinutes(wId) {
         : null;
       const prevUfficio = lastSat.ufficio || null;
 
+      const sabNext = (typeof nextInRotation === 'function')
+        ? nextInRotation(SABATO_UFFICIO_IDS(), nextUfficio)
+        : null;
+
       for (let day = 0; day <= 4; day++) {
-        // Ripristina turni standard se una cella generata è stata storpiata dal vecchio brain
+        // Riallinea SEMPRE i turni ufficio non manuali alla rotazione sabatista
         SABATO_UFFICIO_IDS().forEach(function(id) {
           const c = cellAt(week, id, day);
           if (!c || isHardUnavailableCell(c)) return;
           if (c.manualEdit) return;
-          // Solo celle generate / movedByEngine: riallinea al ruolo di rotazione
-          if (!(c.generated || c.movedByEngine)) return;
           let target = null;
-          if (id === nextUfficio) target = rules.ufficio7h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' };
-          else if (id === prevUfficio) target = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
-          else target = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+          let role = '';
+          if (id === nextUfficio) {
+            target = rules.ufficio7h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' };
+            role = 'sabatista 7h apertura (questa settimana)';
+          } else if (id === prevUfficio) {
+            target = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+            role = 'ex-sabatista 8h apertura 06:30–15:30';
+          } else if (sabNext && id === sabNext) {
+            target = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+            role = 'prossimo sabatista 8h chiusura 08:30–17:30';
+          } else {
+            target = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+            role = 'chiusura 8h';
+          }
           const before = [c.mIn,c.mOut,c.pIn,c.pOut].join('|');
           c.mIn = target.mIn; c.mOut = target.mOut; c.pIn = target.pIn; c.pOut = target.pOut;
-          c.movedByEngine = false; // riallineato a regola rotazione, non "spostamento"
+          c.movedByEngine = false;
           c.generated = true;
           const after = [c.mIn,c.mOut,c.pIn,c.pOut].join('|');
           if (before !== after) {
-            const role = id === nextUfficio ? 'sabatista 7h apertura' : (id === prevUfficio ? 'ex-sabatista 8h apertura' : 'chiusura 8h');
-            notes.push('Ufficio ' + dayNames[day] + ': ' + workerName(id) + ' riallineato → ' + role);
+            notes.push('Ufficio ' + dayNames[day] + ': ' + workerName(id) + ' → ' + role);
           }
         });
 
