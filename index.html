@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.10.0</title>
+  <title>Turni Corvetto v9.10.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.10.0';
+    const APP_VERSION = '9.10.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.10.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.10.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.10.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.10.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3701,9 +3701,13 @@ function isUsableAppData(value) {
 
   window._pendingRemoteData = null;
   function showRemoteUpdateBar(msg) {
+    if (window._ignoreRemoteUntil && Date.now() < window._ignoreRemoteUntil) {
+      console.info('Remote update ignorato (generazione/scelta utente in corso)');
+      return;
+    }
     const bar = document.getElementById('remoteUpdateBar');
     const txt = document.getElementById('remoteUpdateText');
-    if (txt) txt.textContent = msg || 'Dati aggiornati da un altro dispositivo. Tocca «Aggiorna vista» per caricare il cloud (consigliato se hai generato da un altro telefono).';
+    if (txt) txt.textContent = msg || 'Dati cloud diversi. «Usa cloud» = dati online; «Tieni locale» = tieni questo dispositivo.';
     if (bar) bar.classList.add('visible');
     try { setSyncStatus('ok', 'conflitto da verificare'); } catch (e) {}
   }
@@ -3741,7 +3745,8 @@ function isUsableAppData(value) {
     // Preferisci sempre i dati più ricchi; in parità prendi il più recente
     const remoteAt = Number(data.updatedAt || 0);
     const localAt = Number(appData && appData.updatedAt || 0);
-    const takeRemote = (remoteScore > localScore) || (remoteScore >= localScore && remoteAt >= localAt) || localScore < 40;
+    // L'utente ha premuto «Usa cloud»: prendi SEMPRE il remote
+    const takeRemote = true;
     if (takeRemote) {
       window._pendingRemoteData = null;
       window._conflictRemote = null;
@@ -6933,7 +6938,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.10.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.10.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10068,16 +10073,18 @@ function minLunchBreakMinutes(wId) {
   
   
   
+  
   /**
-   * ROTAZIONE UFFICIO — ciclo a 3 settimane (ordine: Alpegiani → Poppa → Caregnato)
+   * ROTAZIONE UFFICIO — ciclo a 3 settimane
+   * ORDINE FISSO (non modificabile da regole cloud): Alpegiani → Poppa → Caregnato
    *
-   *   Settimana A (sabatista):  06:30–12:00 | 13:00–14:30  +  sabato 07:00–12:00
-   *   Settimana B (dopo sab):   06:30–12:00 | 13:00–15:30  (Lun–Ven, no sabato)
-   *   Settimana C (prima sab):  08:30–13:00 | 14:00–17:30  (Lun–Ven, no sabato)
+   *   A sabatista:     06:30–14:30 + sabato 07:00–12:00
+   *   B dopo sabato:   06:30–15:30 Lun–Ven
+   *   C prima del sab: 08:30–17:30 Lun–Ven
    *
-   * Chi fa sabato questa settimana = ruolo A.
-   * Chi ha fatto sabato la scorsa  = ruolo B.
-   * Chi farà sabato la prossima    = ruolo C.
+   * Se sabatista questa sett. = Alpegiani → Caregnato=B (06:30-15:30), Poppa=C (08:30-17:30)
+   * Se sabatista = Poppa → Alpegiani=B, Caregnato=C
+   * Se sabatista = Caregnato → Poppa=B, Alpegiani=C
    */
   function findWorkerIdByNameRe(re) {
     try {
@@ -10095,7 +10102,7 @@ function minLunchBreakMinutes(wId) {
   }
 
   function officeRotationTrioIds() {
-    // ID fissi di default + match per nome (se anagrafica personalizzata)
+    // ORDINE FISSO: Alpegiani → Poppa → Caregnato (mai Caregnato prima di Poppa)
     var a = findWorkerIdByNameRe(/alpegiani/i) || 'w_1';
     var p = findWorkerIdByNameRe(/poppa/i) || 'w_3';
     var c = findWorkerIdByNameRe(/caregnato/i) || 'w_2';
@@ -10117,7 +10124,6 @@ function minLunchBreakMinutes(wId) {
       if (d.mIn || d.pIn || st === 'LAVORO') found.push({ id: id, mIn: d.mIn || '' });
     });
     if (!found.length) return null;
-    // Preferisci ingresso 07:xx (turno sabato standard)
     var sat = found.filter(function(x) { return /^07:/.test(x.mIn); });
     if (sat.length) return sat[0].id;
     return found[0].id;
@@ -10125,55 +10131,47 @@ function minLunchBreakMinutes(wId) {
 
   function getOfficeRotationRoles(weekOpt) {
     var trio = officeRotationTrioIds();
-    var rotation = trio.ordered;
+    var rotation = trio.ordered; // sempre [Alpegiani, Poppa, Caregnato]
     var week = weekOpt;
-    try {
-      if (!week && appData.weeks) week = appData.weeks[getWeekKey(currentDate)];
-    } catch (e) {}
+    try { if (!week && appData.weeks) week = appData.weeks[getWeekKey(currentDate)]; } catch (e) {}
 
-    // 1) Chi lavora SABATO questa settimana → ruolo A (sabatista)
-    var nextUfficio = detectSabatistaFromWeek(week);
+    // Priorità 1: chi lavora sabato QUESTA settimana
+    var roleA = detectSabatistaFromWeek(week);
 
-    // 2) Dalla settimana precedente
-    if (!nextUfficio) {
+    // Priorità 2: sabato settimana scorsa → roleA = next
+    if (!roleA) {
       try {
         var prevDate = new Date(currentDate); prevDate.setDate(prevDate.getDate() - 7);
         var lastSat = (typeof getLastSaturdayInfo === 'function') ? getLastSaturdayInfo(getWeekKey(prevDate)) : {};
-        if (lastSat && lastSat.ufficio) {
-          // lastSat.ufficio = sabatista sett. scorsa = ruolo B questa settimana
-          // quindi sabatista questa sett. = next in rotazione
-          nextUfficio = nextInRotation(rotation, lastSat.ufficio);
+        if (lastSat && lastSat.ufficio && rotation.indexOf(lastSat.ufficio) >= 0) {
+          roleA = nextInRotation(rotation, lastSat.ufficio);
         }
       } catch (e2) {}
     }
 
-    // 3) Fallback: se in meta/rules
-    if (!nextUfficio && appData.rules && appData.rules.lastSaturdayUfficioId) {
-      // lastSaturday salvato all'applicazione = sabatista della settimana applicata
-      nextUfficio = appData.rules.lastSaturdayUfficioId;
+    // Priorità 3: fallback Alpegiani
+    if (!roleA) roleA = trio.alpegiani;
+
+    // B = precedente in ordine fisso, C = successivo
+    var roleB = prevInRotation(rotation, roleA);
+    var roleC = nextInRotation(rotation, roleA);
+
+    // Sicurezza nomi: se A=Alpegiani allora B=Caregnato C=Poppa SEMPRE
+    if (roleA === trio.alpegiani) {
+      roleB = trio.caregnato;
+      roleC = trio.poppa;
+    } else if (roleA === trio.poppa) {
+      roleB = trio.alpegiani;
+      roleC = trio.caregnato;
+    } else if (roleA === trio.caregnato) {
+      roleB = trio.poppa;
+      roleC = trio.alpegiani;
     }
 
-    // 4) Ultimo fallback: Alpegiani
-    if (!nextUfficio) nextUfficio = trio.alpegiani;
-
-    // Ruolo B = precedente in rotazione (ex sabatista → 06:30-15:30)
-    var prevUfficio = prevInRotation(rotation, nextUfficio);
-    // Ruolo C = successivo (prossimo sabatista → 08:30-17:30)
-    var sabNext = nextInRotation(rotation, nextUfficio);
-
     return {
-      // A = sabatista settimana: 06:30-14:30 + sabato
-      roleA: nextUfficio,
-      // B = settimana dopo il sabato: 06:30-15:30
-      roleB: prevUfficio,
-      // C = settimana prima del proprio sabato: 08:30-17:30
-      roleC: sabNext,
-      // alias usati dal resto del codice
-      nextUfficio: nextUfficio,
-      prevUfficio: prevUfficio,
-      sabNext: sabNext,
-      trio: trio,
-      rotation: rotation
+      roleA: roleA, roleB: roleB, roleC: roleC,
+      nextUfficio: roleA, prevUfficio: roleB, sabNext: roleC,
+      trio: trio, rotation: rotation
     };
   }
 
@@ -10185,76 +10183,50 @@ function minLunchBreakMinutes(wId) {
       return String(n);
     }).filter(Boolean);
 
-    var rules = (typeof R === 'function') ? R() : {};
     var roles = getOfficeRotationRoles(week);
-    var roleA = roles.roleA; // sabatista: 7h + sab
-    var roleB = roles.roleB; // ex-sab: 8h apertura 06:30-15:30
-    var roleC = roles.roleC; // next-sab: 8h chiusura 08:30-17:30
+    var roleA = roles.roleA, roleB = roles.roleB, roleC = roles.roleC;
+    var trio = roles.trio;
 
-    // Orari fissi del ciclo (pausa inclusa)
-    var SHIFT_A = { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' }; // 7h
-    var SHIFT_B = { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' }; // 8h apertura
-    var SHIFT_C = { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' }; // 8h chiusura
+    var SHIFT_A = { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' };
+    var SHIFT_B = { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+    var SHIFT_C = { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
     var SHIFT_SAB = { mIn:'07:00', mOut:'12:00', pIn:'', pOut:'' };
-
-    // override da rules se presenti
-    try {
-      if (rules.ufficio7h) SHIFT_A = Object.assign({}, SHIFT_A, rules.ufficio7h);
-      if (rules.ufficio8h) SHIFT_B = Object.assign({}, SHIFT_B, rules.ufficio8h);
-      if (rules.ufficio2t) SHIFT_C = Object.assign({}, SHIFT_C, rules.ufficio2t);
-      if (rules.turnoSabato) SHIFT_SAB = Object.assign({}, SHIFT_SAB, rules.turnoSabato);
-    } catch (eR) {}
 
     function forceCell(id, day, tgt, role) {
       if (!id) return false;
       if (!week[id]) week[id] = {};
-      var key = day;
-      var prev = week[id][key];
-      if (!prev && week[id][String(day)]) {
-        key = String(day);
-        prev = week[id][key];
-      }
-      if (prev && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(prev)) {
-        return false; // ferie/malattia intera giornata
-      }
-      week[id][key] = {
-        mIn: tgt.mIn || '',
-        mOut: tgt.mOut || '',
-        pIn: tgt.pIn || '',
-        pOut: tgt.pOut || '',
+      var prev = week[id][day] || week[id][String(day)];
+      if (prev && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(prev)) return false;
+      var cell = {
+        mIn: tgt.mIn || '', mOut: tgt.mOut || '', pIn: tgt.pIn || '', pOut: tgt.pOut || '',
         status: (role === 'riposoSab') ? 'RIPOSO' : 'LAVORO',
-        generated: true,
-        rotationLocked: true,
-        rotationRole: role,
-        manualEdit: false,
-        movedByEngine: false
+        generated: true, rotationLocked: true, rotationRole: role,
+        manualEdit: false, movedByEngine: false
       };
-      // sincronizza anche chiave alternativa numero/stringa
-      if (key !== day) week[id][day] = week[id][key];
-      if (key !== String(day)) week[id][String(day)] = week[id][key];
+      week[id][day] = cell;
+      week[id][String(day)] = cell;
       return true;
     }
 
-    // Sabato: solo ruolo A lavora
-    var trio = roles.trio || officeRotationTrioIds();
+    // Scrivi TUTTI e 3, tutti i giorni
     [trio.alpegiani, trio.poppa, trio.caregnato].forEach(function(id) {
       if (!id) return;
       if (id === roleA) forceCell(id, 5, SHIFT_SAB, 'sabato');
       else forceCell(id, 5, {}, 'riposoSab');
     });
-
-    // Lun–Ven
     for (var day = 0; day <= 4; day++) {
-      forceCell(roleA, day, SHIFT_A, 'A_sab7h');
-      forceCell(roleB, day, SHIFT_B, 'B_exSab8h');
-      forceCell(roleC, day, SHIFT_C, 'C_nextSab8h');
+      forceCell(roleA, day, SHIFT_A, 'A_7h');
+      forceCell(roleB, day, SHIFT_B, 'B_8h_open');
+      forceCell(roleC, day, SHIFT_C, 'C_8h_close');
     }
 
+    // Verifica post-scrittura
+    var checkB = roleB && week[roleB] && week[roleB][0];
+    var bOk = checkB && checkB.mIn === '06:30' && checkB.pOut === '15:30';
     notes.push(
-      'CICLO 3 SETTIMANE: ' +
-      (roleA ? workerName(roleA) : '?') + ' = 06:30-14:30 + sabato | ' +
-      (roleB ? workerName(roleB) : '?') + ' = 06:30-15:30 | ' +
-      (roleC ? workerName(roleC) : '?') + ' = 08:30-17:30'
+      'CICLO 3 SETTIMANE: A=' + (roleA ? workerName(roleA) : '?') + ' 06:30-14:30+sab | B=' +
+      (roleB ? workerName(roleB) : '?') + ' 06:30-15:30 | C=' + (roleC ? workerName(roleC) : '?') +
+      ' 08:30-17:30' + (bOk ? ' ✓' : ' ✗ B non scritto!')
     );
     return notes;
   }
@@ -10262,6 +10234,7 @@ function minLunchBreakMinutes(wId) {
   window.getOfficeRotationRoles = getOfficeRotationRoles;
   window.prevInRotation = prevInRotation;
   window.officeRotationTrioIds = officeRotationTrioIds;
+
 
 
 
@@ -11695,6 +11668,13 @@ function minLunchBreakMinutes(wId) {
       clearMode = (ans === '2') ? 'empty' : (ans === '3') ? 'nonmanual' : 'all';
     }
     window._generateClearMode = null;
+    // Durante generazione non far interferire il cloud
+    try {
+      window._pendingRemoteData = null;
+      window._syncSuspended = true;
+      window._ignoreRemoteUntil = Date.now() + 180000;
+      dismissRemoteUpdate();
+    } catch (eSup) {}
 
     try {
       if (!appData.weeks) appData.weeks = {};
