@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.0</title>
+  <title>Turni Corvetto v9.11.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.0';
+    const APP_VERSION = '9.11.1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.0</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5749,7 +5749,35 @@ function renderWeek() {
     }
 
     if (!st || st === 'LAVORO') {
-      // Unione turno∪impegni; se sta nel nastro resta nastro-ish, se impegno fuori sale
+      // Permesso/ROL parziale: le ore di assenza retribuita contano nel totale settimanale
+      // (es. 5h lavoro + 2.5h permesso retribuito = 7.5h giornata, non 5h).
+      var leaveH = Number(dayData.leaveHours || 0) || 0;
+      if (!leaveH && approvedLeave && !leaveIsFullDay) {
+        leaveH = Number(approvedLeave.hours || 0) || 0;
+      }
+      if (!leaveH && approvedLeave && !leaveIsFullDay) {
+        // ore da from/to della richiesta se non c'è hours
+        try {
+          if (approvedLeave.fromTime && approvedLeave.toTime) {
+            leaveH = Math.max(0, (timeToMin(approvedLeave.toTime) - timeToMin(approvedLeave.fromTime)) / 60);
+          }
+        } catch (eLH) {}
+      }
+      // leaveType/note su cella parziale
+      if (!leaveH) {
+        var lt = String(dayData.leaveType || dayData.note || '').toUpperCase();
+        if (/PERMESS|ROL|RETRIBUIT|DONAZIONE/.test(lt) && dayData.leaveMinutes) {
+          leaveH = Number(dayData.leaveMinutes) / 60;
+        }
+      }
+      if (leaveH > 0) {
+        // Non superare il nastro se la somma lo sforerebbe solo per arrotondamenti
+        var sum = worked + leaveH;
+        if (nastro > 0 && sum > nastro + 0.25) return sum; // impegno+permesso fuori nastro ok
+        if (nastro > 0 && sum >= nastro - 0.15) return nastro;
+        return sum;
+      }
+      // Unione turno∪impegni
       return worked;
     }
 
@@ -5766,11 +5794,20 @@ function renderWeek() {
 
     if (isPaidLeaveStatus(st)) {
       if (dayData.leaveFullDay) return nastro;
-      // Assenza parziale: le ore residue di lavoro + la quota di assenza retribuita
-      // costituiscono la giornata contrattuale. Non sommare due volte l'intervallo di assenza.
+      // Assenza parziale: lavoro effettivo + ore permesso/ROL
+      var leaveH2 = Number(dayData.leaveHours || 0) || 0;
+      if (!leaveH2 && approvedLeave) leaveH2 = Number(approvedLeave.hours || 0) || 0;
+      if (!leaveH2 && approvedLeave && approvedLeave.fromTime && approvedLeave.toTime) {
+        try { leaveH2 = Math.max(0, (timeToMin(approvedLeave.toTime) - timeToMin(approvedLeave.fromTime)) / 60); } catch (e) {}
+      }
+      if (leaveH2 > 0 && (dayData.mIn || dayData.pIn || worked > 0)) {
+        var sum2 = worked + leaveH2;
+        if (nastro > 0 && sum2 >= nastro - 0.15 && sum2 <= nastro + 0.25) return nastro;
+        return sum2;
+      }
       if (Number(dayData.leaveHours) > 0 && (dayData.mIn || dayData.pIn)) return nastro || (worked + Number(dayData.leaveHours));
       if (!dayData.mIn && !dayData.pIn) return nastro;
-      return Math.max(worked, nastro);
+      return Math.max(worked, nastro || 0);
     }
 
     const stObj = (appData.statuses || []).find(s => s.name.toUpperCase() === st);
@@ -6932,7 +6969,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.1', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
