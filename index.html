@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.2</title>
+  <title>Turni Corvetto v9.11.3</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.2';
+    const APP_VERSION = '9.11.3';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1884,13 +1884,6 @@
     .header .app-title-area { display: none !important; }
     .header .header-top { justify-content: flex-end; }
     .header { padding: 10px 14px !important; margin-bottom: 10px; }
-  
-    body:not(.light-theme) #proposalAiSection {
-      background: linear-gradient(135deg,#1e1b4b 0%,#0f172a 100%) !important;
-      border-color: #818cf8 !important;
-    }
-    body:not(.light-theme) #proposalAiSection h4 { color: #c7d2fe !important; }
-    body:not(.light-theme) #proposalAiSection p { color: #cbd5e1 !important; }
     body:not(.light-theme) #proposalAiInput {
       background: #1e293b; color: #f8fafc; border-color: #475569;
     }
@@ -1916,7 +1909,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1927,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.2</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.3</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2338,29 +2331,6 @@
     <div class="proposal-section" id="proposalLogSection" style="display:none;">
       <h4>Log decisioni motore</h4>
       <div class="proposal-list" id="proposalLog"></div>
-    </div>
-    <div class="proposal-section" id="proposalAiSection" style="margin-top:14px;border:2px solid #6366f1;border-radius:14px;padding:12px 14px;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);">
-      <h4 style="margin:0 0 8px;color:#3730a3;display:flex;align-items:center;gap:8px;">🤖 Assistente AI proposta</h4>
-      <p style="font-size:11px;color:#475569;margin:0 0 10px;line-height:1.4;">Scrivi in italiano le modifiche. L’assistente (Groq, gratis) aggiorna la <strong>bozza</strong>; poi controlli e premi <strong>Applica proposta</strong>.</p>
-      <div id="proposalAiChat" style="max-height:160px;overflow-y:auto;margin-bottom:8px;font-size:12px;line-height:1.45;"></div>
-      <textarea id="proposalAiInput" rows="3" placeholder="Es. Martedì sposta Andrea in chiusura; in apertura magazzino scegli Pino; non toccare Severin…" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #c7d2fe;padding:10px;font-size:13px;resize:vertical;min-height:72px;"></textarea>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center;">
-        <button type="button" class="success" id="btnProposalAiSend" onclick="sendProposalAiMessage()" style="background:#4f46e5!important;">Invia all'AI</button>
-        <button type="button" class="alt" onclick="toggleProposalAiSettings()" style="font-size:12px;">⚙️ API</button>
-        <span id="proposalAiStatus" style="font-size:11px;color:#64748b;"></span>
-      </div>
-      <div id="proposalAiSettings" style="display:none;margin-top:10px;padding:10px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;font-size:12px;">
-        <label style="display:block;margin-bottom:6px;font-weight:700;">Chiave API (xAI / OpenAI-compatible)</label>
-        <input type="password" id="aiApiKey" placeholder="gsk_… (chiave Groq)" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;" autocomplete="off"/>
-        <label style="display:block;margin-bottom:6px;font-weight:700;">Endpoint base</label>
-        <input type="text" id="aiApiBase" placeholder="https://api.groq.com/openai/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
-        <label style="display:block;margin-bottom:6px;font-weight:700;">Modello</label>
-        <input type="text" id="aiApiModel" placeholder="openai/gpt-oss-20b" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
-        <label style="display:block;margin-bottom:6px;font-weight:700;">Proxy CORS (opzionale)</label>
-        <input type="text" id="aiApiProxy" placeholder="https://tuo-proxy.example/v1" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:8px;"/>
-        <p style="margin:0 0 8px;color:#64748b;font-size:11px;line-height:1.35;">Gratis con <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> (senza carta). Chiave salvata solo su questo dispositivo. Endpoint: https://api.groq.com/openai/v1 · Modello: openai/gpt-oss-20b. Se CORS blocca, usa un proxy o Worker Cloudflare.</p>
-        <button type="button" class="alt" onclick="saveProposalAiSettings()">Salva impostazioni AI</button>
-      </div>
     </div>
     <div class="modal-actions" style="justify-content:space-between;margin-top:16px;flex-wrap:wrap;">
       <button class="alt" onclick="closeModal('proposalModal')">Annulla</button>
@@ -6969,7 +6939,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.2', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.3', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -12128,7 +12098,7 @@ function minLunchBreakMinutes(wId) {
     return { apiKey: '', apiBase: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', proxy: '' };
   }
 
-  function saveProposalAiSettings() {
+  function saveProposalAiSettings() { return; /* AI rimosso */
     const s = {
       apiKey: (document.getElementById('aiApiKey') || {}).value || '',
       apiBase: ((document.getElementById('aiApiBase') || {}).value || 'https://api.groq.com/openai/v1').replace(/\/$/, ''),
@@ -12141,7 +12111,7 @@ function minLunchBreakMinutes(wId) {
     if (box) box.style.display = 'none';
   }
 
-  function toggleProposalAiSettings() {
+  function toggleProposalAiSettings() { return; /* AI rimosso */
     const box = document.getElementById('proposalAiSettings');
     if (!box) return;
     const open = box.style.display !== 'none' && box.style.display !== '';
@@ -13574,7 +13544,7 @@ function confirmGlobalAiActions() {
     return patch;
   }
 
-  async function sendProposalAiMessage() {
+  async function sendProposalAiMessage() { return; /* AI rimosso */
     const input = document.getElementById('proposalAiInput');
     const status = document.getElementById('proposalAiStatus');
     const btn = document.getElementById('btnProposalAiSend');
