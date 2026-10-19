@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.10.1</title>
+  <title>Turni Corvetto v9.10.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.10.1';
+    const APP_VERSION = '9.10.2';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.10.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.10.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.10.1</small>
+          <small id="appVersionLabel">CORVETTO · V9.10.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6938,7 +6938,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.10.1', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.10.2', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10235,6 +10235,133 @@ function minLunchBreakMinutes(wId) {
   window.prevInRotation = prevInRotation;
   window.officeRotationTrioIds = officeRotationTrioIds;
 
+  /** True se la persona copre l'orario t senza essere bloccata da impegno. */
+  function isAvailableAtTime(week, wid, day, tMin) {
+    var cell = cellAt(week, wid, day);
+    if (!cell) return false;
+    if (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(cell)) return false;
+    if (typeof coveredAt === 'function' && !coveredAt(cell, tMin)) return false;
+    // Blocchi da eventi
+    var blocks = cell.coverageBlockedIntervals || [];
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      var a = typeof b[0] === 'number' ? b[0] : (b.from != null ? b.from : b.start);
+      var z = typeof b[1] === 'number' ? b[1] : (b.to != null ? b.to : b.end);
+      if (typeof a === 'string') a = timeToMin(a);
+      if (typeof z === 'string') z = timeToMin(z);
+      if (a != null && z != null && tMin >= a && tMin < z) return false;
+    }
+    // Eventi del giorno (se non ancora in coverageBlockedIntervals)
+    try {
+      if (typeof getDayEventsForWorker === 'function' && typeof weekKeyToMonday === 'function') {
+        var mon = weekKeyToMonday(getWeekKey(currentDate));
+        var d = new Date(mon); d.setDate(d.getDate() + day);
+        var evs = getDayEventsForWorker(wid, d) || [];
+        for (var j = 0; j < evs.length; j++) {
+          var e = evs[j];
+          if (e.allDay) return false;
+          var ef = timeToMin(e.fromTime || e.from || '00:00');
+          var et = timeToMin(e.toTime || e.to || '23:59');
+          if (tMin >= ef && tMin < et) return false;
+        }
+      }
+    } catch (eEv) {}
+    return true;
+  }
+
+  /**
+   * Dopo rotazione + eventi: se la chiusura 17:00-17:30 e' scoperta
+   * (es. Poppa al corso), sposta il ruolo B (06:30-15:30) in chiusura 08:30-17:30
+   * per quel solo giorno, cosi' apertura resta coperta dal sabatista + eventuale mattina di C.
+   */
+  function repairOfficeClosingGaps(week, notes) {
+    if (!week) return notes || [];
+    notes = notes || [];
+    var roles = (typeof getOfficeRotationRoles === 'function') ? getOfficeRotationRoles(week) : {};
+    var roleA = roles.roleA, roleB = roles.roleB, roleC = roles.roleC;
+    var SHIFT_CLOSE = { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+    var SHIFT_OPEN8 = { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+    var dayNames = ['Lun','Mar','Mer','Gio','Ven'];
+    var closeProbe = timeToMin('17:15');
+    var openProbe = timeToMin('06:45');
+    var sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
+    var pool = [roleA, roleB, roleC, sev].filter(Boolean);
+
+    for (var day = 0; day <= 4; day++) {
+      var closers = pool.filter(function(id) { return isAvailableAtTime(week, id, day, closeProbe); });
+      if (closers.length >= 1) continue;
+
+      // Chiusura scoperta: prova a spostare B in chiusura
+      var moved = false;
+      if (roleB) {
+        var cellB = cellAt(week, roleB, day);
+        if (!cellB || !(typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(cellB))) {
+          if (!week[roleB]) week[roleB] = {};
+          week[roleB][day] = Object.assign({}, SHIFT_CLOSE, {
+            status: 'LAVORO', generated: true, rotationLocked: true,
+            rotationRole: 'B_to_close_repair', manualEdit: false,
+            note: (cellB && cellB.note) || ''
+          });
+          week[roleB][String(day)] = week[roleB][day];
+          moved = true;
+          // Ricalcola disponibilità
+          closers = pool.filter(function(id) { return isAvailableAtTime(week, id, day, closeProbe); });
+          if (closers.length >= 1) {
+            notes.push(dayNames[day] + ': chiusura scoperta (impegno) → ' + workerName(roleB) + ' spostato in 08:30-17:30.');
+          }
+        }
+      }
+
+      // Se ancora scoperta, prova altri non-A
+      if (closers.length < 1) {
+        var candidates = pool.filter(function(id) {
+          if (id === roleA || id === sev) return false;
+          if (id === roleB && moved) return false;
+          var c = cellAt(week, id, day);
+          if (c && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(c)) return false;
+          // non gia' in un impegno a chiusura
+          try {
+            var mon = weekKeyToMonday(getWeekKey(currentDate));
+            var d = new Date(mon); d.setDate(d.getDate() + day);
+            var evs = (typeof getDayEventsForWorker === 'function' ? getDayEventsForWorker(id, d) : []) || [];
+            for (var j = 0; j < evs.length; j++) {
+              var e = evs[j];
+              if (e.allDay) return false;
+              var et = timeToMin(e.toTime || e.to || '00:00');
+              var ef = timeToMin(e.fromTime || e.from || '00:00');
+              if (closeProbe >= ef && closeProbe < et) return false;
+            }
+          } catch (e3) {}
+          return true;
+        });
+        if (candidates.length) {
+          var id = candidates[0];
+          if (!week[id]) week[id] = {};
+          week[id][day] = Object.assign({}, SHIFT_CLOSE, {
+            status: 'LAVORO', generated: true, rotationLocked: true,
+            rotationRole: 'close_repair', manualEdit: false
+          });
+          week[id][String(day)] = week[id][day];
+          notes.push(dayNames[day] + ': chiusura scoperta → ' + workerName(id) + ' in 08:30-17:30.');
+          closers = [id];
+        }
+      }
+
+      if (closers.length < 1) {
+        notes.push(dayNames[day] + ': ATTENZIONE chiusura 17:00-17:30 ancora scoperta (verificare impegni).');
+      }
+
+      // Verifica apertura ancora ok dopo lo spostamento
+      var openers = pool.filter(function(id) { return isAvailableAtTime(week, id, day, openProbe); });
+      if (openers.length < 2) {
+        notes.push(dayNames[day] + ': dopo riparazione chiusura, apertura con ' + openers.length + ' persona/e (min 2).');
+      }
+    }
+    return notes;
+  }
+  window.repairOfficeClosingGaps = repairOfficeClosingGaps;
+
+
 
 
 
@@ -11814,6 +11941,17 @@ function minLunchBreakMinutes(wId) {
         if (proposal && proposal.week && typeof enforceOfficeRotationRoles === 'function') {
           proposal.notes = enforceOfficeRotationRoles(proposal.week, proposal.notes || []);
         }
+        // Eventi devono essere applicati prima della riparazione chiusura
+        try {
+          if (proposal && proposal.week && typeof applyEventsToProposal === 'function') {
+            applyEventsToProposal(proposal.week, currentWeekKey, proposal.notes || []);
+          }
+        } catch (eEv) {}
+        try {
+          if (proposal && proposal.week && typeof repairOfficeClosingGaps === 'function') {
+            proposal.notes = repairOfficeClosingGaps(proposal.week, proposal.notes || []);
+          }
+        } catch (eRep) { console.warn(eRep); }
         var w = proposal.week;
         var dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
         var allIds = new Set([].concat(Object.keys(appData.weeks[currentWeekKey]||{}), Object.keys(w||{})));
@@ -13706,10 +13844,16 @@ function showProposalReviewModal() {
     try { ensureOfficeCloseCoverage(p.week); } catch (e) {}
     try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
     try { if (typeof enforceSeverinPolicy === 'function') p.notes = enforceSeverinPolicy(p.week, p.notes || []); } catch (e) {}
-    // ULTIMA scrittura: Caregnato ex-sab → 06:30-15:30 (per nome, scrittura diretta)
+    // ULTIMA scrittura: rotazione + riparazione chiusura se impegni scoprono
     try {
       if (typeof enforceOfficeRotationRoles === 'function') {
         p.notes = enforceOfficeRotationRoles(p.week, p.notes || []);
+      }
+      if (typeof applyEventsToProposal === 'function') {
+        applyEventsToProposal(p.week, p.weekKey, p.notes || []);
+      }
+      if (typeof repairOfficeClosingGaps === 'function') {
+        p.notes = repairOfficeClosingGaps(p.week, p.notes || []);
       }
     } catch (eRot) { console.warn(eRot); }
 
@@ -13739,10 +13883,16 @@ function showProposalReviewModal() {
     const proposalBeforeWeek = JSON.parse(JSON.stringify(appData.weeks[p.weekKey] || {}));
     pushUndo('Proposta automatica', snapshotWeeks());
     recordProposalLeaveImpacts(p.weekKey, proposalBeforeWeek, p.week);
-    // Ultima garanzia: rotazione scritta DIRETTA prima del salvataggio
+    // Ultima garanzia: rotazione + chiusura
     try {
       if (typeof enforceOfficeRotationRoles === 'function') {
         p.notes = enforceOfficeRotationRoles(p.week, p.notes || []);
+      }
+      if (typeof applyEventsToProposal === 'function') {
+        applyEventsToProposal(p.week, p.weekKey, p.notes || []);
+      }
+      if (typeof repairOfficeClosingGaps === 'function') {
+        p.notes = repairOfficeClosingGaps(p.week, p.notes || []);
       }
     } catch (eEnf) { console.warn(eEnf); }
     appData.weeks[p.weekKey] = p.week;
