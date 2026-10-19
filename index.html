@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.9.1</title>
+  <title>Turni Corvetto v9.9.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.9.1';
+    const APP_VERSION = '9.9.2';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.9.1</small>
+          <small id="appVersionLabel">CORVETTO · V9.9.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6908,7 +6908,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.9.1', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.9.2', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10414,12 +10414,15 @@ function minLunchBreakMinutes(wId) {
     // Rotazioni.
     let prevDate=new Date(currentDate); prevDate.setDate(prevDate.getDate()-7);
     const prevKey=getWeekKey(prevDate), lastSat=getLastSaturdayInfo(prevKey);
-    const nextUfficio=nextInRotation(SABATO_UFFICIO_IDS(),lastSat.ufficio);
-    let thisPair,otherPair;
-    if(lastSat.pairA&&!lastSat.pairB){thisPair=MAG_PAIR_B();otherPair=MAG_PAIR_A();}
-    else if(lastSat.pairB&&!lastSat.pairA){thisPair=MAG_PAIR_A();otherPair=MAG_PAIR_B();}
-    else {thisPair=MAG_PAIR_A();otherPair=MAG_PAIR_B();}
-    const prevUfficio=lastSat.ufficio;
+    var prevUfficio = lastSat.ufficio || null;
+    if (!prevUfficio && appData.rules && appData.rules.lastSaturdayUfficioId) {
+      prevUfficio = appData.rules.lastSaturdayUfficioId;
+    }
+    var nextUfficio = nextInRotation(SABATO_UFFICIO_IDS(), prevUfficio);
+    var thisPair, otherPair;
+    if (lastSat.pairA && !lastSat.pairB) { thisPair = MAG_PAIR_B(); otherPair = MAG_PAIR_A(); }
+    else if (lastSat.pairB && !lastSat.pairA) { thisPair = MAG_PAIR_A(); otherPair = MAG_PAIR_B(); }
+    else { thisPair = MAG_PAIR_A(); otherPair = MAG_PAIR_B(); }
 
     // Base settimana: celle realmente vuote.
     // IMPORTANTE: una cella rimasta come {} (ad esempio dopo "Svuota Cella")
@@ -10435,7 +10438,10 @@ function minLunchBreakMinutes(wId) {
       const mid=rules.marioOre;
       if(isBlankProposalCell(proposal,MARIO_ID(),day)) putGenerated(proposal,MARIO_ID(),day,{...mid});
       for(const id of SABATO_UFFICIO_IDS()){
-        if(isBlankProposalCell(proposal,id,day)) putGenerated(proposal,id,day,makeStandardOfficeShift(id,day,nextUfficio,prevUfficio,rules));
+        const existingOff = cellAt(proposal, id, day);
+        if (existingOff && existingOff.manualEdit) continue;
+        if (existingOff && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(existingOff)) continue;
+        putGenerated(proposal, id, day, makeStandardOfficeShift(id, day, nextUfficio, prevUfficio, rules));
       }
       for(const id of MAG_PAIR_A().concat(MAG_PAIR_B())){
         if(isBlankProposalCell(proposal,id,day)) putGenerated(proposal,id,day,makeStandardMagShift(id,day,thisPair,rules));
@@ -10446,6 +10452,12 @@ function minLunchBreakMinutes(wId) {
     // - Non si toccano assenze/ferie già presenti.
     // - Celle vuote o solo generate vengono riallineate alla rotazione.
     notes.push('Rotazione sabato ufficio: ' + SABATO_UFFICIO_IDS().map(workerName).join(' → ') + '. Di turno: ' + (workerName(nextUfficio) || '—') + ' (dopo ' + (prevUfficio ? workerName(prevUfficio) : 'n/d') + ').');
+    try {
+      var _sabNext = nextInRotation(SABATO_UFFICIO_IDS(), nextUfficio);
+      notes.push('Lun–Ven: ' + (prevUfficio ? workerName(prevUfficio) : '?') + ' = apertura 8h 06:30–15:30 (ex sabatista) · ' +
+        (_sabNext ? workerName(_sabNext) : '?') + ' = chiusura 8h 08:30–17:30 (prossimo sabatista) · ' +
+        (nextUfficio ? workerName(nextUfficio) : '?') + ' = apertura 7h (sabatista settimana).');
+    } catch (eN) {}
     try {
       var sabNextNote = (typeof nextInRotation === 'function') ? nextInRotation(SABATO_UFFICIO_IDS(), nextUfficio) : null;
       notes.push('Lun–Ven: ' + (prevUfficio ? workerName(prevUfficio) : '?') + ' apertura 8h (06:30–15:30, sabatista sett. scorsa) · ' +
@@ -12886,21 +12898,8 @@ function applyGlobalAiActions(actions) {
     if (st) st.textContent = 'Analisi settimana';
   }
 
-  function archiveOldWeeks(keepWeeks) {
-    keepWeeks = keepWeeks || 16;
-    const keys = Object.keys(appData.weeks || {}).sort();
-    if (keys.length <= keepWeeks) {
-      showToast('Niente da archiviare (' + keys.length + ' settimane)', 'info');
-      return 0;
-    }
-    const toDrop = keys.slice(0, keys.length - keepWeeks);
-    if (!confirm('Archiviare (rimuovere localmente) ' + toDrop.length + ' settimane più vecchie?\nVerrà creato un backup prima.')) return 0;
-    try { pushBackupHistory('Prima archiviazione settimane'); } catch (e) {}
-    toDrop.forEach(function(k) { delete appData.weeks[k]; });
-    try { if (typeof saveData === 'function') saveData(); } catch (e) {}
-    showToast('Rimosse ' + toDrop.length + ' settimane vecchie', 'success');
-    return toDrop.length;
-  }
+    /* archiveOldWeeks(keepWeeks) rimossa: evitava silent e chiedeva conferma a ogni sync */
+  
 
   async function sendGlobalAiMessage() {
     const input = document.getElementById('globalAiInput');
