@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.10.2</title>
+  <title>Turni Corvetto v9.11.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.10.2';
+    const APP_VERSION = '9.11.0';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.10.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.0</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.10.2</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -1960,7 +1960,6 @@
       <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
       <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
       <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
-      <button class="alt" onclick="openGlobalAiAssistant()" title="Assistente AI — turni, ferie, malattia, impegni" style="border-color:#059669;color:#065f46;font-weight:800;">🧠 Assistente</button>
       <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
     </div>
     <div class="leave-toolbar toolbar-secondary" style="margin-bottom:0;">
@@ -2375,7 +2374,7 @@
 
 
 
-<div class="modal-backdrop" id="globalAiModal" style="display:none;">
+<div class="modal-backdrop" id="globalAiModal" style="display:none!important;visibility:hidden;pointer-events:none;">
   <div class="modal" style="max-width:560px;">
     <h3 style="margin:0 0 6px;">🧠 Assistente intelligente</h3>
     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
@@ -3631,55 +3630,28 @@ function isUsableAppData(value) {
     appData.appVersion = APP_VERSION;
     appData.updatedAt = now;
     appData.updatedBy = CLIENT_ID;
-    // Conserva anche in locale il timestamp del tentativo: se il cloud rifiuta
-    // la scrittura, il confronto conflitti può distinguere il lavoro locale.
+    appData.updatedRevision = Number(appData.updatedRevision || 0) + 1;
     saveLocalData();
     const proposed = JSON.parse(JSON.stringify(appData));
     _lastLocalWriteAt = now;
-    // Scrittura condizionale: non sovrascrive in silenzio un aggiornamento
-    // arrivato da un altro dispositivo dopo l'ultima versione vista.
-    db.ref(RTDB_PATH).transaction(current => {
-      if (current && typeof current === 'object') {
-        const cloudAt = Number(current.updatedAt || 0);
-        const seenAt = Number(_lastCloudSeenAt || 0);
-        const cloudBy = current.updatedBy || '';
-        const seenBy = String(_lastCloudSeenBy || '');
-        const cloudRevision = Number(current.updatedRevision || 0);
-        const seenRevision = Number(_lastCloudSeenRevision || 0);
-        if (cloudBy && cloudBy !== CLIENT_ID && (cloudAt !== seenAt || cloudBy !== seenBy || cloudRevision !== seenRevision)) return;
-        proposed.updatedRevision = cloudRevision + 1;
-      } else {
-        proposed.updatedRevision = 1;
-      }
-      return proposed;
-    }, (error, committed, snapshot) => {
+    // Last-write-wins: semplice e stabile (come app Soldi)
+    try { window._syncSuspended = false; } catch (e) {}
+    db.ref(RTDB_PATH).set(proposed, function(error) {
       if (error) {
         console.warn('Sincronizzazione cloud non riuscita:', error);
         setSyncStatus('err', 'errore sync');
-        showToast('Sync non riuscita — dati salvati in locale. Tocca 🟢 Cloud per riprovare.', 'warn', 5000);
-        const el = document.getElementById('syncIndicator');
-        if (el) { el.style.cursor = 'pointer'; el.onclick = function(){ syncToCloudNow(); showToast('Riprovo sync…', 'info', 2000); }; }
+        showToast('Sync non riuscita — dati in locale. Tocca Cloud per riprovare.', 'warn', 4000);
         return;
       }
-      if (committed) {
-        _lastCloudSeenAt = Number((snapshot && snapshot.val() && snapshot.val().updatedAt) || now);
-        _lastCloudSeenBy = String((snapshot && snapshot.val() && snapshot.val().updatedBy) || CLIENT_ID);
-        _lastCloudSeenRevision = Number((snapshot && snapshot.val() && snapshot.val().updatedRevision) || 0);
-        if (appData && snapshot && snapshot.val()) appData.updatedRevision = Number(snapshot.val().updatedRevision || 0);
-        setSyncStatus('ok', 'cloud live');
-      } else {
-        const remote = snapshot && snapshot.val();
-        if (remote && typeof remote === 'object') {
-          window._pendingRemoteData = remote;
-          showRemoteUpdateBar('Modifiche cloud più recenti: sincronizzazione sospesa per evitare di sovrascriverle.');
-          setSyncStatus('ok', 'conflitto da verificare');
-        } else {
-          setSyncStatus('err', 'sync non completata');
-          showToast('La sincronizzazione non è stata completata. Riprova dopo aver verificato la connessione.', 'warn', 5000);
-        }
-      }
-    }, false);
+      _lastCloudSeenAt = now;
+      _lastCloudSeenBy = CLIENT_ID;
+      _lastCloudSeenRevision = Number(proposed.updatedRevision || 0);
+      window._pendingRemoteData = null;
+      try { dismissRemoteUpdate(); } catch (e) {}
+      setSyncStatus('ok', 'cloud live');
+    });
   }
+
 
   function syncToCloud() {
     saveLocalData();
@@ -4223,12 +4195,34 @@ function isUsableAppData(value) {
             if (!data || !data.workers) return;
             var remoteBy = String(data.updatedBy || '');
             var remoteAt = Number(data.updatedAt) || 0;
-            if (remoteBy && typeof CLIENT_ID !== 'undefined' && remoteBy === CLIENT_ID && remoteAt <= (_lastLocalWriteAt || 0) + 2500) {
-              try { setSyncStatus('ok', 'live'); } catch (e) {}
+            var remoteRev = Number(data.updatedRevision || 0);
+            if (remoteBy === CLIENT_ID && remoteAt <= (_lastLocalWriteAt || 0) + 4000) {
+              _lastCloudSeenAt = remoteAt; _lastCloudSeenBy = remoteBy; _lastCloudSeenRevision = remoteRev;
+              try { setSyncStatus('ok', 'cloud live'); } catch (e) {}
               return;
             }
-            applyData(data, 'live');
-          } catch (e) { console.warn(e); }
+            if (window._ignoreRemoteUntil && Date.now() < window._ignoreRemoteUntil) {
+              window._pendingRemoteData = data;
+              return;
+            }
+            if (_applyingRemote) return;
+            var localAt = Number((appData && appData.updatedAt) || 0);
+            if (localAt > remoteAt + 800 && (_lastLocalWriteAt || 0) > remoteAt) {
+              try { setSyncStatus('ok', 'push…'); } catch (e) {}
+              try { if (typeof syncToCloudNow === 'function') syncToCloudNow(); } catch (e2) {}
+              return;
+            }
+            _applyingRemote = true;
+            try {
+              _lastCloudSeenAt = remoteAt; _lastCloudSeenBy = remoteBy; _lastCloudSeenRevision = remoteRev;
+              window._pendingRemoteData = null;
+              try { dismissRemoteUpdate(); } catch (e3) {}
+              applyData(data, 'live');
+              try { setSyncStatus('ok', 'cloud live'); } catch (e4) {}
+            } finally {
+              _applyingRemote = false;
+            }
+          } catch (e) { console.warn(e); _applyingRemote = false; }
         });
       } catch (e) { console.warn(e); }
     });
@@ -6938,7 +6932,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.10.2', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -12458,6 +12452,11 @@ function minLunchBreakMinutes(wId) {
 
 
   function openGlobalAiAssistant() {
+    showToast('Assistente disattivato', 'info', 2000);
+  }
+
+  function __removedOpenGlobalAiAssistant_DEAD() {
+
     const modal = document.getElementById('globalAiModal');
     if (!modal) {
       showToast('Modale assistente non trovata — aggiorna la pagina', 'error');
@@ -13909,6 +13908,12 @@ function showProposalReviewModal() {
     renderWeek();
     window.pendingTurnProposal = null;
     appendAudit('proposta_applicata', p.weekKey || '');
+    try {
+      window._syncSuspended = false;
+      window._ignoreRemoteUntil = 0;
+      window._pendingRemoteData = null;
+      dismissRemoteUpdate();
+    } catch (eClr) {}
     showToast('Proposta applicata. Puoi annullare con ↩️', 'success', 4000);
     if (typeof checkWeeklyHoursAnomalies === 'function') checkWeeklyHoursAnomalies();
   }
