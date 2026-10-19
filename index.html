@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.9.3</title>
+  <title>Turni Corvetto v9.9.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.9.3';
+    const APP_VERSION = '9.9.4';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.4</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.9.3</small>
+          <small id="appVersionLabel">CORVETTO · V9.9.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3700,8 +3700,9 @@ function isUsableAppData(value) {
   function showRemoteUpdateBar(msg) {
     const bar = document.getElementById('remoteUpdateBar');
     const txt = document.getElementById('remoteUpdateText');
-    if (txt) txt.textContent = msg || 'Dati aggiornati da un altro dispositivo.';
+    if (txt) txt.textContent = msg || 'Dati aggiornati da un altro dispositivo. Tocca «Aggiorna vista» per caricare il cloud (consigliato se hai generato da un altro telefono).';
     if (bar) bar.classList.add('visible');
+    try { setSyncStatus('ok', 'conflitto da verificare'); } catch (e) {}
   }
   function dismissRemoteUpdate() {
     window._pendingRemoteData = null;
@@ -6908,7 +6909,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.9.3', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.9.4', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10511,6 +10512,28 @@ function minLunchBreakMinutes(wId) {
     // Secondo passaggio copertura: garantisce minimi apertura/chiusura dopo i primi spostamenti
     for(let day=0;day<=4;day++) resolveWarehouseDay(proposal,day,thisPair,rules,notes,choices);
     for(let day=0;day<=4;day++) resolveOfficeDay(proposal,day,nextUfficio,prevUfficio,rules,notes,choices);
+    // PASS FINALE: impone rotazione ufficio (putGenerated, non applyMove)
+    try {
+      var _sn = nextInRotation(SABATO_UFFICIO_IDS(), nextUfficio);
+      var _t7 = rules.ufficio7h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' };
+      var _t8o = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+      var _t8c = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+      for (var _fd = 0; _fd <= 4; _fd++) {
+        SABATO_UFFICIO_IDS().forEach(function(id) {
+          var cell = cellAt(proposal, id, _fd);
+          if (cell && cell.manualEdit) return;
+          if (cell && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(cell)) return;
+          var tgt = _t8c;
+          if (id === nextUfficio) tgt = _t7;
+          else if (id === prevUfficio) tgt = _t8o;
+          else if (_sn && id === _sn) tgt = _t8c;
+          putGenerated(proposal, id, _fd, Object.assign({}, tgt, { status: 'LAVORO' }));
+        });
+      }
+      notes.push('PASS FINALE rotazione: ex-sab=' + (prevUfficio ? workerName(prevUfficio) : 'null') +
+        ' → 06:30-15:30 | sab=' + (nextUfficio ? workerName(nextUfficio) : 'null') +
+        ' → 7h | next-sab=' + (_sn ? workerName(_sn) : 'null') + ' → 08:30-17:30');
+    } catch (eFin) { console.warn(eFin); }
     // // Deduplica scelte e note (il doppio passaggio non deve ripetere domande)
     if (choices && choices.length) {
       const seen = new Set();
