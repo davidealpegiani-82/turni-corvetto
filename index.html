@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.1</title>
+  <title>Turni Corvetto v9.11.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.1';
+    const APP_VERSION = '9.11.2';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.1</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.2</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.1</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6969,7 +6969,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.1', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.2', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -9883,38 +9883,59 @@ function minLunchBreakMinutes(wId) {
     try {
       const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
       if (!sev || !week) return notes;
-      const allowedPauses = [
-        { pIn: '12:30', pOut: '13:00' },
-        { pIn: '13:00', pOut: '13:30' }
-      ];
+      const dayNames = ['Lun','Mar','Mer','Gio','Ven'];
+      // Pool ufficio (escluso Severin) per contare chi è in pausa 12-13
+      const officeIds = (typeof SABATO_UFFICIO_IDS === 'function')
+        ? SABATO_UFFICIO_IDS().filter(Boolean)
+        : [];
+      try {
+        const trio = (typeof officeRotationTrioIds === 'function') ? officeRotationTrioIds() : null;
+        if (trio) {
+          [trio.alpegiani, trio.poppa, trio.caregnato].forEach(function(id) {
+            if (id && officeIds.indexOf(id) < 0) officeIds.push(id);
+          });
+        }
+      } catch (eT) {}
+
       for (let day = 0; day <= 4; day++) {
         if (!week[sev]) week[sev] = {};
         const cell = week[sev][day];
         if (cell && cell.manualEdit) continue;
         const fixed = (typeof getSeverinHours === 'function') ? getSeverinHours(day) : null;
-        if (!fixed) continue; // venerdì o giorni senza orario fisso
-        if (!cell || !(cell.mIn || cell.pOut)) {
-          week[sev][day] = Object.assign({}, fixed, { generated: true });
-          continue;
-        }
-        // Ripristina fascia lavoro fissa, conserva solo pausa se già ammessa
-        const pIn = cell.pIn || fixed.pIn;
-        const pOut = cell.pOut || fixed.pOut;
-        const pauseOk = allowedPauses.some(function(p) { return p.pIn === pIn && p.pOut === pOut; });
-        week[sev][day] = Object.assign({}, cell, {
-          mIn: fixed.mIn,
-          mOut: fixed.mOut,
-          pIn: pauseOk ? pIn : fixed.pIn,
-          pOut: pauseOk ? pOut : fixed.pOut,
-          generated: true
+        if (!fixed) continue; // venerdì o senza orario fisso
+
+        // Conta colleghi ufficio in pausa per tutta la fascia 12:00–13:00
+        let onBreak12to13 = 0;
+        officeIds.forEach(function(id) {
+          if (!id || id === sev) return;
+          const c = cellAt(week, id, day);
+          if (!c || !(c.mOut && c.pIn)) return;
+          if (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(c)) return;
+          const a = timeToMin(c.mOut), b = timeToMin(c.pIn);
+          // in pausa se esce dal lavoro entro 12:00 e rientra non prima delle 13:00
+          if (a <= timeToMin('12:05') && b >= timeToMin('12:55')) onBreak12to13++;
         });
-        if (!pauseOk) {
-          notes.push({
-            type: 'propose_severin_pause',
-            day: day,
-            workerId: sev,
-            msg: 'Severin: pausa attuale non conforme. Proposta: 12:30-13:00 oppure 13:00-13:30 (non applicata in automatico).'
-          });
+
+        // Default: 12:30–13:00; se già ≥2 in 12–13 → Severin 13:00–13:30
+        let brStart = '12:30', brEnd = '13:00';
+        if (onBreak12to13 >= 2) {
+          brStart = '13:00';
+          brEnd = '13:30';
+        }
+
+        week[sev][day] = Object.assign({}, cell || {}, {
+          mIn: fixed.mIn,
+          mOut: brStart,
+          pIn: brEnd,
+          pOut: fixed.pOut,
+          status: 'LAVORO',
+          generated: true,
+          severinPause: brStart + '-' + brEnd
+        });
+        week[sev][String(day)] = week[sev][day];
+
+        if (onBreak12to13 >= 2) {
+          notes.push('Severin ' + dayNames[day] + ': pausa 13:00–13:30 (già ' + onBreak12to13 + ' colleghi in pausa 12:00–13:00).');
         }
       }
     } catch (e) {
@@ -11983,6 +12004,12 @@ function minLunchBreakMinutes(wId) {
             proposal.notes = repairOfficeClosingGaps(proposal.week, proposal.notes || []);
           }
         } catch (eRep) { console.warn(eRep); }
+        // Severin DOPO bilanciamento pause e riparazioni: se ≥2 in 12-13 → 13:00-13:30
+        try {
+          if (proposal && proposal.week && typeof enforceSeverinPolicy === 'function') {
+            proposal.notes = enforceSeverinPolicy(proposal.week, proposal.notes || []);
+          }
+        } catch (eSev) { console.warn(eSev); }
         var w = proposal.week;
         var dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
         var allIds = new Set([].concat(Object.keys(appData.weeks[currentWeekKey]||{}), Object.keys(w||{})));
@@ -13890,6 +13917,9 @@ function showProposalReviewModal() {
       }
       if (typeof repairOfficeClosingGaps === 'function') {
         p.notes = repairOfficeClosingGaps(p.week, p.notes || []);
+      }
+      if (typeof enforceSeverinPolicy === 'function') {
+        p.notes = enforceSeverinPolicy(p.week, p.notes || []);
       }
     } catch (eRot) { console.warn(eRot); }
 
