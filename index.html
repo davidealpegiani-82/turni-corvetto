@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.9.5</title>
+  <title>Turni Corvetto v9.9.6</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.9.5';
+    const APP_VERSION = '9.9.6';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.5</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.6</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.9.5</small>
+          <small id="appVersionLabel">CORVETTO · V9.9.6</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6930,7 +6930,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.9.5', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.9.6', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8059,14 +8059,18 @@ function minLunchBreakMinutes(wId) {
           const c = cellAt(week, id, day);
           if (c.mIn && timeToMin(c.mIn) <= timeToMin('07:00')) nOpen++;
           const end = c.pOut ? timeToMin(c.pOut) : (c.mOut ? timeToMin(c.mOut) : 0);
-          if (end >= timeToMin('17:00')) nClose++;
+          // Severin chiude spesso alle 17:30 ma non conta nel max chiusura "flessibile"
+          if (end >= timeToMin('17:00') && !(typeof SEVERIN_ID === 'function' && id === SEVERIN_ID())) nClose++;
         });
-        if (nOpen < (oc.minOpen || 2) && present.length >= 3)
-          issues.push(dayNames[day] + ' ufficio: solo ' + nOpen + ' in apertura (obiettivo ≥' + (oc.minOpen||2) + ', presenti ' + present.length + '). Con 3 usate 1 turno lungo + 1 apre + 1 chiude.');
-        if (nClose < (oc.minClose || 2) && present.length >= 2)
-          issues.push(dayNames[day] + ' ufficio: solo ' + nClose + ' in chiusura (obiettivo ≥' + (oc.minClose||2) + ').');
-        if (nClose > (oc.maxClose || 2) && present.length >= 3)
-          issues.push(dayNames[day] + ' ufficio: ' + nClose + ' in chiusura (max ' + (oc.maxClose||2) + '). Preferire più persone in apertura.');
+        var minOpen = (oc.minOpen != null ? oc.minOpen : 2);
+        var minClose = (oc.minClose != null ? oc.minClose : 1);
+        var maxClose = (oc.maxClose != null ? oc.maxClose : 2);
+        if (nOpen < minOpen && present.length >= 3)
+          issues.push(dayNames[day] + ' ufficio: solo ' + nOpen + ' in apertura (obiettivo ≥' + minOpen + ', presenti ' + present.length + '). Verificare rotazione sabatista.');
+        if (nClose < minClose && present.length >= 2)
+          issues.push(dayNames[day] + ' ufficio: solo ' + nClose + ' in chiusura (obiettivo ≥' + minClose + ').');
+        if (nClose > maxClose && present.length >= 3)
+          issues.push(dayNames[day] + ' ufficio: ' + nClose + ' in chiusura flessibile (max ' + maxClose + ').');
       }
     } catch (e) {
       issues.push('Validazione proposta: ' + (e.message || e));
@@ -11288,19 +11292,23 @@ function minLunchBreakMinutes(wId) {
       if (nClose >= 2) continue;
       if (nOpen < 3) continue; // solo se apertura "in eccesso"
 
-      // Candidati da spostare in chiusura (non sabatista, non Severin)
+      // Candidati chiusura: MAI toccare sabatista (next) né ex-sabatista (prev = apertura 8h)
+      const sabNext = (typeof nextInRotation === 'function' && nextUfficio)
+        ? nextInRotation(SABATO_UFFICIO_IDS(), nextUfficio) : null;
       const cands = present.filter(function(id) {
-        if (id === nextUfficio) return false;
+        if (id === nextUfficio) return false; // sabatista settimana: resta apertura 7h
+        if (id === prevUfficio) return false; // ex-sabatista: resta apertura 8h 06:30-15:30
         if (id === sev) return false;
         if (typeof isEngineLockedWorker === 'function' && isEngineLockedWorker(id)) return false;
         const c = cellAt(week, id, day);
         if (!c || c.manualEdit) return false;
-        if (coveredAt(c, timeToMin('17:15'))) return false; // già chiude
+        if (c.rotationLocked) return false;
+        if (coveredAt(c, timeToMin('17:15'))) return false;
         return true;
       }).sort(function(a, b) {
-        // Preferisci prevUfficio (ex-sabatista) come primo da spostare in chiusura in anomalia
-        if (a === prevUfficio) return -1;
-        if (b === prevUfficio) return 1;
+        // Preferisci chi sarà sabatista prossima settimana (deve chiudere)
+        if (a === sabNext) return -1;
+        if (b === sabNext) return 1;
         return 0;
       });
 
@@ -11626,81 +11634,13 @@ function minLunchBreakMinutes(wId) {
         proposal.coverage=analyzeCoverage(proposal.week);
       }
 
-      // Ultimo controllo deterministico: il cervello intelligente non deve annullare
-      // il bilanciamento ufficio sabatista/apertura e nastro 8h/chiusura.
+      // Ultimo controllo deterministico DISATTIVATO: spostava l'ex-sabatista (apertura 8h)
+      // in chiusura e annullava la rotazione. La rotazione e gestita solo da enforceOfficeRotationRoles.
       try {
-        const w = proposal.week;
-        const officeIds = SABATO_UFFICIO_IDS().filter(id => !!workerObj(id));
-        const sevId = SEVERIN_ID();
-        const prevDate = new Date(currentDate); prevDate.setDate(prevDate.getDate()-7);
-        const lastSat = getLastSaturdayInfo(getWeekKey(prevDate));
-        const coverageIds = [...officeIds, sevId].filter((id,i,a)=>a.indexOf(id)===i);
-        const dayLabels = ['Lun','Mar','Mer','Gio','Ven'];
-        let finalBalanceChanged = false;
-        for (let day=0; day<=4; day++) {
-          const opening = countCovered(w, coverageIds, day, timeToMin('06:45'));
-          const closing = countCovered(w, coverageIds, day, timeToMin('17:15'));
-          const minimumOpening = Number(R().minAperturaImp ?? 2);
-          // Solo bilanciamento quando c'è eccesso in apertura E chiusura debole.
-          // Non toccare mai Severin (già escluso). Non abbassare sotto i minimi.
-          if (opening < minimumOpening) {
-            proposal.notes = [...(proposal.notes || []), `Ufficio ${dayLabels[day]}: apertura sotto il minimo (${opening}/${minimumOpening}).`];
-            continue;
-          }
-          if (closing >= 2) continue; // già coperto in chiusura
-          if (opening < Math.max(3, minimumOpening) && closing >= 1) continue;
-          const candidates = officeIds.filter(id => id !== sevId && !isEngineLockedWorker(id))
-            .filter(id => {
-              const c = cellAt(w,id,day);
-              const worker = workerObj(id);
-              if(worker && workerBrain(worker).fixed===true) return false;
-              // Il sabatista viene escluso in base al turno effettivo da 7 ore,
-              // non solo all'ID previsto dalla rotazione: le assenze possono cambiare
-              // la composizione reale del giorno e il precedente calcolo poteva
-              // escludere proprio Poppa, lasciando 3 persone in apertura.
-              return isCleanStandardBalanceCell(c) &&
-                coveredAt(c,timeToMin('06:45')) && shiftMinutes(c) >= 450;
-            })
-            .sort((a,b) => {
-              const ca=cellAt(w,a,day), cb=cellAt(w,b,day);
-              const aOpen = ca && ca.mIn==='06:30' && (ca.pOut==='15:30' || ca.pOut==='14:30');
-              const bOpen = cb && cb.mIn==='06:30' && (cb.pOut==='15:30' || cb.pOut==='14:30');
-              if (aOpen && !bOpen) return 1;
-              if (bOpen && !aOpen) return -1;
-              const a8=Math.abs(shiftMinutes(ca)-480), b8=Math.abs(shiftMinutes(cb)-480);
-              return a8-b8;
-            });
-          let dayBalanced = false;
-          for (const id of candidates) {
-            const before = deepClone(cellAt(w,id,day));
-            const target = {mIn:'08:30',mOut:'13:00',pIn:'14:00',pOut:'17:30'};
-            if (applyBalanceMove(w,id,day,target) &&
-                allIntervalsCovered(w,coverageIds,day,'06:30','08:30',minimumOpening) &&
-                allIntervalsCovered(w,coverageIds,day,'17:00','17:30',2)) {
-              proposal.notes=[...(proposal.notes||[]),`Ufficio ${dayLabels[day]}: ${workerName(id)} spostato in chiusura nel controllo finale; il sabatista resta in apertura.`];
-              finalBalanceChanged = true;
-              dayBalanced = true;
-              break;
-            }
-            w[id][day] = before;
-          }
-          if(!dayBalanced){
-            proposal.notes=[...(proposal.notes||[]),`Ufficio ${dayLabels[day]}: rilevato squilibrio apertura/chiusura, ma nessun turno ordinario sicuro è risultato spostabile; verificare note, causali o vincoli della cella.`];
-          }
+        if (proposal && proposal.week && typeof enforceOfficeRotationRoles === 'function') {
+          proposal.notes = enforceOfficeRotationRoles(proposal.week, proposal.notes || []);
         }
-        if (finalBalanceChanged) {
-          const dayNames=['Lun','Mar','Mer','Gio','Ven','Sab'];
-          const allIds=new Set([...Object.keys(appData.weeks[currentWeekKey]||{}),...Object.keys(w||{})]);
-          proposal.changes=[];
-          allIds.forEach(wid=>{ for(let day=0;day<6;day++) {
-            const before=cellAt(appData.weeks[currentWeekKey]||{},wid,day), after=cellAt(w,wid,day);
-            if(JSON.stringify(before)!==JSON.stringify(after)) proposal.changes.push({workerId:wid,name:workerName(wid),day,dayLabel:dayNames[day],before:formatCellShort(before),after:formatCellShort(after),generated:!!(after&&after.generated),moved:!!(after&&after.movedByEngine)});
-          }});
-          proposal.coverage=analyzeCoverage(w);
-          proposal.hoursSummary=[]; proposal.overtime=[];
-          appData.workers.forEach(worker=>{ if(worker.selected===false)return; const h=hoursForWeekProposal(w,worker.id); proposal.hoursSummary.push({id:worker.id,name:worker.name,hours:h}); if(h>40.01) proposal.overtime.push(`${worker.name}: ${h.toFixed(1)}h (+${(h-40).toFixed(1)}h)`); });
-        }
-      } catch(balanceErr) { console.warn('Controllo finale bilanciamento ufficio:', balanceErr); }
+      } catch (balanceErr) { console.warn('Controllo finale rotazione ufficio:', balanceErr); }
 
       // Apertura/chiusura ufficio: max 2 in chiusura, preferenza apertura se chiusura ok
       try {
@@ -13611,6 +13551,18 @@ function showProposalReviewModal() {
     try { rebalanceOfficeOpenClose(p.week); } catch (e) {}
     try { ensureOfficeCloseCoverage(p.week); } catch (e) {}
     try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
+    // Re-imposta SEMPRE la rotazione dopo ogni bilanciamento (altrimenti Caregnato torna in chiusura)
+    try {
+      if (typeof enforceOfficeRotationRoles === 'function') {
+        p.notes = enforceOfficeRotationRoles(p.week, p.notes || []);
+      }
+      if (typeof balanceOfficeLunchCoverage === 'function') {
+        p.notes = (p.notes || []).concat(balanceOfficeLunchCoverage(p.week) || []);
+      }
+      if (typeof enforceSeverinPolicy === 'function') {
+        p.notes = enforceSeverinPolicy(p.week, p.notes || []);
+      }
+    } catch (eRot) { console.warn(eRot); }
 
     const blocking = validateProposalBeforeApply(p);
     if (blocking.length) {
