@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.9.7</title>
+  <title>Turni Corvetto v9.9.8</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.9.7';
+    const APP_VERSION = '9.9.8';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1916,7 +1916,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.7</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.9.8</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1934,7 +1934,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.9.7</small>
+          <small id="appVersionLabel">CORVETTO · V9.9.8</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6930,7 +6930,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.9.7', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.9.8', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10063,7 +10063,15 @@ function minLunchBreakMinutes(wId) {
     return {...rules.ufficio2t};
   }
   
-  /** Ruoli rotazione ufficio Lun–Ven: non negoziabili. */
+  
+  /** Rotazione ufficio: Alpegiani → Poppa → Caregnato. Ex-sab → apertura 8h 06:30-15:30. */
+  function findWorkerIdByNameRe(re) {
+    try {
+      var w = (appData.workers || []).find(function(x) { return re.test(String(x.name || '')); });
+      return w ? w.id : null;
+    } catch (e) { return null; }
+  }
+
   function prevInRotation(list, currentId) {
     if (!list || !list.length) return null;
     if (!currentId) return list[list.length - 1];
@@ -10072,13 +10080,31 @@ function minLunchBreakMinutes(wId) {
     return list[(idx - 1 + list.length) % list.length];
   }
 
+  function officeRotationTrioIds() {
+    // Sempre per nome: non dipendere da filtri brain che possono escludere qualcuno
+    var a = findWorkerIdByNameRe(/alpegiani/i);
+    var p = findWorkerIdByNameRe(/poppa/i);
+    var c = findWorkerIdByNameRe(/caregnato/i);
+    var fromConfig = [];
+    try {
+      if (typeof SABATO_UFFICIO_IDS === 'function') fromConfig = SABATO_UFFICIO_IDS() || [];
+    } catch (e) {}
+    // Ordine ufficiale
+    var ordered = [];
+    [a, p, c].forEach(function(id) { if (id && ordered.indexOf(id) < 0) ordered.push(id); });
+    fromConfig.forEach(function(id) { if (id && ordered.indexOf(id) < 0) ordered.push(id); });
+    return { alpegiani: a, poppa: p, caregnato: c, ordered: ordered };
+  }
+
   function detectSabatistaFromWeek(week) {
     if (!week) return null;
-    var rotation = SABATO_UFFICIO_IDS();
+    var trio = officeRotationTrioIds();
+    var rotation = trio.ordered.length ? trio.ordered : [trio.alpegiani, trio.poppa, trio.caregnato].filter(Boolean);
     var day = 5;
     var found = [];
     rotation.forEach(function(id) {
-      var d = week[id] && week[id][day];
+      if (!id || !week[id]) return;
+      var d = week[id][day];
       if (!d) return;
       var st = String(d.status || '').toUpperCase();
       if (st === 'RIPOSO' || st === 'CHIUSO') return;
@@ -10087,118 +10113,151 @@ function minLunchBreakMinutes(wId) {
     });
     if (found.length === 1) return found[0];
     if (found.length > 1) {
-      // Preferisci orario tipico sabato 07:xx-12:xx
       var satLike = found.filter(function(id) {
         var d = week[id][day];
-        return d && /^07:/.test(d.mIn || '') && /^12:/.test(d.pOut || d.mOut || '');
+        return d && /^07:/.test(d.mIn || '') && /^12:/.test((d.pOut || d.mOut || ''));
       });
-      if (satLike.length === 1) return satLike[0];
-      return found[found.length - 1];
+      if (satLike.length >= 1) return satLike[0];
+      return found[0];
     }
     return null;
   }
 
   function getOfficeRotationRoles(weekOpt) {
-    var rotation = SABATO_UFFICIO_IDS();
-    var nextUfficio = null;
+    var trio = officeRotationTrioIds();
+    var rotation = trio.ordered.length ? trio.ordered : [trio.alpegiani, trio.poppa, trio.caregnato].filter(Boolean);
+    var week = weekOpt || null;
+    try {
+      if (!week && appData.weeks) week = appData.weeks[getWeekKey(currentDate)];
+    } catch (e) {}
+
+    var nextUfficio = detectSabatistaFromWeek(week);
     var prevUfficio = null;
 
-    // 1) Sabato di QUESTA settimana (proposta o dati correnti)
-    try {
-      var week = weekOpt || (appData.weeks && appData.weeks[getWeekKey(currentDate)]);
-      nextUfficio = detectSabatistaFromWeek(week);
-    } catch (e1) {}
-
-    // 2) Sabato settimana precedente
-    if (!prevUfficio) {
+    if (!nextUfficio) {
       try {
         var prevDate = new Date(currentDate); prevDate.setDate(prevDate.getDate() - 7);
         var lastSat = (typeof getLastSaturdayInfo === 'function') ? getLastSaturdayInfo(getWeekKey(prevDate)) : {};
         prevUfficio = lastSat.ufficio || null;
+        if (prevUfficio) nextUfficio = nextInRotation(rotation, prevUfficio);
       } catch (e2) {}
     }
 
-    // 3) Fallback rules
     if (!prevUfficio && appData.rules && appData.rules.lastSaturdayUfficioId) {
-      prevUfficio = appData.rules.lastSaturdayUfficioId;
+      // lastSaturdayUfficioId = chi ha fatto l'ULTIMO sabato applicato = sab di questa sett se già applicato
+      // Se next già noto, prev = precedente; altrimenti lastSaturday e' il prev della settimana successiva
     }
 
-    // 4) Se conosciamo il sabatista di questa settimana → prev = precedente in rotazione
     if (nextUfficio) {
       prevUfficio = prevInRotation(rotation, nextUfficio);
     } else if (prevUfficio) {
       nextUfficio = nextInRotation(rotation, prevUfficio);
-    } else {
-      // Ultimo fallback: primo in lista
-      nextUfficio = rotation[0] || null;
+    }
+
+    // Fallback esplicito: se Alpegiani e' in sabato tipico o e' sabatista
+    if (!nextUfficio && trio.alpegiani) {
+      nextUfficio = trio.alpegiani;
       prevUfficio = prevInRotation(rotation, nextUfficio);
     }
 
-    var sabNext = nextInRotation(rotation, nextUfficio);
-    return { prevUfficio: prevUfficio, nextUfficio: nextUfficio, sabNext: sabNext };
+    var sabNext = nextUfficio ? nextInRotation(rotation, nextUfficio) : null;
+    return {
+      prevUfficio: prevUfficio,
+      nextUfficio: nextUfficio,
+      sabNext: sabNext,
+      trio: trio,
+      rotation: rotation
+    };
   }
 
   function enforceOfficeRotationRoles(week, notes) {
     if (!week) return notes || [];
-    notes = notes || [];
+    // Normalizza note: mai oggetti
+    notes = (notes || []).map(function(n) {
+      if (typeof n === 'string') return n;
+      if (n && typeof n === 'object') return n.msg || n.message || n.text || JSON.stringify(n);
+      return String(n);
+    }).filter(Boolean);
+
     var rules = (typeof R === 'function') ? R() : {};
     var roles = getOfficeRotationRoles(week);
-    var prevUfficio = roles.prevUfficio, nextUfficio = roles.nextUfficio, sabNext = roles.sabNext;
-    var t7 = rules.ufficio7h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' };
-    var t8o = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
-    var t8c = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
-    var tSab = rules.turnoSabato || { mIn:'07:00', mOut:'12:00', pIn:'', pOut:'' };
+    var prevUfficio = roles.prevUfficio;
+    var nextUfficio = roles.nextUfficio;
+    var sabNext = roles.sabNext;
+    var trio = roles.trio || officeRotationTrioIds();
 
-    // Assicura sabato: solo nextUfficio lavora
-    try {
-      SABATO_UFFICIO_IDS().forEach(function(id) {
-        if (!week[id]) week[id] = {};
-        var c = week[id][5];
-        if (c && c.manualEdit) return;
-        if (c && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(c)) return;
-        if (id === nextUfficio) {
-          week[id][5] = Object.assign({}, tSab, { status: 'LAVORO', generated: true, rotationLocked: true, rotationRole: 'sabato' });
-        } else {
-          week[id][5] = { status: 'RIPOSO', generated: true, rotationLocked: true, rotationRole: 'riposoSab' };
-        }
-      });
-    } catch (eSab) {}
-
-    for (var day = 0; day <= 4; day++) {
-      SABATO_UFFICIO_IDS().forEach(function(id) {
-        if (!week[id]) week[id] = {};
-        var cell = week[id][day];
-        // Solo skip assenze dure; rotazione prevale su manualEdit generato da errori passati
-        if (cell && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(cell)) return;
-        if (cell && cell.manualEdit && cell.rotationLocked === false && cell.userLocked) return;
-
-        var tgt = t8c;
-        var role = 'chiusura8h';
-        if (id === nextUfficio) { tgt = t7; role = 'sab7h'; }
-        else if (id === prevUfficio) { tgt = t8o; role = 'exSab8hOpen'; }
-        else if (sabNext && id === sabNext) { tgt = t8c; role = 'nextSab8hClose'; }
-
-        // SCRITTURA DIRETTA (niente putGenerated che può uscire in anticipo)
-        week[id][day] = Object.assign({}, tgt, {
-          status: 'LAVORO',
-          generated: true,
-          rotationLocked: true,
-          rotationRole: role,
-          manualEdit: false,
-          movedByEngine: false
-        });
-      });
+    // GARANZIA NOMI: se next = Alpegiani → prev = Caregnato, sabNext = Poppa
+    if (trio.alpegiani && nextUfficio === trio.alpegiani) {
+      prevUfficio = trio.caregnato || prevUfficio;
+      sabNext = trio.poppa || sabNext;
+    } else if (trio.poppa && nextUfficio === trio.poppa) {
+      prevUfficio = trio.alpegiani || prevUfficio;
+      sabNext = trio.caregnato || sabNext;
+    } else if (trio.caregnato && nextUfficio === trio.caregnato) {
+      prevUfficio = trio.poppa || prevUfficio;
+      sabNext = trio.alpegiani || sabNext;
     }
 
-    notes.push('ROTAZIONE APPLICATA: ' +
-      (prevUfficio ? workerName(prevUfficio) : '?') + ' → 06:30-15:30 (ex-sab) | ' +
-      (nextUfficio ? workerName(nextUfficio) : '?') + ' → 7h+sabato (sab) | ' +
-      (sabNext ? workerName(sabNext) : '?') + ' → 08:30-17:30 (next-sab)');
+    // Se ancora manca prev ma abbiamo Caregnato e next e' Alpegiani per sabato Davide
+    if (!prevUfficio && trio.caregnato && nextUfficio === trio.alpegiani) {
+      prevUfficio = trio.caregnato;
+    }
+    if (!sabNext && trio.poppa && nextUfficio === trio.alpegiani) {
+      sabNext = trio.poppa;
+    }
+
+    var t7 = Object.assign({}, rules.ufficio7h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' });
+    var t8o = Object.assign({}, rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' });
+    var t8c = Object.assign({}, rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' });
+    var tSab = Object.assign({}, rules.turnoSabato || { mIn:'07:00', mOut:'12:00' });
+
+    function forceCell(id, day, tgt, role) {
+      if (!id) return;
+      if (!week[id]) week[id] = {};
+      var prev = week[id][day];
+      // Non sovrascrivere ferie/malattia/permesso giornata intera
+      if (prev && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(prev)) return;
+      week[id][day] = {
+        mIn: tgt.mIn || '',
+        mOut: tgt.mOut || '',
+        pIn: tgt.pIn || '',
+        pOut: tgt.pOut || '',
+        status: (role === 'riposoSab') ? 'RIPOSO' : 'LAVORO',
+        generated: true,
+        rotationLocked: true,
+        rotationRole: role,
+        manualEdit: false,
+        movedByEngine: false
+      };
+    }
+
+    // Sabato
+    [trio.alpegiani, trio.poppa, trio.caregnato].filter(Boolean).forEach(function(id) {
+      if (id === nextUfficio) forceCell(id, 5, tSab, 'sabato');
+      else forceCell(id, 5, {}, 'riposoSab');
+    });
+
+    // Lun-Ven
+    for (var day = 0; day <= 4; day++) {
+      if (nextUfficio) forceCell(nextUfficio, day, t7, 'sab7h');
+      if (prevUfficio) forceCell(prevUfficio, day, t8o, 'exSab8hOpen');
+      if (sabNext) forceCell(sabNext, day, t8c, 'nextSab8hClose');
+    }
+
+    notes.push(
+      'ROTAZIONE APPLICATA: ' +
+      (prevUfficio ? workerName(prevUfficio) : '???') + ' 06:30-15:30 (ex-sab) | ' +
+      (nextUfficio ? workerName(nextUfficio) : '???') + ' 7h+sab (sab) | ' +
+      (sabNext ? workerName(sabNext) : '???') + ' 08:30-17:30 (next-sab) | ids ' +
+      'prev=' + prevUfficio + ' next=' + nextUfficio + ' nextSab=' + sabNext
+    );
     return notes;
   }
   window.enforceOfficeRotationRoles = enforceOfficeRotationRoles;
   window.getOfficeRotationRoles = getOfficeRotationRoles;
   window.prevInRotation = prevInRotation;
+  window.officeRotationTrioIds = officeRotationTrioIds;
+
 
 
 
@@ -13628,16 +13687,11 @@ function showProposalReviewModal() {
     try { rebalanceOfficeOpenClose(p.week); } catch (e) {}
     try { ensureOfficeCloseCoverage(p.week); } catch (e) {}
     try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
-    // Re-imposta SEMPRE la rotazione dopo ogni bilanciamento (altrimenti Caregnato torna in chiusura)
+    try { if (typeof enforceSeverinPolicy === 'function') p.notes = enforceSeverinPolicy(p.week, p.notes || []); } catch (e) {}
+    // ULTIMA scrittura: Caregnato ex-sab → 06:30-15:30 (per nome, scrittura diretta)
     try {
       if (typeof enforceOfficeRotationRoles === 'function') {
         p.notes = enforceOfficeRotationRoles(p.week, p.notes || []);
-      }
-      if (typeof balanceOfficeLunchCoverage === 'function') {
-        p.notes = (p.notes || []).concat(balanceOfficeLunchCoverage(p.week) || []);
-      }
-      if (typeof enforceSeverinPolicy === 'function') {
-        p.notes = enforceSeverinPolicy(p.week, p.notes || []);
       }
     } catch (eRot) { console.warn(eRot); }
 
