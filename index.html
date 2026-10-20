@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.3</title>
+  <title>Turni Corvetto v9.11.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.3';
+    const APP_VERSION = '9.11.4';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
     'Permesso retribuito': 'ROL',
@@ -1909,7 +1909,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.3</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.4</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1927,7 +1927,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.3</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.4</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5719,36 +5719,50 @@ function renderWeek() {
     }
 
     if (!st || st === 'LAVORO') {
-      // Permesso/ROL parziale: le ore di assenza retribuita contano nel totale settimanale
-      // (es. 5h lavoro + 2.5h permesso retribuito = 7.5h giornata, non 5h).
+      // POLICY: ore turno (reali) + ore impegno FUORI turno + eventuale permesso.
+      // Non usare calcHours che unisce gli intervalli se il pOut era stato esteso per errore.
       var leaveH = Number(dayData.leaveHours || 0) || 0;
       if (!leaveH && approvedLeave && !leaveIsFullDay) {
         leaveH = Number(approvedLeave.hours || 0) || 0;
       }
       if (!leaveH && approvedLeave && !leaveIsFullDay) {
-        // ore da from/to della richiesta se non c'è hours
         try {
           if (approvedLeave.fromTime && approvedLeave.toTime) {
             leaveH = Math.max(0, (timeToMin(approvedLeave.toTime) - timeToMin(approvedLeave.fromTime)) / 60);
           }
         } catch (eLH) {}
       }
-      // leaveType/note su cella parziale
       if (!leaveH) {
         var lt = String(dayData.leaveType || dayData.note || '').toUpperCase();
         if (/PERMESS|ROL|RETRIBUIT|DONAZIONE/.test(lt) && dayData.leaveMinutes) {
           leaveH = Number(dayData.leaveMinutes) / 60;
         }
       }
-      if (leaveH > 0) {
-        // Non superare il nastro se la somma lo sforerebbe solo per arrotondamenti
-        var sum = worked + leaveH;
-        if (nastro > 0 && sum > nastro + 0.25) return sum; // impegno+permesso fuori nastro ok
-        if (nastro > 0 && sum >= nastro - 0.15) return nastro;
-        return sum;
+
+      var shiftH = (typeof shiftMinutes === 'function' ? shiftMinutes(dayData) : 0) / 60;
+      var otH = Number(dayData.overtimeMinutes || 0) / 60;
+
+      // Ricalcola OT da eventi se manca sulla cella
+      if (otH <= 0 && dateObj && wId && typeof getWorkerDayEventIntervals === 'function') {
+        try {
+          getWorkerDayEventIntervals(wId, dateObj).forEach(function(iv) {
+            if (typeof computeEventOvertimeMinutes === 'function') {
+              otH += computeEventOvertimeMinutes(dayData, minToTime(iv[0]), minToTime(iv[1])) / 60;
+            }
+          });
+        } catch (eOt) {}
       }
-      // Unione turno∪impegni
-      return worked;
+
+      // Se il turno sembra esteso oltre il nastro per coprire un impegno, usa il nastro come ore lavoro
+      if (nastro > 0 && shiftH > nastro + 0.35 && otH > 0.2) {
+        shiftH = nastro;
+      }
+
+      var sum = shiftH + otH + leaveH;
+      if (leaveH > 0 && nastro > 0 && sum >= nastro - 0.15 && sum <= nastro + 0.35 && otH < 0.2) {
+        return nastro;
+      }
+      return sum;
     }
 
     if (st === 'EVENTO') {
@@ -6265,26 +6279,10 @@ function renderWeek() {
 
   /** Proposta opzionale: prolungare pOut/mOut per coprire lo straordinario (solo suggerimento). */
   function suggestShiftToCoverEvent(cell, fromTime, toTime) {
-    if (!cell || !fromTime || !toTime) return null;
-    const evA = timeToMin(fromTime), evB = timeToMin(toTime);
-    const out = { mIn: cell.mIn || '', mOut: cell.mOut || '', pIn: cell.pIn || '', pOut: cell.pOut || '' };
-    // Se evento dopo il turno pomeriggio, estendi pOut
-    if (out.pOut) {
-      const pOut = timeToMin(out.pOut);
-      if (evB > pOut) out.pOut = minToTime(evB);
-    } else if (out.mOut && !out.pIn) {
-      const mOut = timeToMin(out.mOut);
-      if (evB > mOut) out.mOut = minToTime(evB);
-    } else if (out.pIn) {
-      // ha pomeriggio ma pOut vuoto
-      out.pOut = minToTime(evB);
-    }
-    // Se evento prima di mIn
-    if (out.mIn) {
-      const mIn = timeToMin(out.mIn);
-      if (evA < mIn) out.mIn = minToTime(evA);
-    }
-    return out;
+    // POLICY: impegno fuori orario ≠ allungare il turno.
+    // Non proporre mai orari estesi (es. fine alle 19:30 per una riunione 18-19:30).
+    // Il turno resta com'è; le ore di impegno si contano a parte come straordinario.
+    return null;
   }
 
 function annotateEventOnWeek(e,weekKey){
@@ -6341,10 +6339,20 @@ function annotateEventOnWeek(e,weekKey){
 
           const ot = computeEventOvertimeMinutes(cell, e.fromTime, e.toTime);
           if(ot > 0){
+            // Se pOut era stato esteso fino a fine impegno, ripristina fine turno "normale"
+            // (non oltre 17:30 ufficio / non coincidente con fine evento serale)
+            try {
+              var evEndM = timeToMin(e.toTime);
+              var pOutM = cell.pOut ? timeToMin(cell.pOut) : null;
+              if (pOutM != null && Math.abs(pOutM - evEndM) <= 5 && evEndM >= timeToMin('17:45')) {
+                if (cell.pIn && timeToMin(cell.pIn) < timeToMin('17:30')) {
+                  cell.pOut = '17:30';
+                }
+              }
+            } catch (eClamp) {}
             cell.overtimeMinutes = Math.max(Number(cell.overtimeMinutes)||0, ot);
-            cell.overtimeNote = 'Straordinario ~' + (ot/60).toFixed(1) + 'h per impegno «' + (e.title||'') + '» fuori turno';
-            const sug = suggestShiftToCoverEvent(cell, e.fromTime, e.toTime);
-            if(sug) cell.overtimeSuggestion = sug;
+            cell.overtimeNote = 'Straordinario ~' + (ot/60).toFixed(1) + 'h per impegno «' + (e.title||'') + '» fuori turno — turno non esteso';
+            delete cell.overtimeSuggestion;
           } else {
             cell.overtimeMinutes = 0;
             delete cell.overtimeNote;
@@ -6939,7 +6947,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.3', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.4', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8173,7 +8181,14 @@ function minLunchBreakMinutes(wId) {
             problems.push({
               sev: 'warn',
               title: 'Straordinario / impegno fuori turno',
-              detail: (w.name || w.id) + ' · ' + dayNames[d] + ': ~' + (ot/60).toFixed(1) + 'h' + (cell.overtimeNote ? ' — ' + cell.overtimeNote : '') + (cell.overtimeSuggestion ? ' · Proposta orari: ' + [cell.overtimeSuggestion.mIn,cell.overtimeSuggestion.mOut].filter(Boolean).join('-') + (cell.overtimeSuggestion.pIn ? ' / ' + cell.overtimeSuggestion.pIn + '-' + cell.overtimeSuggestion.pOut : '') : ''),
+              detail: (function(){
+              var shiftH = (typeof shiftMinutes==='function' ? shiftMinutes(cell) : 0)/60;
+              var otH = ot/60;
+              var msg = (w.name || w.id) + ' · ' + dayNames[d] + ': turno ' + shiftH.toFixed(1) + 'h + impegno fuori turno ' + otH.toFixed(1) + 'h';
+              if (cell.overtimeNote) msg += ' — ' + cell.overtimeNote;
+              msg += ' · Turno NON esteso (ore impegno contate a parte)';
+              return msg;
+            })(),
               action: { type: 'worker', workerId: w.id, day: d }
             });
           }
@@ -10707,8 +10722,7 @@ function minLunchBreakMinutes(wId) {
         if(ot>0){
           adjusted.overtimeMinutes=Math.max(Number(cell.overtimeMinutes)||0, ot);
           adjusted.overtimeNote='Straordinario ~'+(ot/60).toFixed(1)+'h («'+e.title+'» fuori turno)';
-          const sug=suggestShiftToCoverEvent(cell, e.fromTime, e.toTime);
-          if(sug) adjusted.overtimeSuggestion=sug;
+          delete adjusted.overtimeSuggestion;
           notes.push('⚡ Straordinario '+workerName(wid)+' '+e.date+': ~'+(ot/60).toFixed(1)+'h per «'+e.title+'» — turno non modificato automaticamente.');
         }
         const block=typeof eventCoverageBlocks==='function'?eventCoverageBlocks(e):null;
