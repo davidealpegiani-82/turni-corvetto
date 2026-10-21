@@ -6680,8 +6680,16 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
       // Solo testo (Condividi senza allegato) — niente download automatico
       try {
         await navigator.share({ title: title, text: text });
-        showToast('Testo condiviso. Per il file .ics usa il tasto ICS.', 'info', 4000);
-        return { ok: true, shared: true, withFile: false };
+        // Se il dispositivo condivide solo il testo, prepara comunque il file ICS
+        // così l'utente può allegarlo subito a WhatsApp o a un'e-mail.
+        var dlAfterTextShare = doDownload();
+        await copyText();
+        if (dlAfterTextShare) {
+          showToast('Testo condiviso. File .ics scaricato: puoi allegarlo a WhatsApp o email.', 'info', 5500);
+          return { ok: true, shared: true, withFile: false, downloaded: true };
+        }
+        showToast('Testo condiviso. Non è stato possibile scaricare il file .ics: usa il tasto ICS.', 'info', 5000);
+        return { ok: true, shared: true, withFile: false, downloaded: false };
       } catch (err3) {
         if (err3 && err3.name === 'AbortError') return { ok: false, aborted: true };
         console.warn('share text', err3);
