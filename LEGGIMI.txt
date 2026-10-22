@@ -1,0 +1,15 @@
+# Turni Corvetto v9.11.19 — uso semplice
+
+## Uso più semplice (consigliato)
+
+1. Vai su Netlify Drop: https://app.netlify.com/drop
+2. Trascina TUTTA questa cartella (o solo index.html)
+3. Apri il link che Netlify ti dà
+4. Sul telefono: menu browser → "Aggiungi a Home" / Installa app
+
+Sync e dati: usa SEMPRE il link Netlify, non il file dai Download.
+
+## Alternativa senza Netlify
+
+Apri index.html con Chrome (funziona in locale, ma senza sync tra dispositivi).
+force deploy 20/10/2026 22:00

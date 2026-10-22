@@ -1,0 +1,33 @@
+{
+  "name": "Turni Corvetto",
+  "short_name": "Turni Corvetto",
+  "description": "Gestione turni, ferie, permessi e impegni \u2014 filiale Corvetto",
+  "start_url": "/turni-corvetto/",
+  "scope": "/turni-corvetto/",
+  "id": "/turni-corvetto/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1419",
+  "theme_color": "#1d4ed8",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/turni-corvetto/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/turni-corvetto/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/turni-corvetto/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
