@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.27</title>
+  <title>Turni Corvetto v9.11.28</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.27';
+    const APP_VERSION = '9.11.28';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -51,9 +51,10 @@
     'Visita Fiera': 'EVENTO',
     'Donazione Sangue': 'ROL',
     'Malattia': 'MALATTIA',
-    'Ricovero': 'MALATTIA'
+    'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.28 — Malattia e Ricovero distinti in tabella/PDF/stato (RICOVERO ≠ MALATTIA); note open-ended diverse; riparazione etichette dalle richieste',
     '9.11.27 — Vista Malattia: rimossi pulsanti duplicati sotto la toolbar',
     '9.11.26 — Festività IT + riposo 11h in controlli; ICS tutti gli impegni; log notifiche su proposta applicata (senza cambiare il motore turni)',
     '9.11.25 — Impegni fuori filiale guidano apertura/chiusura: niente chiusura con trasferta pomeridiana, niente priorità apertura con corso mattutino; scoring e bilanciamento allineati a W44',
@@ -1933,7 +1934,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.27</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.28</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1951,7 +1952,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.27</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.28</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2953,6 +2954,7 @@
   const defaultStatuses = [
     { name: "LAVORO", color: "#10b981", hours: 0 },
     { name: "MALATTIA", color: "#ef4444", hours: 8 },
+    { name: "RICOVERO", color: "#b91c1c", hours: 8 },
     { name: "FERIE", color: "#10b981", hours: 8 },
     { name: "RIPOSO", color: "#3b82f6", hours: 0 },
     { name: "CHIUSO", color: "#dc2626", hours: 0 },
@@ -4779,7 +4781,7 @@ function isUsableAppData(value) {
 
     try {
       if (view === 'ferie' && typeof renderLeaveView === 'function') renderLeaveView();
-      if (view === 'malattia' && typeof renderMalattiaView === 'function') renderMalattiaView();
+      if (view === 'malattia' && typeof renderMalattiaView === 'function') { try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch(e){} renderMalattiaView(); }
       if (view === 'eventi' && typeof renderEventsView === 'function') renderEventsView();
       if ((view === 'turni' || view === 'proposta') && typeof renderWeek === 'function') renderWeek();
       if (typeof updateRulesBanner === 'function') updateRulesBanner();
@@ -5008,8 +5010,16 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
       || (leaveTipo.includes('donazione') && !!d.leaveFullDay);
     const isPartialLeave = !isFullLeave && ( (!!leaveReq && leaveReq.fullDay !== true && leaveReq.mode !== 'range' && !!(leaveReq.fromTime || leaveReq.toTime || d.rolFrom)) || !!(d.rolFrom && d.rolTo) || (['ROL','PERMESSO'].includes(status) && !!(d.mIn || d.pIn || d.rolFrom)) );
     let label = leaveDisplayLabel(d, leaveReq) || status || '';
-    const medical = status === 'MALATTIA' || String(d.leaveType || '').toLowerCase() === 'malattia' || String(d.leaveType || '').toLowerCase() === 'ricovero' || /^(Malattia|Ricovero)$/i.test(label);
-    if (medical && (!label || label === 'MALATTIA' || label === '—')) label = d.leaveType || leaveReq?.tipo || 'Malattia';
+    const medical = status === 'MALATTIA' || status === 'RICOVERO' || String(d.leaveType || '').toLowerCase() === 'malattia' || String(d.leaveType || '').toLowerCase() === 'ricovero' || /^(Malattia|Ricovero)$/i.test(label);
+    // Distinzione obbligatoria: etichetta = tipo reale (Malattia ≠ Ricovero)
+    if (medical) {
+      const realTipo = (leaveReq && leaveReq.tipo) || d.leaveType || (status === 'RICOVERO' ? 'Ricovero' : 'Malattia');
+      if (!label || label === 'MALATTIA' || label === 'RICOVERO' || label === '—' || /^malattia$/i.test(label)) {
+        label = realTipo;
+      }
+      // Non promuovere mai Malattia a Ricovero solo per via della nota open-ended
+      if (/malattia/i.test(String(realTipo)) && /ricovero/i.test(String(label))) label = 'Malattia';
+    }
 
     const parts=[];
     if (isRest) {
@@ -5147,6 +5157,7 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
 
 function renderWeek() {
     currentWeekKey = getWeekKey(currentDate);
+    try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch (eMed) {}
     try { if (typeof repairPartialLeaveWorkHours === 'function') repairPartialLeaveWorkHours(currentWeekKey); } catch (eRep) {}
     try { if (typeof refreshCoverageBlocksForWeek === "function") refreshCoverageBlocksForWeek(currentWeekKey); } catch (e) {}
     document.getElementById('weekLabel').innerText = getWeekDisplayLabel(currentDate);
@@ -5437,7 +5448,7 @@ function renderWeek() {
       // Una richiesta non approvata o salvata senza sincronizzare i turni non deve alterare i totali.
       if (req.status !== 'approvata' || req.syncTurns === false) continue;
       const statusName = (LEAVE_STATUS_MAP[req.tipo] || '').toUpperCase();
-      if (statusName && statusName !== st && !(st === 'MALATTIA' && (req.tipo === 'Malattia' || req.tipo === 'Ricovero'))) {
+      if (statusName && statusName !== st && !((st === 'MALATTIA' || st === 'RICOVERO') && (req.tipo === 'Malattia' || req.tipo === 'Ricovero'))) {
         // permette match se nota contiene tipo
         if (!(dayData.note && String(dayData.note).toLowerCase().includes(String(req.tipo || '').toLowerCase()))) continue;
       }
@@ -5629,7 +5640,7 @@ function renderWeek() {
       if (!c) continue;
       const st = String(c.status || '').toUpperCase();
       if (c.leaveFullDay) continue;
-      if (['FERIE','MALATTIA','ASSENTE','CHIUSO','RIPOSO','EVENTO'].includes(st) && !(c.mIn || c.pIn)) continue;
+      if (['FERIE','MALATTIA','RICOVERO','ASSENTE','CHIUSO','RIPOSO','EVENTO'].includes(st) && !(c.mIn || c.pIn)) continue;
       if (st && st !== 'LAVORO' && st !== '' && !c.mIn && !c.pIn) continue;
       if (!(c.mIn || c.pIn)) continue;
       // Solo celle di lavoro effettivo (non assenza parziale senza orari di lavoro residui)
@@ -5699,7 +5710,7 @@ function renderWeek() {
       const dateKey = localDateKey(satDate);
       const cell = appData.weeks?.[wk]?.[wId]?.[5];
       const cellStatus = String(cell?.status || '').toUpperCase();
-      const fullAbsenceCell = !!cell?.leaveFullDay || ['FERIE','MALATTIA','ASSENTE','CHIUSO','RIPOSO'].includes(cellStatus);
+      const fullAbsenceCell = !!cell?.leaveFullDay || ['FERIE','MALATTIA','RICOVERO','ASSENTE','CHIUSO','RIPOSO'].includes(cellStatus);
       if (cell && !fullAbsenceCell && (cell.mIn || cell.pIn)) return hoursOf(cell);
       if (cell?.leaveRequestId) {
         const req = (appData.leaveRequests || []).find(r => r.id === cell.leaveRequestId);
@@ -7089,7 +7100,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.27', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.28', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10215,7 +10226,7 @@ function minLunchBreakMinutes(wId) {
     if(fullDayLeave) return true;
     // Solo gli stati che rendono realmente indisponibile la persona bloccano
     // il motore e gli impegni. EVENTO non è un'assenza e quindi non è hard.
-    return ['FERIE','MALATTIA','ASSENTE','CHIUSO','RIPOSO'].includes(st);
+    return ['FERIE','MALATTIA','RICOVERO','ASSENTE','CHIUSO','RIPOSO'].includes(st);
   }
   function shiftMinutes(d){
     if(!d) return 0;
@@ -15482,8 +15493,12 @@ function applyPendingProposal() {
             // senza il doppio "(in corso)" generato dalla nota interna.
             if (cellLeaveReq?.isMalattia && String(cellLeaveReq.tipo || '').toLowerCase() === 'ricovero' && cellLeaveReq.openEnded && !cellLeaveReq.toDay) {
               textCell = 'RICOVERO - in corso fino a dimissione/fine prognosi';
+            } else if (cellLeaveReq?.isMalattia && String(cellLeaveReq.tipo || '').toLowerCase() === 'malattia' && cellLeaveReq.openEnded && !cellLeaveReq.toDay) {
+              textCell = 'MALATTIA - in corso fino a fine prognosi';
             } else if (String(textCell || '').toLowerCase() === 'ricovero') {
               textCell = 'RICOVERO';
+            } else if (String(textCell || '').toLowerCase() === 'malattia') {
+              textCell = 'MALATTIA';
             }
             // orari solo se parziali (es. ROL), non per assenza intera / ricovero open-ended
             const isFullAbs = !!dayData.leaveFullDay
@@ -16247,6 +16262,39 @@ async function downloadJpgFromPreview() {
     return dateObj instanceof Date && dateObj.getDay() === 6;
   }
 
+
+  /** Allinea etichette cella a tipo richiesta (Malattia vs Ricovero) senza toccare altri campi. */
+  function repairMedicalLeaveLabels() {
+    let n = 0;
+    try {
+      (appData.leaveRequests || []).forEach(function(req) {
+        if (!req || !req.isMalattia || req.status !== 'approvata') return;
+        const tipo = req.tipo === 'Ricovero' ? 'Ricovero' : 'Malattia';
+        const statusName = tipo === 'Ricovero' ? 'RICOVERO' : 'MALATTIA';
+        eachDateInRequest(req, function(dateObj) {
+          const dayIdx = dateToDayIdx(dateObj);
+          if (dayIdx < 0 || dayIdx > 5) return;
+          const weekKey = getWeekKey(dateObj);
+          const cell = appData.weeks[weekKey] && appData.weeks[weekKey][req.workerId] && appData.weeks[weekKey][req.workerId][dayIdx];
+          if (!cell) return;
+          if (cell.leaveRequestId && cell.leaveRequestId !== req.id) return;
+          let changed = false;
+          if (cell.leaveType !== tipo) { cell.leaveType = tipo; changed = true; }
+          if (String(cell.status || '').toUpperCase() === 'MALATTIA' || String(cell.status || '').toUpperCase() === 'RICOVERO') {
+            if (cell.status !== statusName) { cell.status = statusName; changed = true; }
+          }
+          // Nota: se inizia con causale sbagliata, riallinea il prefisso
+          if (cell.note && /^(Malattia|Ricovero)\b/i.test(cell.note) && !cell.note.toLowerCase().startsWith(tipo.toLowerCase())) {
+            cell.note = cell.note.replace(/^(Malattia|Ricovero)/i, tipo);
+            changed = true;
+          }
+          if (changed) n++;
+        }, false);
+      });
+    } catch (e) { console.warn('repairMedicalLeaveLabels', e); }
+    return n;
+  }
+
   function leaveDisplayLabel(dayData, leaveReq) {
     // Il codice interno può restare ROL/FERIE/EVENTO per il motore, ma la UI
     // deve mostrare la causale reale: es. "Donazione Sangue", non "ROL".
@@ -16388,7 +16436,7 @@ async function downloadJpgFromPreview() {
     const req = {
       id: editingMalattiaId || ('mal_' + Date.now()), workerId, tipo, mode:'range',
       openEnded: openEnded && !toDay, fromDay, toDay: openEnded && !toDay ? '' : toDay,
-      status, note: document.getElementById('malNote').value.trim() || (openEnded && !toDay ? 'in corso fino a dimissione/fine prognosi' : ''),
+      status, note: document.getElementById('malNote').value.trim() || (openEnded && !toDay ? (tipo === 'Ricovero' ? 'in corso fino a dimissione/fine prognosi' : 'in corso fino a fine prognosi') : ''),
       place:'Milano', requestDate:localDateKey(new Date()), syncTurns:true, isMalattia:true,
       createdAt:prevRequest?.createdAt || new Date().toISOString(), turnsBefore:{}, autoImpact:{}
     };
