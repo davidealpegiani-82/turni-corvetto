@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.21</title>
+  <title>Turni Corvetto v9.11.22</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.21';
+    const APP_VERSION = '9.11.22';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'MALATTIA'
   };
   const APP_CHANGELOG = [
+    '9.11.22 — Mar/Mer con un assente nel trio: il presente non-sabatista va in chiusura 08:30-17:30; enforce non annulla più il bilanciamento in applicazione',
     '9.11.21 — Competenze canOpen/canClose vincolanti su putGenerated/applyMove; test guard: gap copertura bloccano proposalHardViolations; apply rifiuta turni incompatibili',
     '9.11.20 — Vincoli di copertura: dopo ogni bilanciamento rivalida tutta la settimana; applicazione BLOCCATA se restano gap (giorno/fascia/persone); nessuna mutazione post-validazione',
     '9.11.19 — Scheda competenze/esperienza e qualifiche con scadenze; versione PWA allineata',
@@ -1927,7 +1928,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.21</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.22</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1945,7 +1946,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.21</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.22</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -7035,7 +7036,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.21', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.22', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10416,16 +10417,59 @@ function minLunchBreakMinutes(wId) {
       return true;
     }
 
-    // Scrivi TUTTI e 3, tutti i giorni
+    // Sabato: A lavora, B e C riposo
     [trio.alpegiani, trio.poppa, trio.caregnato].forEach(function(id) {
       if (!id) return;
       if (id === roleA) forceCell(id, 5, SHIFT_SAB, 'sabato');
       else forceCell(id, 5, {}, 'riposoSab');
     });
+
+    // Lun–Ven: rispetta assenze. Se il ruolo C (chiusura) è assente,
+    // il presente non-A va in chiusura 08:30-17:30 (tipico: B con C in ferie).
+    // Così non restano 2–3 aperture e solo Severin in chiusura.
+    function isAbsent(id, day) {
+      if (!id) return true;
+      var prev = week[id] && (week[id][day] || week[id][String(day)]);
+      // Se già c'è una causale dura nella settimana corrente (prima della force), rispettala
+      if (prev && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(prev)) return true;
+      return false;
+    }
     for (var day = 0; day <= 4; day++) {
-      forceCell(roleA, day, SHIFT_A, 'A_7h');
-      forceCell(roleB, day, SHIFT_B, 'B_8h_open');
-      forceCell(roleC, day, SHIFT_C, 'C_8h_close');
+      var aAbs = isAbsent(roleA, day);
+      var bAbs = isAbsent(roleB, day);
+      var cAbs = isAbsent(roleC, day);
+      var presentCount = (aAbs ? 0 : 1) + (bAbs ? 0 : 1) + (cAbs ? 0 : 1);
+
+      if (!aAbs) forceCell(roleA, day, SHIFT_A, 'A_7h');
+
+      if (presentCount <= 1) {
+        // Solo uno del trio: se è A resta apertura; se è B o C → chiusura se possibile
+        if (!bAbs && aAbs) forceCell(roleB, day, SHIFT_C, 'C_8h_close');
+        else if (!bAbs) forceCell(roleB, day, SHIFT_B, 'B_8h_open');
+        if (!cAbs && aAbs && bAbs) forceCell(roleC, day, SHIFT_C, 'C_8h_close');
+        else if (!cAbs) forceCell(roleC, day, SHIFT_C, 'C_8h_close');
+        continue;
+      }
+
+      if (presentCount === 2) {
+        // Due presenti: 1 apertura + 1 chiusura (A preferisce apertura)
+        if (!aAbs && !bAbs && cAbs) {
+          forceCell(roleA, day, SHIFT_A, 'A_7h');
+          forceCell(roleB, day, SHIFT_C, 'C_8h_close'); // B chiude al posto di C
+        } else if (!aAbs && !cAbs && bAbs) {
+          forceCell(roleA, day, SHIFT_A, 'A_7h');
+          forceCell(roleC, day, SHIFT_C, 'C_8h_close');
+        } else if (!bAbs && !cAbs && aAbs) {
+          forceCell(roleB, day, SHIFT_B, 'B_8h_open');
+          forceCell(roleC, day, SHIFT_C, 'C_8h_close');
+        }
+        continue;
+      }
+
+      // Tutti e 3 presenti: rotazione classica A open 7h, B open 8h, C close
+      if (!aAbs) forceCell(roleA, day, SHIFT_A, 'A_7h');
+      if (!bAbs) forceCell(roleB, day, SHIFT_B, 'B_8h_open');
+      if (!cAbs) forceCell(roleC, day, SHIFT_C, 'C_8h_close');
     }
 
     // Verifica post-scrittura
@@ -14326,11 +14370,8 @@ function applyPendingProposal() {
       showToast('Nessuna proposta da applicare', 'error');
       return;
     }
-    try { rebalanceOfficeOpenClose(p.week); } catch (e) {}
-    try { ensureOfficeCloseCoverage(p.week); } catch (e) {}
-    try { balanceOfficeLunchCoverage(p.week); } catch (e) {}
-    try { if (typeof enforceSeverinPolicy === 'function') p.notes = enforceSeverinPolicy(p.week, p.notes || []); } catch (e) {}
-    // ULTIMA scrittura: rotazione + riparazione chiusura se impegni scoprono
+    // Ordine vincolante: rotazione (con rispetto assenze) → eventi → riparazioni
+    // → bilanciamento chiusura FINALE → pause → Severin. Mai enforce dopo ensure.
     try {
       if (typeof enforceOfficeRotationRoles === 'function') {
         p.notes = enforceOfficeRotationRoles(p.week, p.notes || []);
@@ -14340,6 +14381,12 @@ function applyPendingProposal() {
       }
       if (typeof repairOfficeClosingGaps === 'function') {
         p.notes = repairOfficeClosingGaps(p.week, p.notes || []);
+      }
+      if (typeof ensureOfficeCloseCoverage === 'function') {
+        p.notes = (p.notes || []).concat(ensureOfficeCloseCoverage(p.week) || []);
+      }
+      if (typeof balanceOfficeLunchCoverage === 'function') {
+        p.notes = (p.notes || []).concat(balanceOfficeLunchCoverage(p.week) || []);
       }
       if (typeof enforceSeverinPolicy === 'function') {
         p.notes = enforceSeverinPolicy(p.week, p.notes || []);
