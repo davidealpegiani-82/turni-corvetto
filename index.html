@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.23</title>
+  <title>Turni Corvetto v9.11.24</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.23';
+    const APP_VERSION = '9.11.24';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'MALATTIA'
   };
   const APP_CHANGELOG = [
+    '9.11.24 — Competenze/esperienze/qualifiche dinamiche: aggiungi o rimuovi ruoli e voci dalla scheda collaboratore',
     '9.11.23 — Corso/impegno in turno: non è più anomalia; conta come ore lavoro e solo esclude dalla copertura filiale',
     '9.11.22 — Mar/Mer con un assente nel trio: il presente non-sabatista va in chiusura 08:30-17:30; enforce non annulla più il bilanciamento in applicazione',
     '9.11.21 — Competenze canOpen/canClose vincolanti su putGenerated/applyMove; test guard: gap copertura bloccano proposalHardViolations; apply rifiuta turni incompatibili',
@@ -1929,7 +1930,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.23</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.24</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1947,7 +1948,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.23</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.24</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2880,23 +2881,23 @@
       </div>
       <div id="workerSkillsProfile" style="margin-top:14px;padding:14px;border:1px solid #dbe3ef;border-radius:12px;">
         <h4 style="margin:0 0 8px;">🧰 Competenze ed esperienza</h4>
-        <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px;">Inserisci solo capacità effettivamente verificate. Le qualifiche formali sono separate dall’esperienza pratica; una qualifica scaduta o da verificare non deve essere considerata valida.</p>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          <div class="form-group"><label>Autonomia in apertura magazzino</label><select id="wOpeningExperience"><option value="unknown">Da valutare</option><option value="assisted">Richiede affiancamento</option><option value="autonomous">Autonomo</option><option value="mentor">Esperto / può affiancare</option></select></div>
-          <div class="form-group"><label>Vendita / preparazione sabbia sfusa</label><select id="wSandExperience"><option value="unknown">Da valutare</option><option value="assisted">Richiede affiancamento</option><option value="autonomous">Autonomo</option><option value="mentor">Esperto / può affiancare</option></select></div>
-          <div class="form-group"><label>Uso pala caricatrice nella pratica</label><select id="wLoaderExperience"><option value="unknown">Da valutare</option><option value="assisted">Richiede affiancamento</option><option value="autonomous">Autonomo</option><option value="mentor">Esperto / può affiancare</option></select></div>
-          <div class="form-group"><label>Carico camion / preparazione ordini</label><select id="wLoadingExperience"><option value="unknown">Da valutare</option><option value="assisted">Richiede affiancamento</option><option value="autonomous">Autonomo</option><option value="mentor">Esperto / può affiancare</option></select></div>
-        </div>
-        <div class="form-group"><label>Competenze pratiche (una per riga)</label><textarea id="wCompetencies" rows="3" placeholder="Es. preparazione ordini; carico camion; vendita sabbia sfusa"></textarea></div>
-        <div class="form-group"><label>Esperienza / autonomia / limitazioni</label><textarea id="wExperience" rows="3" placeholder="Es. anni di esperienza, attività svolte in autonomia, affiancamento necessario"></textarea></div>
-        <div style="font-weight:700;margin:10px 0 6px;">Qualifiche e abilitazioni formali</div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          <div class="form-group"><label>Carrello elevatore (muletto)</label><select id="wQualForklift"><option value="unknown">Da verificare</option><option value="valid">Valida</option><option value="expired">Scaduta</option><option value="none">Non posseduta</option></select><label>Scadenza</label><input type="date" id="wQualForkliftExpiry"></div>
-          <div class="form-group"><label>Pala caricatrice / ruspa</label><select id="wQualLoader"><option value="unknown">Da verificare</option><option value="valid">Valida</option><option value="expired">Scaduta</option><option value="none">Non posseduta</option></select><label>Scadenza</label><input type="date" id="wQualLoaderExpiry"></div>
-          <div class="form-group"><label>Primo soccorso</label><select id="wQualFirstAid"><option value="unknown">Da verificare</option><option value="valid">Valida</option><option value="expired">Scaduta</option><option value="none">Non posseduta</option></select><label>Scadenza</label><input type="date" id="wQualFirstAidExpiry"></div>
-          <div class="form-group"><label>Antincendio</label><select id="wQualFire"><option value="unknown">Da verificare</option><option value="valid">Valida</option><option value="expired">Scaduta</option><option value="none">Non posseduta</option></select><label>Scadenza</label><input type="date" id="wQualFireExpiry"></div>
-        </div>
-        <div class="form-group"><label>Altre abilitazioni / incarichi / documenti verificati</label><textarea id="wQualOther" rows="2" placeholder="Es. formazione specifica, addetto designato, data verifica/documento"></textarea></div>
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px;">Puoi <strong>aggiungere o rimuovere</strong> ruoli, competenze e qualifiche. Solo capacità verificate: una qualifica scaduta o da verificare non va considerata valida per il generatore.</p>
+
+        <div style="font-weight:700;margin:4px 0 6px;">Aree di esperienza / autonomia</div>
+        <div id="wExperienceAreasList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button type="button" class="alt" style="margin-top:8px;width:100%;justify-content:center;" onclick="addExperienceAreaRow()">+ Aggiungi area esperienza</button>
+
+        <div style="font-weight:700;margin:14px 0 6px;">Competenze pratiche</div>
+        <div id="wCompetenciesList" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <button type="button" class="alt" style="margin-top:8px;width:100%;justify-content:center;" onclick="addCompetencyRow()">+ Aggiungi competenza</button>
+
+        <div class="form-group" style="margin-top:12px;"><label>Note su esperienza / limitazioni</label><textarea id="wExperience" rows="2" placeholder="Es. anni di esperienza, affiancamento necessario, limitazioni"></textarea></div>
+
+        <div style="font-weight:700;margin:14px 0 6px;">Qualifiche e abilitazioni formali</div>
+        <div id="wQualificationsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button type="button" class="alt" style="margin-top:8px;width:100%;justify-content:center;" onclick="addQualificationRow()">+ Aggiungi qualifica</button>
+
+        <div class="form-group" style="margin-top:12px;"><label>Altre note su abilitazioni / documenti</label><textarea id="wQualOther" rows="2" placeholder="Es. formazione specifica, addetto designato, data verifica"></textarea></div>
       </div>
     </div>
     <div class="modal-actions" style="justify-content:space-between;margin-top:14px;">
@@ -7033,7 +7034,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.23', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.24', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14540,55 +14541,223 @@ function applyPendingProposal() {
     if(currentView==='eventi') renderEventsView();
   }
 
-  const WORKER_QUALIFICATION_FIELDS = {
-    forklift: ['wQualForklift','wQualForkliftExpiry'],
-    loader: ['wQualLoader','wQualLoaderExpiry'],
-    firstAid: ['wQualFirstAid','wQualFirstAidExpiry'],
-    fireSafety: ['wQualFire','wQualFireExpiry']
-  };
-  function workerQualificationStatus(worker, key, todayKey) {
-    const q = worker && worker.profile && worker.profile.qualifications && worker.profile.qualifications[key];
-    if (!q || !q.status || q.status === 'unknown') return 'Da verificare';
-    if (q.status === 'none') return 'Non posseduta';
-    const now = new Date();
-    const today = todayKey || [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
-    if (q.status === 'valid' && q.expiry && q.expiry < today) return 'SCADUTA';
-    if (q.status === 'valid' && !q.expiry) return 'Valida (scadenza non inserita)';
-    return q.status === 'expired' ? 'Scaduta' : 'Valida';
+
+  const DEFAULT_EXPERIENCE_AREAS = [
+    { id: 'opening', label: 'Autonomia in apertura magazzino', level: 'unknown' },
+    { id: 'sand', label: 'Vendita / preparazione sabbia sfusa', level: 'unknown' },
+    { id: 'loader', label: 'Uso pala caricatrice nella pratica', level: 'unknown' },
+    { id: 'loading', label: 'Carico camion / preparazione ordini', level: 'unknown' }
+  ];
+  const DEFAULT_QUALIFICATIONS = [
+    { id: 'forklift', label: 'Carrello elevatore (muletto)', status: 'unknown', expiry: '' },
+    { id: 'loader', label: 'Pala caricatrice / ruspa', status: 'unknown', expiry: '' },
+    { id: 'firstAid', label: 'Primo soccorso', status: 'unknown', expiry: '' },
+    { id: 'fireSafety', label: 'Antincendio', status: 'unknown', expiry: '' }
+  ];
+  const EXP_LEVEL_OPTS = [
+    ['unknown','Da valutare'],['assisted','Richiede affiancamento'],
+    ['autonomous','Autonomo'],['mentor','Esperto / può affiancare']
+  ];
+  const QUAL_STATUS_OPTS = [
+    ['unknown','Da verificare'],['valid','Valida'],['expired','Scaduta'],['none','Non posseduta']
+  ];
+
+  function skillRowId(){ return 'sk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
+
+  function experienceLevelSelectHtml(value) {
+    return EXP_LEVEL_OPTS.map(function(o){
+      return '<option value="'+o[0]+'"'+(value===o[0]?' selected':'')+'>'+o[1]+'</option>';
+    }).join('');
   }
-  function loadWorkerSkillsForm(w) {
-    const p = w && w.profile || {};
-    document.getElementById('wCompetencies').value = p.competencies || '';
-    document.getElementById('wExperience').value = p.experience || '';
-    document.getElementById('wOpeningExperience').value = p.openingExperience || 'unknown';
-    document.getElementById('wSandExperience').value = p.sandExperience || 'unknown';
-    document.getElementById('wLoaderExperience').value = p.loaderExperience || 'unknown';
-    document.getElementById('wLoadingExperience').value = p.loadingExperience || 'unknown';
-    document.getElementById('wQualOther').value = p.otherQualifications || '';
-    const qs = p.qualifications || {};
-    Object.keys(WORKER_QUALIFICATION_FIELDS).forEach(key => {
-      const ids = WORKER_QUALIFICATION_FIELDS[key], q = qs[key] || {};
-      document.getElementById(ids[0]).value = q.status || 'unknown';
-      document.getElementById(ids[1]).value = q.expiry || '';
-    });
+  function qualStatusSelectHtml(value) {
+    return QUAL_STATUS_OPTS.map(function(o){
+      return '<option value="'+o[0]+'"'+(value===o[0]?' selected':'')+'>'+o[1]+'</option>';
+    }).join('');
   }
-  function readWorkerSkillsForm() {
-    const qualifications = {};
-    Object.keys(WORKER_QUALIFICATION_FIELDS).forEach(key => {
-      const ids = WORKER_QUALIFICATION_FIELDS[key];
-      qualifications[key] = { status: document.getElementById(ids[0]).value || 'unknown', expiry: document.getElementById(ids[1]).value || '' };
-    });
+
+  function addExperienceAreaRow(data) {
+    data = data || { id: skillRowId(), label: '', level: 'unknown' };
+    const box = document.getElementById('wExperienceAreasList');
+    if (!box) return;
+    const row = document.createElement('div');
+    row.className = 'skill-dyn-row';
+    row.dataset.id = data.id || skillRowId();
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 140px auto;gap:6px;align-items:end;';
+    row.innerHTML =
+      '<div class="form-group" style="margin:0;"><label>Ruolo / area</label><input type="text" class="w-exp-label" value="'+escapeHtmlV47(data.label||'')+'" placeholder="Es. apertura magazzino"></div>' +
+      '<div class="form-group" style="margin:0;"><label>Livello</label><select class="w-exp-level">'+experienceLevelSelectHtml(data.level||'unknown')+'</select></div>' +
+      '<button type="button" class="alt" title="Rimuovi" onclick="this.closest(\'.skill-dyn-row\').remove()" style="min-height:42px;padding:8px 10px;">✕</button>';
+    box.appendChild(row);
+  }
+  function addCompetencyRow(text) {
+    const box = document.getElementById('wCompetenciesList');
+    if (!box) return;
+    const row = document.createElement('div');
+    row.className = 'skill-dyn-row';
+    row.style.cssText = 'display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;';
+    row.innerHTML =
+      '<input type="text" class="w-comp-label" value="'+escapeHtmlV47(text||'')+'" placeholder="Es. preparazione ordini">' +
+      '<button type="button" class="alt" title="Rimuovi" onclick="this.closest(\'.skill-dyn-row\').remove()" style="min-height:42px;padding:8px 10px;">✕</button>';
+    box.appendChild(row);
+  }
+  function addQualificationRow(data) {
+    data = data || { id: skillRowId(), label: '', status: 'unknown', expiry: '' };
+    const box = document.getElementById('wQualificationsList');
+    if (!box) return;
+    const row = document.createElement('div');
+    row.className = 'skill-dyn-row';
+    row.dataset.id = data.id || skillRowId();
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 120px 120px auto;gap:6px;align-items:end;';
+    row.innerHTML =
+      '<div class="form-group" style="margin:0;"><label>Qualifica</label><input type="text" class="w-qual-label" value="'+escapeHtmlV47(data.label||'')+'" placeholder="Es. patentino muletto"></div>' +
+      '<div class="form-group" style="margin:0;"><label>Stato</label><select class="w-qual-status">'+qualStatusSelectHtml(data.status||'unknown')+'</select></div>' +
+      '<div class="form-group" style="margin:0;"><label>Scadenza</label><input type="date" class="w-qual-expiry" value="'+escapeHtmlV47(data.expiry||'')+'"></div>' +
+      '<button type="button" class="alt" title="Rimuovi" onclick="this.closest(\'.skill-dyn-row\').remove()" style="min-height:42px;padding:8px 10px;">✕</button>';
+    box.appendChild(row);
+  }
+
+  function normalizeWorkerProfile(p) {
+    p = p || {};
+    let areas = Array.isArray(p.experienceAreas) ? p.experienceAreas.slice() : null;
+    if (!areas || !areas.length) {
+      areas = DEFAULT_EXPERIENCE_AREAS.map(function(a){
+        var level = 'unknown';
+        if (a.id === 'opening') level = p.openingExperience || 'unknown';
+        if (a.id === 'sand') level = p.sandExperience || 'unknown';
+        if (a.id === 'loader') level = p.loaderExperience || 'unknown';
+        if (a.id === 'loading') level = p.loadingExperience || 'unknown';
+        return { id: a.id, label: a.label, level: level };
+      });
+    }
+    let comps = [];
+    if (Array.isArray(p.competencyList) && p.competencyList.length) {
+      comps = p.competencyList.slice();
+    } else if (typeof p.competencies === 'string' && p.competencies.trim()) {
+      comps = p.competencies.split(/[\n;]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+    }
+    let quals = Array.isArray(p.qualificationList) ? p.qualificationList.slice() : null;
+    if (!quals || !quals.length) {
+      var qs = p.qualifications || {};
+      quals = DEFAULT_QUALIFICATIONS.map(function(q){
+        var old = qs[q.id] || {};
+        return { id: q.id, label: q.label, status: old.status || 'unknown', expiry: old.expiry || '' };
+      });
+    }
     return {
-      competencies: document.getElementById('wCompetencies').value.trim(),
-      experience: document.getElementById('wExperience').value.trim(),
-      openingExperience: document.getElementById('wOpeningExperience').value || 'unknown',
-      sandExperience: document.getElementById('wSandExperience').value || 'unknown',
-      loaderExperience: document.getElementById('wLoaderExperience').value || 'unknown',
-      loadingExperience: document.getElementById('wLoadingExperience').value || 'unknown',
-      otherQualifications: document.getElementById('wQualOther').value.trim(),
-      qualifications
+      experienceAreas: areas,
+      competencyList: comps,
+      qualificationList: quals,
+      experience: p.experience || '',
+      otherQualifications: p.otherQualifications || '',
+      // compat motore / vecchi campi
+      openingExperience: (areas.find(function(a){ return /apertura/i.test(a.label||'') || a.id==='opening'; }) || {}).level || p.openingExperience || 'unknown',
+      sandExperience: (areas.find(function(a){ return /sabbia/i.test(a.label||'') || a.id==='sand'; }) || {}).level || p.sandExperience || 'unknown',
+      loaderExperience: (areas.find(function(a){ return /pala|caricatrice/i.test(a.label||'') || a.id==='loader'; }) || {}).level || p.loaderExperience || 'unknown',
+      loadingExperience: (areas.find(function(a){ return /camion|ordini/i.test(a.label||'') || a.id==='loading'; }) || {}).level || p.loadingExperience || 'unknown',
+      competencies: comps.join('\n'),
+      qualifications: (function(){
+        var o = {};
+        quals.forEach(function(q){ if (q.id) o[q.id] = { status: q.status||'unknown', expiry: q.expiry||'' }; });
+        return o;
+      })()
     };
   }
+
+  function fillWorkerSkillsForm(worker) {
+    const p = normalizeWorkerProfile(worker && worker.profile);
+    const expBox = document.getElementById('wExperienceAreasList');
+    const compBox = document.getElementById('wCompetenciesList');
+    const qualBox = document.getElementById('wQualificationsList');
+    if (expBox) expBox.innerHTML = '';
+    if (compBox) compBox.innerHTML = '';
+    if (qualBox) qualBox.innerHTML = '';
+    (p.experienceAreas || []).forEach(function(a){ addExperienceAreaRow(a); });
+    if (!(p.experienceAreas || []).length) DEFAULT_EXPERIENCE_AREAS.forEach(function(a){ addExperienceAreaRow(a); });
+    (p.competencyList || []).forEach(function(t){ addCompetencyRow(t); });
+    (p.qualificationList || []).forEach(function(q){ addQualificationRow(q); });
+    if (!(p.qualificationList || []).length) DEFAULT_QUALIFICATIONS.forEach(function(q){ addQualificationRow(q); });
+    const expNote = document.getElementById('wExperience');
+    if (expNote) expNote.value = p.experience || '';
+    const other = document.getElementById('wQualOther');
+    if (other) other.value = p.otherQualifications || '';
+  }
+
+  function readWorkerSkillsForm() {
+    const areas = [];
+    document.querySelectorAll('#wExperienceAreasList .skill-dyn-row').forEach(function(row){
+      const label = (row.querySelector('.w-exp-label') || {}).value || '';
+      const level = (row.querySelector('.w-exp-level') || {}).value || 'unknown';
+      if (!String(label).trim() && level === 'unknown') return;
+      areas.push({ id: row.dataset.id || skillRowId(), label: String(label).trim(), level: level });
+    });
+    const comps = [];
+    document.querySelectorAll('#wCompetenciesList .skill-dyn-row .w-comp-label').forEach(function(inp){
+      const t = String(inp.value || '').trim();
+      if (t) comps.push(t);
+    });
+    const quals = [];
+    const qualifications = {};
+    document.querySelectorAll('#wQualificationsList .skill-dyn-row').forEach(function(row){
+      const label = String((row.querySelector('.w-qual-label') || {}).value || '').trim();
+      const status = (row.querySelector('.w-qual-status') || {}).value || 'unknown';
+      const expiry = (row.querySelector('.w-qual-expiry') || {}).value || '';
+      if (!label && status === 'unknown' && !expiry) return;
+      const id = row.dataset.id || skillRowId();
+      quals.push({ id: id, label: label, status: status, expiry: expiry });
+      qualifications[id] = { status: status, expiry: expiry, label: label };
+    });
+    // Chiavi legacy per motore (apertura magazzino ecc.)
+    function levelFor(re, fallbackId) {
+      const hit = areas.find(function(a){ return re.test(a.label||'') || a.id === fallbackId; });
+      return hit ? hit.level : 'unknown';
+    }
+    return {
+      experienceAreas: areas,
+      competencyList: comps,
+      qualificationList: quals,
+      competencies: comps.join('\n'),
+      experience: (document.getElementById('wExperience') || {}).value || '',
+      otherQualifications: (document.getElementById('wQualOther') || {}).value || '',
+      openingExperience: levelFor(/apertura/i, 'opening'),
+      sandExperience: levelFor(/sabbia/i, 'sand'),
+      loaderExperience: levelFor(/pala|caricatrice/i, 'loader'),
+      loadingExperience: levelFor(/camion|ordini/i, 'loading'),
+      qualifications: qualifications
+    };
+  }
+
+  function loadWorkerSkillsForm(worker) {
+    return fillWorkerSkillsForm(worker);
+  }
+
+  function workerQualificationStatus(worker, key, todayKey) {
+    const q = worker && worker.profile && worker.profile.qualifications && worker.profile.qualifications[key];
+    if (!q) {
+      // Cerca anche in qualificationList per label/id
+      const list = worker && worker.profile && worker.profile.qualificationList;
+      if (Array.isArray(list)) {
+        const hit = list.find(function(x){ return x && (x.id === key || String(x.label||'').toLowerCase() === String(key).toLowerCase()); });
+        if (hit) {
+          if (hit.status === 'valid') {
+            if (hit.expiry && todayKey && hit.expiry < todayKey) return 'Scaduta';
+            return 'Valida';
+          }
+          if (hit.status === 'expired') return 'Scaduta';
+          if (hit.status === 'none') return 'Non posseduta';
+          return 'Da verificare';
+        }
+      }
+      return 'Da verificare';
+    }
+    if (q.status === 'valid') {
+      if (q.expiry && todayKey && q.expiry < todayKey) return 'Scaduta';
+      return 'Valida';
+    }
+    if (q.status === 'expired') return 'Scaduta';
+    if (q.status === 'none') return 'Non posseduta';
+    return 'Da verificare';
+  }
+
   function getWorkerQualification(workerId, key, todayKey) {
     const w = workerObj(workerId);
     const q = w && w.profile && w.profile.qualifications && w.profile.qualifications[key];
