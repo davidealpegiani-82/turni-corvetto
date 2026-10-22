@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.24</title>
+  <title>Turni Corvetto v9.11.25</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.24';
+    const APP_VERSION = '9.11.25';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'MALATTIA'
   };
   const APP_CHANGELOG = [
+    '9.11.25 — Impegni fuori filiale guidano apertura/chiusura: niente chiusura con trasferta pomeridiana, niente priorità apertura con corso mattutino; scoring e bilanciamento allineati a W44',
     '9.11.24 — Competenze/esperienze/qualifiche dinamiche: aggiungi o rimuovi ruoli e voci dalla scheda collaboratore',
     '9.11.23 — Corso/impegno in turno: non è più anomalia; conta come ore lavoro e solo esclude dalla copertura filiale',
     '9.11.22 — Mar/Mer con un assente nel trio: il presente non-sabatista va in chiusura 08:30-17:30; enforce non annulla più il bilanciamento in applicazione',
@@ -1930,7 +1931,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.24</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.25</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1948,7 +1949,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.24</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.25</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3062,7 +3063,12 @@
       outsideShift: 'keep_shift_overtime_no_stretch',
       straddlingEnd: 'branch_until_event_start',
       overtimeAutoChange: 'only_if_coverage_safe',
-      countsForMinCoverage: false
+      countsForMinCoverage: false,
+      // Lezioni dalle settimane reali (es. W44):
+      // - corso mattutino → non assegnare/ contare in apertura filiale
+      // - trasferta pomeridiana → non assegnare in chiusura; cercare altro closer
+      preferOpenWithoutMorningEvent: true,
+      preferCloseWithoutAfternoonEvent: true
     },
     absences: {
       fullDayHours: 'nastro_of_day',
@@ -7034,7 +7040,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.24', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.25', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10151,9 +10157,66 @@ function minLunchBreakMinutes(wId) {
   }
   function eventCoverageBlocks(e){
     // Qualsiasi impegno con orario: non disponibile per copertura filiale
+    // (le ore restano lavoro; solo la copertura filiale è esclusa)
     if(!e || e.allDay || !e.fromTime || !e.toTime) return null;
     const a=timeToMin(e.fromTime), b=timeToMin(e.toTime);
     return b>a ? [a,b] : null;
+  }
+
+  /** Blocchi impegno del collaboratore in un giorno (da cella e/o calendario eventi). */
+  function workerCoverageBlocksForDay(week, wid, day, weekKey) {
+    const blocks = [];
+    const cell = week ? cellAt(week, wid, day) : null;
+    if (cell && Array.isArray(cell.coverageBlockedIntervals)) {
+      cell.coverageBlockedIntervals.forEach(function(b){ if (b && b[1]>b[0]) blocks.push([b[0],b[1]]); });
+    }
+    try {
+      const key = weekKey || currentWeekKey || (typeof getWeekKey === 'function' ? getWeekKey(currentDate) : null);
+      const monday = key && typeof weekKeyToMonday === 'function' ? weekKeyToMonday(key) : null;
+      const dates = monday && typeof eventWeekDates === 'function' ? eventWeekDates(monday) : null;
+      const dateObj = dates && dates[day] ? dates[day] : null;
+      if (dateObj && typeof getWorkerDayEventIntervals === 'function') {
+        (getWorkerDayEventIntervals(wid, dateObj) || []).forEach(function(iv){
+          if (iv && iv[1]>iv[0]) blocks.push([iv[0], iv[1]]);
+        });
+      }
+    } catch (eB) {}
+    return typeof mergeCoverageBlocks === 'function' ? mergeCoverageBlocks(blocks) : blocks;
+  }
+
+  /** True se il collaboratore è impegnato fuori filiale nella fascia indicata. */
+  function workerBlockedInWindow(week, wid, day, startMin, endMin, weekKey) {
+    const blocks = workerCoverageBlocksForDay(week, wid, day, weekKey);
+    return (blocks || []).some(function(b){
+      return b[0] < endMin && b[1] > startMin;
+    });
+  }
+
+  /**
+   * Compatibilità turno proposto vs impegni:
+   * - turno di apertura (mIn <= 07:00): penalità se impegno in fascia 06:30–08:30
+   * - turno di chiusura (fine >= 17:00): penalità se impegno in fascia 16:00–17:30
+   * Usato da scoring e bilanciamento.
+   */
+  function shiftEventFit(week, wid, day, shift, weekKey) {
+    if (!shift) return { ok: true, openConflict: false, closeConflict: false, scoreDelta: 0, why: [] };
+    const why = [];
+    let scoreDelta = 0;
+    const openConflict = shiftCoversOpen && shiftCoversOpen(shift)
+      ? workerBlockedInWindow(week, wid, day, timeToMin('06:30'), timeToMin('08:30'), weekKey)
+      : false;
+    const closeConflict = shiftCoversClose && shiftCoversClose(shift)
+      ? workerBlockedInWindow(week, wid, day, timeToMin('16:00'), timeToMin('17:30'), weekKey)
+      : false;
+    if (openConflict) {
+      scoreDelta -= 400;
+      why.push('impegno in fascia apertura: non assegnare apertura');
+    }
+    if (closeConflict) {
+      scoreDelta -= 500;
+      why.push('impegno in fascia chiusura: non assegnare chiusura');
+    }
+    return { ok: !openConflict && !closeConflict, openConflict: openConflict, closeConflict: closeConflict, scoreDelta: scoreDelta, why: why };
   }
   function mergeCoverageBlocks(blocks){
     return (blocks||[]).filter(x=>Array.isArray(x)&&x[1]>x[0]).sort((a,b)=>a[0]-b[0]).reduce((out,x)=>{
@@ -11543,6 +11606,14 @@ function minLunchBreakMinutes(wId) {
     }
     const availableBefore=!isHardUnavailableCell(cellAt(baseWeek||week,wid,day));
     if(availableBefore) { score+=40; why.push('disponibilità compatibile'); }
+    // Impegni fuori filiale: non proporre apertura/chiusura se la fascia è bloccata
+    try {
+      if (typeof shiftEventFit === 'function' && shift) {
+        const fit = shiftEventFit(baseWeek||week, wid, day, shift, currentWeekKey);
+        score += fit.scoreDelta;
+        if (fit.why && fit.why.length) why = why.concat(fit.why);
+      }
+    } catch (eFit) {}
     return {score,test,why};
   }
 
@@ -11890,6 +11961,7 @@ function minLunchBreakMinutes(wId) {
         const sabNext = (typeof nextInRotation === 'function' && nextUfficio)
           ? nextInRotation(SABATO_UFFICIO_IDS(), nextUfficio) : null;
 
+        const CLOSE_SHIFT = CLOSE;
         const cands = present.filter(function(id) {
           if (id === nextUfficio) return false; // sabatista di questa settimana: resta apertura
           if (id === sev) return false;
@@ -11898,13 +11970,21 @@ function minLunchBreakMinutes(wId) {
           if (!c || c.manualEdit) return false;
           if (c.rotationLocked) return false;
           if (coveredAt(c, timeToMin('17:15'))) return false; // già in chiusura
+          // Non spostare in chiusura chi ha impegno in fascia 16:00–17:30
+          if (typeof workerBlockedInWindow === 'function' &&
+              workerBlockedInWindow(week, id, day, timeToMin('16:00'), timeToMin('17:30'), currentWeekKey)) {
+            return false;
+          }
+          if (typeof shiftAllowedForWorker === 'function' && !shiftAllowedForWorker(id, CLOSE_SHIFT)) return false;
           return true;
         }).sort(function(a, b) {
+          // Preferisci chi NON ha impegni pomeridiani e può coprire davvero la chiusura
+          const aBlock = typeof workerBlockedInWindow === 'function' && workerBlockedInWindow(week, a, day, timeToMin('14:00'), timeToMin('17:30'), currentWeekKey) ? 1 : 0;
+          const bBlock = typeof workerBlockedInWindow === 'function' && workerBlockedInWindow(week, b, day, timeToMin('14:00'), timeToMin('17:30'), currentWeekKey) ? 1 : 0;
+          if (aBlock !== bBlock) return aBlock - bBlock;
           // Preferisci chi sarà sabatista prossima settimana (ruolo chiusura naturale)
           if (a === sabNext) return -1;
           if (b === sabNext) return 1;
-          // Se serve coprire la chiusura, l'ex-sabatista può essere spostato.
-          // Non usare la rotazione passata come vincolo rigido.
           if (a === prevUfficio) return -1;
           if (b === prevUfficio) return 1;
           return 0;
