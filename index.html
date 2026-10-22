@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.20</title>
+  <title>Turni Corvetto v9.11.21</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.20';
+    const APP_VERSION = '9.11.21';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'MALATTIA'
   };
   const APP_CHANGELOG = [
+    '9.11.21 — Competenze canOpen/canClose vincolanti su putGenerated/applyMove; test guard: gap copertura bloccano proposalHardViolations; apply rifiuta turni incompatibili',
     '9.11.20 — Vincoli di copertura: dopo ogni bilanciamento rivalida tutta la settimana; applicazione BLOCCATA se restano gap (giorno/fascia/persone); nessuna mutazione post-validazione',
     '9.11.19 — Scheda competenze/esperienza e qualifiche con scadenze; versione PWA allineata',
     '9.11.18 — Bilanciamento finale dopo la rotazione: il generatore non annulla più gli spostamenti; con 3 presenti richiede 2 aperture e 2 chiusure contando Severin in entrambe se copre entrambi gli orari',
@@ -1926,7 +1927,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.20</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.21</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1944,7 +1945,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.20</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.21</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -7034,7 +7035,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.20', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.21', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8082,6 +8083,37 @@ function minLunchBreakMinutes(wId) {
   function R() { return getRules(); } // shorthand
   // Compatibilità nomi usati nella generazione
   function workerBrain(w){ return (w&&w.brain&&typeof w.brain==='object') ? w.brain : {}; }
+
+  /** Capacità operative (scheda collaboratore / brain). */
+  function workerMayCoverOpen(wid) {
+    const w = (typeof workerObj === 'function') ? workerObj(wid) : null;
+    const b = workerBrain(w);
+    return b.canOpen !== false;
+  }
+  function workerMayCoverClose(wid) {
+    const w = (typeof workerObj === 'function') ? workerObj(wid) : null;
+    const b = workerBrain(w);
+    return b.canClose !== false;
+  }
+  /** Un turno "di apertura" se inizia entro le 07:00 (copre fascia 06:30–08:30). */
+  function shiftCoversOpen(shift) {
+    if (!shift || !shift.mIn) return false;
+    return timeToMin(shift.mIn) <= timeToMin('07:00');
+  }
+  /** Un turno "di chiusura" se termina alle 17:00 o oltre. */
+  function shiftCoversClose(shift) {
+    if (!shift) return false;
+    const end = shift.pOut ? timeToMin(shift.pOut) : (shift.mOut ? timeToMin(shift.mOut) : 0);
+    return end >= timeToMin('17:00');
+  }
+  /** Blocca assegnazioni che violano competenze apertura/chiusura. */
+  function shiftAllowedForWorker(wid, shift) {
+    if (!shift) return true;
+    if (shiftCoversOpen(shift) && !workerMayCoverOpen(wid)) return false;
+    if (shiftCoversClose(shift) && !workerMayCoverClose(wid)) return false;
+    return true;
+  }
+
   function SABATO_UFFICIO_IDS() {
     // La rotazione deve rispettare l'ordine salvato nelle Regole Generazione,
     // non l'ordine anagrafico dei collaboratori (che può essere diverso).
@@ -9980,6 +10012,10 @@ function minLunchBreakMinutes(wId) {
     const prev = week[wid][day];
     // Hard: mai toccare modifiche manuali
     if (prev && prev.manualEdit) return;
+    // Hard: competenze apertura/chiusura (non assegnare turni incompatibili)
+    if (shift && typeof shiftAllowedForWorker === 'function' && !shiftAllowedForWorker(wid, shift)) {
+      return;
+    }
     // Hard: Severin — solo semina se vuota; orari da getSeverinHours, mai sovrascrivere un turno già presente
     if (typeof isSeverinWorker === 'function' && isSeverinWorker(wid)) {
       const hasContent = prev && (prev.mIn || prev.pOut || prev.status || prev.note);
@@ -10179,6 +10215,7 @@ function minLunchBreakMinutes(wId) {
   }
   function applyMove(week,wid,day,shift){
     if(isEngineLockedWorker(wid)) return false;
+    if (typeof shiftAllowedForWorker === 'function' && !shiftAllowedForWorker(wid, shift)) return false;
     const d=cellAt(week,wid,day);
     if(!canReplaceGenerated(week,wid,day)) return false;
     if(isPartialRolCell(d)){
@@ -10208,6 +10245,7 @@ function minLunchBreakMinutes(wId) {
   // le note e i turni speciali restano intoccabili.
   function applyBalanceMove(week,wid,day,shift){
     if(isEngineLockedWorker(wid)) return false;
+    if (typeof shiftAllowedForWorker === 'function' && !shiftAllowedForWorker(wid, shift)) return false;
     const d=cellAt(week,wid,day);
     if(!d || d.generated === false) return false;
     if(d.generated===true) return applyMove(week,wid,day,shift);
@@ -14200,6 +14238,49 @@ function showProposalReviewModal() {
       push('Assenza non può essere trasformata in turno', validateProposalBeforeApply(absence).some(x => /causale di assenza/i.test(x)));
       push('Turno manuale esplicito protetto dal riequilibrio', !isCleanStandardBalanceCell({mIn:'06:30',mOut:'12:00',pIn:'13:00',pOut:'15:30',generated:false}));
       push('Turno generato standard riconosciuto dal riequilibrio', isCleanStandardBalanceCell({mIn:'06:30',mOut:'12:00',pIn:'13:00',pOut:'15:30',generated:true}));
+
+      // --- Vincoli copertura / competenze (strutturali) ---
+      const gapProposal = make();
+      gapProposal.finalCoverageGaps = [
+        { day:0, dayLabel:'Lun', area:'ufficio', label:'ufficio chiusura', start:'17:00', end:'17:30', required:1, actual:0 }
+      ];
+      const hard = (typeof proposalHardViolations === 'function') ? proposalHardViolations(gapProposal) : [];
+      push('Gap copertura → proposalHardViolations non vuoto', hard.length > 0);
+      push('Gap copertura descritto con giorno/fascia', hard.some(x => /Lun|17:00|chiusura/i.test(String(x))));
+
+      // Competenze: canOpen/canClose
+      if (typeof shiftAllowedForWorker === 'function' && typeof workerMayCoverOpen === 'function') {
+        const finId = (typeof GIULIANO_ID === 'function') ? GIULIANO_ID() : 'w_5';
+        // w_5 finiture: canOpen false, canClose false nei default
+        const openShift = { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
+        const closeShift = { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+        // Se il worker esiste con brain canOpen false
+        const wFin = (typeof workerObj === 'function') ? workerObj(finId) : null;
+        if (wFin) {
+          const prevBrain = wFin.brain ? JSON.parse(JSON.stringify(wFin.brain)) : null;
+          wFin.brain = Object.assign({}, wFin.brain || {}, { canOpen: false, canClose: false });
+          push('Finiture non assegnabile ad apertura', shiftAllowedForWorker(finId, openShift) === false);
+          push('Finiture non assegnabile a chiusura', shiftAllowedForWorker(finId, closeShift) === false);
+          const mid = { mIn:'09:00', mOut:'13:00', pIn:'14:00', pOut:'16:00' };
+          push('Finiture ok su turno intermedio (no open/close)', shiftAllowedForWorker(finId, mid) === true);
+          if (prevBrain) wFin.brain = prevBrain;
+          else delete wFin.brain;
+        } else {
+          push('Worker finiture presente per test competenze', false, 'id ' + finId + ' assente');
+        }
+        // applyMove deve rifiutare
+        const tw = '___cap_test___';
+        const weekCap = { [tw]: { 0: { mIn:'09:00', mOut:'13:00', pIn:'14:00', pOut:'16:00', generated:true } } };
+        // simula worker temporaneo
+        const fake = { id: tw, name: 'TEST CAP', selected: true, group: 'EDILE', brain: { canOpen: false, canClose: true, office: true } };
+        const prevWorkers = appData.workers;
+        appData.workers = (appData.workers || []).concat([fake]);
+        const refused = typeof applyMove === 'function' ? applyMove(weekCap, tw, 0, openShift) : false;
+        push('applyMove rifiuta apertura se canOpen=false', refused === false);
+        appData.workers = prevWorkers;
+      } else {
+        push('Helper competenze definiti', false);
+      }
     } catch (e) {
       push('Esecuzione test senza eccezioni', false, String(e && e.message || e));
     } finally {
