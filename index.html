@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.35</title>
+  <title>Turni Corvetto v9.11.36</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.35';
+    const APP_VERSION = '9.11.36';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.36 — Restyling UI: gerarchia visiva, navigazione e controlli più leggibili su desktop/mobile; allineate le etichette versione',
     '9.11.32 — Malattia e Ricovero distinti in tabella/PDF/stato (RICOVERO ≠ MALATTIA); note open-ended diverse; riparazione etichette dalle richieste',
     '9.11.27 — Vista Malattia: rimossi pulsanti duplicati sotto la toolbar',
     '9.11.26 — Festività IT + riposo 11h in controlli; ICS tutti gli impegni; log notifiche su proposta applicata (senza cambiare il motore turni)',
@@ -1912,6 +1913,177 @@
     body:not(.light-theme) #proposalAiInput {
       background: #1e293b; color: #f8fafc; border-color: #475569;
     }
+
+    /* v9.11.36 — refresh visivo progressivo, senza modificare il motore turni */
+    :root {
+      --bg-deep: #0b1220;
+      --card-bg: #121d2d;
+      --card-bg-hover: #1b2a3e;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-2: #14b8a6;
+      --border: rgba(148, 163, 184, 0.19);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --shadow: 0 12px 30px -18px rgba(0, 0, 0, 0.72);
+    }
+    body {
+      background-image: radial-gradient(ellipse at 12% -12%, rgba(37,99,235,.13), transparent 42%),
+                        radial-gradient(ellipse at 100% 0%, rgba(20,184,166,.07), transparent 30%);
+      background-attachment: fixed;
+    }
+    .header {
+      padding: 16px 18px !important;
+      margin-bottom: 14px !important;
+      background: linear-gradient(135deg, rgba(24,37,56,.98), rgba(15,23,42,.96)) !important;
+      border-color: rgba(148,163,184,.22) !important;
+    }
+    .app-title-area h1, .brand h1 {
+      letter-spacing: -.035em;
+    }
+    .app-icon {
+      border-radius: 14px !important;
+      background: linear-gradient(145deg, #2563eb, #0f766e) !important;
+      box-shadow: 0 8px 20px rgba(37,99,235,.22);
+    }
+    .top-nav {
+      border: 1px solid var(--border) !important;
+      border-radius: 16px !important;
+      background: rgba(18,29,45,.94) !important;
+      box-shadow: var(--shadow);
+      padding: 10px !important;
+      margin-bottom: 14px !important;
+    }
+    .nav-tabs {
+      gap: 7px !important;
+    }
+    .nav-tabs button {
+      min-height: 38px;
+      padding: 9px 13px !important;
+      border: 1px solid transparent !important;
+      border-radius: 11px !important;
+    }
+    .nav-tabs button.active-tab,
+    .nav-tabs button[aria-selected="true"] {
+      background: rgba(37,99,235,.19) !important;
+      border-color: rgba(96,165,250,.38) !important;
+      color: #bfdbfe !important;
+    }
+    .control-card, .card {
+      padding: 14px !important;
+      margin-bottom: 14px !important;
+      background: linear-gradient(145deg, rgba(20,31,48,.98), rgba(16,26,41,.98));
+      border-color: rgba(148,163,184,.18) !important;
+      box-shadow: 0 10px 24px -20px rgba(0,0,0,.8) !important;
+    }
+    .toolbar-primary, .toolbar-secondary, .leave-toolbar {
+      align-items: center;
+      gap: 8px !important;
+    }
+    button, .btn {
+      min-height: 36px;
+      letter-spacing: .005em;
+    }
+    button.gen-proposal, #btnGenerateProposal, button[onclick*="generateAutoProposal"],
+    .btn-proposal {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+      box-shadow: 0 5px 14px rgba(37,99,235,.22) !important;
+    }
+    button.success {
+      background: linear-gradient(135deg, #059669, #047857) !important;
+    }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid rgba(45,212,191,.8) !important;
+      outline-offset: 2px;
+    }
+    #tableContainer {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: auto;
+      box-shadow: var(--shadow);
+      background: var(--card-bg);
+    }
+    #tableContainer table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    #tableContainer thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      backdrop-filter: blur(10px);
+    }
+    #tableContainer th, #tableContainer td {
+      border-color: var(--border) !important;
+    }
+    .rules-banner {
+      border-radius: 12px !important;
+      padding: 10px 13px !important;
+      border: 1px solid var(--border);
+    }
+    .filter-bar {
+      border-radius: 13px !important;
+    }
+    .modal {
+      border: 1px solid rgba(148,163,184,.26) !important;
+      box-shadow: 0 24px 80px rgba(0,0,0,.48) !important;
+    }
+    body.light-theme {
+      background-image: radial-gradient(ellipse at 12% -12%, rgba(37,99,235,.08), transparent 42%);
+      background-attachment: fixed;
+    }
+    body.light-theme .header {
+      background: linear-gradient(135deg, #ffffff, #f1f5f9) !important;
+      border-color: rgba(15,23,42,.1) !important;
+    }
+    body.light-theme .top-nav {
+      background: rgba(255,255,255,.96) !important;
+      border-color: rgba(15,23,42,.1) !important;
+    }
+    body.light-theme .control-card, body.light-theme .card {
+      background: linear-gradient(145deg, #ffffff, #f8fafc) !important;
+      border-color: rgba(15,23,42,.1) !important;
+    }
+    body.light-theme .nav-tabs button.active-tab,
+    body.light-theme .nav-tabs button[aria-selected="true"] {
+      background: #dbeafe !important;
+      border-color: #93c5fd !important;
+      color: #1e40af !important;
+    }
+    @media (max-width: 720px) {
+      .header { padding: 12px !important; }
+      .top-nav { padding: 8px !important; }
+      .nav-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: thin;
+        padding-bottom: 4px;
+      }
+      .nav-tabs button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .toolbar-primary, .toolbar-secondary, .leave-toolbar {
+        flex-wrap: wrap;
+      }
+      .toolbar-primary > button, .toolbar-secondary > button {
+        flex: 1 1 auto;
+      }
+      #tableContainer {
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
 </style>
 </head>
 <body>
@@ -1934,7 +2106,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.32</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.36</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1952,7 +2124,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.32</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.36</small>
         </div>
       </div>
       <div class="nav-meta">
