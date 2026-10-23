@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.35';
+    const APP_VERSION = '9.11.37';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.37 — Smart Brain: lettura diretta delle esperienze dinamiche del collaboratore per lo scoring apertura, anche senza campi legacy aggiornati',
     '9.11.32 — Malattia e Ricovero distinti in tabella/PDF/stato (RICOVERO ≠ MALATTIA); note open-ended diverse; riparazione etichette dalle richieste',
     '9.11.27 — Vista Malattia: rimossi pulsanti duplicati sotto la toolbar',
     '9.11.26 — Festività IT + riposo 11h in controlli; ICS tutti gli impegni; log notifiche su proposta applicata (senza cambiare il motore turni)',
@@ -11884,6 +11885,28 @@ function minLunchBreakMinutes(wId) {
   }
 
 
+  // Legge il livello di esperienza sia dal formato dinamico della scheda sia dai campi legacy.
+  // La scheda dinamica è la fonte primaria: evita che un profilo aggiornato venga ignorato
+  // quando openingExperience/sandExperience/loaderExperience/loadingExperience non sono stati materializzati.
+  function smartExperienceLevelFor(worker, areaKey){
+    const p = (worker && worker.profile) || {};
+    const aliases = {
+      opening: { legacy:'openingExperience', re:/apertura|opening/i },
+      sand: { legacy:'sandExperience', re:/sabbia|sabbia sfusa|sand/i },
+      loader: { legacy:'loaderExperience', re:/pala|caricatrice|ruspa|loader/i },
+      loading: { legacy:'loadingExperience', re:/camion|carico|preparazione ordini|loading/i }
+    };
+    const cfg = aliases[areaKey];
+    if(!cfg) return 'unknown';
+    const list = Array.isArray(p.experienceAreas) ? p.experienceAreas : [];
+    const hit = list.find(a => a && (
+      String(a.id || '').toLowerCase() === areaKey ||
+      cfg.re.test(String(a.label || ''))
+    ));
+    const level = hit && hit.level ? hit.level : p[cfg.legacy];
+    return ['unknown','assisted','autonomous','mentor'].includes(level) ? level : 'unknown';
+  }
+
   function smartCandidateScore(week, wid, day, shift, baseWeek){
     const test=deepClone(baseWeek||week);
     if(!applyMove(test,wid,day,shift)) return {score:-Infinity,test:null,why:'non applicabile'};
@@ -11901,9 +11924,8 @@ function minLunchBreakMinutes(wId) {
       if(burden>0 && delta[f]>0){ score-=Math.min(180,wgt*burden*delta[f]); why.push(`${f} storico sopra media`); }
     });
     if(profile.jolly) { score+=15; why.push('Jolly disponibile'); }
-    const exp = (w && w.profile) || {};
     if (profile.warehouse && shift && shift.mIn === '06:30') {
-      const level = exp.openingExperience || 'unknown';
+      const level = smartExperienceLevelFor(w, 'opening');
       const openingBonus = level === 'mentor' ? 65 : level === 'autonomous' ? 35 : level === 'assisted' ? -20 : 0;
       if (openingBonus) { score += openingBonus; why.push('esperienza apertura: ' + level); }
     }
