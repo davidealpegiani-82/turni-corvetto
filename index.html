@@ -11664,10 +11664,7 @@ function minLunchBreakMinutes(wId) {
     const mag=[...new Set([
       ...configuredMag,
       ...(appData.workers||[])
-        .filter(w=>w&&w.selected!==false&&(
-          String(w.group||'').toUpperCase()==='MAGAZZINO' ||
-          workerBrain(w).warehouse===true
-        ))
+        .filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true)
         .map(w=>w.id)
     ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
     const imp=officeCoverageIdsForDay(day);
@@ -11693,8 +11690,7 @@ function minLunchBreakMinutes(wId) {
       ...configuredMag,
       ...(appData.workers || [])
         .filter(w => w && w.selected !== false &&
-          (String(w.group || '').toUpperCase() === 'MAGAZZINO' ||
-           workerBrain(w).warehouse === true))
+          smartWorkerBrainProfile(w).warehouse === true)
         .map(w => w.id)
     ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
 
