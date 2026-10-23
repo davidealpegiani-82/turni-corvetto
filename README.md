@@ -1,4 +1,4 @@
-# Turni Corvetto v9.11.35 — sviluppo e deploy
+# Turni Corvetto v9.11.36 — sviluppo e deploy
 
 ## Pubblicazione in 2 minuti
 
@@ -26,9 +26,9 @@ Site settings → Domain management → Add custom domain
 - `netlify.toml` — header di sicurezza e SPA fallback
 
 
-## Stato versione 9.11.35
-- Audit finale delle coperture: include il personale di magazzino attivo anche se non appartiene alle coppie storiche o al ruolo jolly.
-- Audit coperture ufficio con pool esplicito e regola speciale del mercoledì: contano solo Alpegiani, Caregnato e Severin; Finiture e altri profili non possono mascherare una scopertura.
-- Sincronizzazione cloud con controllo della revisione per segnalare conflitti invece di indicare falsamente una sincronizzazione riuscita.
-- La versione 9.11.35 è sul ramo di sviluppo `fix/v9.11.29-coperture-selezione`; non è da considerarsi pubblicata sul sito principale finché non viene verificata e integrata.
-- I controlli di sintassi non sostituiscono le prove reali di generazione turni, sincronizzazione multi-dispositivo e ripristino dei dati.
+## Stato versione 9.11.36
+- Versioning allineato: `APP_VERSION`, header UI, `VERSION.txt`, service worker e query `sw.js?v=` coincidono.
+- Audit coperture: magazzino (anche sabato) e ufficio sul pool rotazione + Severin; Finiture/Idalia non mascherano le scoperture.
+- Sync cloud con controllo revisione: in caso di modifica concorrente segnala conflitto invece di un falso "ok".
+- Malattia e Ricovero restano distinti in tabella, PDF e stati cella.
+- Consigliata comunque una prova rapida: genera proposta, applica, verifica sync su un secondo dispositivo.
