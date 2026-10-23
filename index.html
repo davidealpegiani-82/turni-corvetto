@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.28</title>
+  <title>Turni Corvetto v9.11.29</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.28';
+    const APP_VERSION = '9.11.29';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,7 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
-    '9.11.28 — Malattia e Ricovero distinti in tabella/PDF/stato (RICOVERO ≠ MALATTIA); note open-ended diverse; riparazione etichette dalle richieste',
+    '9.11.29 — Malattia e Ricovero distinti in tabella/PDF/stato (RICOVERO ≠ MALATTIA); note open-ended diverse; riparazione etichette dalle richieste',
     '9.11.27 — Vista Malattia: rimossi pulsanti duplicati sotto la toolbar',
     '9.11.26 — Festività IT + riposo 11h in controlli; ICS tutti gli impegni; log notifiche su proposta applicata (senza cambiare il motore turni)',
     '9.11.25 — Impegni fuori filiale guidano apertura/chiusura: niente chiusura con trasferta pomeridiana, niente priorità apertura con corso mattutino; scoring e bilanciamento allineati a W44',
@@ -1934,7 +1934,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.28</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.29</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1952,7 +1952,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.28</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.29</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -7100,7 +7100,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.28', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.29', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10479,7 +10479,15 @@ function minLunchBreakMinutes(wId) {
   }
   function coveredAt(d,t){ return workIntervals(d).some(x=>t>=x[0]&&t<x[1]); }
   function countCovered(week,ids,day,t){
-    return ids.reduce((n,id)=>n+(coveredAt(cellAt(week,id,day),t)?1:0),0);
+    // Conta una sola volta ogni collaboratore realmente selezionato.
+    // Evita che una persona disattivata in anagrafica continui a risultare
+    // presente tramite coppie o rotazioni salvate nelle regole.
+    const uniqueIds = [...new Set(Array.isArray(ids) ? ids : [])];
+    return uniqueIds.reduce((n,id)=>{
+      const worker = workerObj(id);
+      if(!worker || worker.selected === false) return n;
+      return n + (coveredAt(cellAt(week,id,day),t) ? 1 : 0);
+    },0);
   }
   function allIntervalsCovered(week,ids,day,start,end,minCount,stepMinutes=15){
     // Campionamento fitto: include pause, impegni bloccanti e cambi turno.
@@ -11614,24 +11622,39 @@ function minLunchBreakMinutes(wId) {
     };
   }
   function collectSmartCoverageGaps(week) {
-    const days = ['Lun','Mar','Mer','Gio','Ven'];
-    const mag = [...MAG_PAIR_A(), ...MAG_PAIR_B(), MARIO_ID()].filter(id => !!workerObj(id));
-    const imp = [...SABATO_UFFICIO_IDS(), SEVERIN_ID()].filter(id => !!workerObj(id));
+    const days = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+    // Le liste possono contenere collaboratori disattivati in anagrafica:
+    // countCovered li esclude centralmente, qui filtriamo anche per chiarezza.
+    const mag = [...new Set([...MAG_PAIR_A(), ...MAG_PAIR_B(), MARIO_ID()])]
+      .filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
+    const imp = [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
+      .filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
     const gaps = [];
     const windows = [
-      { key:'magazzino', ids:mag, start:'06:30', end:'08:30', min:R().minAperturaMag??2, label:'magazzino apertura' },
-      { key:'magazzino', ids:mag, start:'08:30', end:'17:00', min:1, label:'magazzino copertura continua' },
-      { key:'magazzino', ids:mag, start:'17:00', end:'17:30', min:1, label:'magazzino chiusura' },
-      { key:'ufficio', ids:imp, start:'06:30', end:'08:30', min:R().minAperturaImp??2, label:'ufficio apertura' },
-      { key:'ufficio', ids:imp, start:'08:30', end:'17:00', min:1, label:'ufficio copertura continua' },
-      { key:'ufficio', ids:imp, start:'17:00', end:'17:30', min:1, label:'ufficio chiusura' }
+      { key:'magazzino', start:'06:30', end:'08:30', min:R().minAperturaMag??2, label:'magazzino apertura' },
+      { key:'magazzino', start:'08:30', end:'17:00', min:1, label:'magazzino copertura continua' },
+      { key:'magazzino', start:'17:00', end:'17:30', min:1, label:'magazzino chiusura' },
+      { key:'ufficio', start:'06:30', end:'08:30', min:R().minAperturaImp??2, label:'ufficio apertura' },
+      { key:'ufficio', start:'08:30', end:'17:00', min:1, label:'ufficio copertura continua' },
+      { key:'ufficio', start:'17:00', end:'17:30', min:1, label:'ufficio chiusura' },
+      { key:'magazzino', start:'07:00', end:'08:30', min:R().minSabatoMag??1, label:'magazzino apertura sabato' },
+      { key:'magazzino', start:'08:30', end:'11:00', min:1, label:'magazzino copertura continua sabato' },
+      { key:'magazzino', start:'11:00', end:'12:00', min:1, label:'magazzino chiusura sabato' },
+      { key:'ufficio', start:'07:00', end:'08:30', min:R().minSabatoImp??1, label:'ufficio apertura sabato' },
+      { key:'ufficio', start:'08:30', end:'11:00', min:1, label:'ufficio copertura continua sabato' },
+      { key:'ufficio', start:'11:00', end:'12:00', min:1, label:'ufficio chiusura sabato' }
     ];
-    for(let day=0; day<5; day++) {
-      windows.forEach(win => {
+    for(let day=0; day<=5; day++) {
+      const dayWindows = windows.filter(win =>
+        day === 5 ? win.start >= '07:00' && win.end <= '12:00' :
+                    win.start >= '06:30' && win.end <= '17:30' && !win.label.includes('sabato')
+      );
+      dayWindows.forEach(win => {
+        const ids = win.key === 'magazzino' ? mag : imp;
         let gapStart=null, gapEnd=null, minSeen=Infinity;
         const start=timeToMin(win.start), end=timeToMin(win.end);
         for(let t=start; t<end; t+=15) {
-          const count=countCovered(week,win.ids,day,t);
+          const count=countCovered(week,ids,day,t);
           if(count<win.min) {
             if(gapStart===null) gapStart=t;
             gapEnd=Math.min(end,t+15);
