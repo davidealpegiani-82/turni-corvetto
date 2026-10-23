@@ -1,4 +1,4 @@
-# Turni Corvetto v9.11.19 — deploy
+# Turni Corvetto v9.11.31 — sviluppo e deploy
 
 ## Pubblicazione in 2 minuti
 
@@ -24,3 +24,10 @@ Site settings → Domain management → Add custom domain
 ## Contenuto
 - `index.html` — app completa (turni, ferie, impegni, PDF, regole)
 - `netlify.toml` — header di sicurezza e SPA fallback
+
+
+## Stato versione 9.11.31
+- Audit coperture finale: conteggio del personale di magazzino attivo anche quando non appartiene alle coppie storiche o al ruolo jolly.
+- Sincronizzazione cloud con controllo della revisione per evitare sovrascritture concorrenti silenziose.
+- La versione 9.11.31 è attualmente sul ramo di sviluppo `fix/v9.11.29-coperture-selezione`; non è da considerarsi pubblicata sul sito principale finché non viene verificata e integrata.
+- I controlli automatici di sintassi non sostituiscono le prove reali di generazione turni, sincronizzazione multi-dispositivo e ripristino dei dati.
