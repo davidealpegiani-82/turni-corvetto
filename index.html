@@ -3706,7 +3706,7 @@ function isUsableAppData(value) {
       if (!committed) {
         const remote = snapshot && snapshot.val ? snapshot.val() : null;
         if (remote && typeof remote === 'object') window._pendingRemoteData = remote;
-        setSyncStatus('conflict', 'conflitto cloud');
+        setSyncStatus('err', 'conflitto cloud');
         try { if (typeof showRemoteUpdateBar === 'function') showRemoteUpdateBar('Un altro dispositivo ha salvato modifiche. Le tue modifiche locali sono conservate: confronta i dati prima di riprovare.'); } catch (e) {}
         showToast('Conflitto cloud: nessuna modifica remota sovrascritta. Verifica e riallinea i dati.', 'warn', 6000);
         return;
