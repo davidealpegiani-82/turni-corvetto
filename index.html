@@ -14741,6 +14741,15 @@ function showProposalReviewModal() {
       } else {
         push('Helper competenze definiti', false);
       }
+      // Smart Brain: la scheda dinamica deve essere letta anche senza campi legacy.
+      if (typeof smartExperienceLevelFor === 'function') {
+        push('Esperienza dinamica apertura mentor letta', smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',label:'Autonomia in apertura magazzino',level:'mentor'}]}}, 'opening') === 'mentor');
+        push('Esperienza da etichetta personalizzata letta', smartExperienceLevelFor({profile:{experienceAreas:[{id:'x',label:'Apertura autonoma',level:'autonomous'}]}}, 'opening') === 'autonomous');
+        push('Fallback esperienza legacy mantenuto', smartExperienceLevelFor({profile:{openingExperience:'assisted'}}, 'opening') === 'assisted');
+        push('Livello non riconosciuto non premiato', smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',label:'Apertura',level:'capo'}]}}, 'opening') === 'unknown');
+      } else {
+        push('Resolver esperienza Smart Brain definito', false);
+      }
     } catch (e) {
       push('Esecuzione test senza eccezioni', false, String(e && e.message || e));
     } finally {
