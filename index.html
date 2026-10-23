@@ -4428,11 +4428,12 @@ function isUsableAppData(value) {
   function analyzeCoverage(week) {
     const days = ['Lun','Mar','Mer','Gio','Ven','Sab'];
     const magIds = [...MAG_PAIR_A(), ...MAG_PAIR_B(), MARIO_ID()].filter(id => !!workerObj(id));
-    const impIds = officeCoverageIdsForDay(day);
+
     const minCloseMag = 1;
     const minCloseImp = 1;
     const rows = [];
     for (let day = 0; day <= 5; day++) {
+      const impIds = officeCoverageIdsForDay(day);
       const openStart = day === 5 ? '07:00' : '06:30';
       const closeStart = day === 5 ? '11:00' : '17:00';
       const minMag = day === 5 ? (R().minSabatoMag ?? 1) : (R().minAperturaMag ?? 2);
@@ -11680,7 +11681,7 @@ function minLunchBreakMinutes(wId) {
            workerBrain(w).warehouse === true))
         .map(w => w.id)
     ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
-    const imp = officeCoverageIdsForDay(null);
+
     const gaps = [];
     const windows = [
       { key:'magazzino', start:'06:30', end:'08:30', min:R().minAperturaMag??2, label:'magazzino apertura' },
@@ -11702,7 +11703,7 @@ function minLunchBreakMinutes(wId) {
                     win.start >= '06:30' && win.end <= '17:30' && !win.label.includes('sabato')
       );
       dayWindows.forEach(win => {
-        const ids = win.key === 'magazzino' ? mag : imp;
+        const ids = win.key === 'magazzino' ? mag : officeCoverageIdsForDay(day);
         let gapStart=null, gapEnd=null, minSeen=Infinity;
         const start=timeToMin(win.start), end=timeToMin(win.end);
         for(let t=start; t<end; t+=15) {
