@@ -4412,17 +4412,23 @@ function isUsableAppData(value) {
     return [m, p].filter(Boolean).join(' · ') || '—';
   }
 
+  // Pool di copertura reale ufficio. Il mercoledì è un vincolo speciale:
+  // per l'apertura e la copertura ufficio contano solo Alpegiani, Caregnato e Severin.
+  // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
+  function officeCoverageIdsForDay(day) {
+    const base = [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
+      .filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
+    if (day !== 2) return base;
+    return base.filter(id => {
+      const n = String(workerName(id) || '').toLowerCase();
+      return /alpegiani|caregnato|severin/.test(n);
+    });
+  }
+
   function analyzeCoverage(week) {
     const days = ['Lun','Mar','Mer','Gio','Ven','Sab'];
     const magIds = [...MAG_PAIR_A(), ...MAG_PAIR_B(), MARIO_ID()].filter(id => !!workerObj(id));
-    const impIds = [...new Set([
-      ...SABATO_UFFICIO_IDS(), SEVERIN_ID(),
-      ...(appData.workers || [])
-        .filter(w => w && w.selected !== false &&
-          ['MANAGER','EDILE','FINITURE'].includes(String(w.group || '').toUpperCase()) &&
-          workerBrain(w).office !== false)
-        .map(w => w.id)
-    ])].filter(id => !!workerObj(id) && workerObj(id).selected !== false);
+    const impIds = officeCoverageIdsForDay(day);
     const minCloseMag = 1;
     const minCloseImp = 1;
     const rows = [];
@@ -11674,14 +11680,7 @@ function minLunchBreakMinutes(wId) {
            workerBrain(w).warehouse === true))
         .map(w => w.id)
     ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
-    const imp = [...new Set([
-      ...SABATO_UFFICIO_IDS(), SEVERIN_ID(),
-      ...(appData.workers || [])
-        .filter(w => w && w.selected !== false &&
-          ['MANAGER','EDILE','FINITURE'].includes(String(w.group || '').toUpperCase()) &&
-          workerBrain(w).office !== false)
-        .map(w => w.id)
-    ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
+    const imp = officeCoverageIdsForDay(null);
     const gaps = [];
     const windows = [
       { key:'magazzino', start:'06:30', end:'08:30', min:R().minAperturaMag??2, label:'magazzino apertura' },
