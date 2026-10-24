@@ -5214,17 +5214,28 @@ function isUsableAppData(value) {
   // per l'apertura e la copertura ufficio contano solo Alpegiani, Caregnato e Severin.
   // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
   function officeCoverageIdsForDay(day) {
-    // Pool copertura ufficio: rotazione (Alpegiani/Poppa/Caregnato) + Severin.
-    // Esclude Finiture/Idalia: non devono mascherare una scopertura del banco edile.
-    return [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
-      .filter(function(id) {
-        const w = workerObj(id);
-        if (!w || w.selected === false) return false;
-        if (String(w.group || '').toUpperCase() === 'FINITURE') return false;
-        const blob = (String(w.name || '') + ' ' + String(w.role || '')).toLowerCase();
-        if (/finitur|idalia|sandrini/.test(blob)) return false;
-        return true;
-      });
+    // Mercoledì: pool operativo esplicito Alpegiani/Caregnato/Severin.
+    // La rotazione del sabato non deve introdurre Poppa nel conteggio del mercoledì.
+    const isWednesday = Number(day) === 2 || String(day).toLowerCase() === 'mer' || String(day).toLowerCase() === 'mercoledì';
+    let candidates;
+    if (isWednesday) {
+      candidates = (appData.workers || [])
+        .filter(w => w && w.selected !== false && workerBrain(w).office !== false)
+        .filter(w => /alpegiani|caregnato|severin/i.test(String(w.name || '') + ' ' + String(w.role || '')))
+        .map(w => w.id);
+      const severinId = SEVERIN_ID();
+      if (severinId && !candidates.includes(severinId)) candidates.push(severinId);
+    } else {
+      candidates = [...SABATO_UFFICIO_IDS(), SEVERIN_ID()];
+    }
+    return [...new Set(candidates)].filter(function(id) {
+      const w = workerObj(id);
+      if (!w || w.selected === false) return false;
+      if (String(w.group || '').toUpperCase() === 'FINITURE') return false;
+      const blob = (String(w.name || '') + ' ' + String(w.role || '')).toLowerCase();
+      if (/finitur|idalia|sandrini/.test(blob)) return false;
+      return true;
+    });
   }
 
   function analyzeCoverage(week) {
@@ -12554,9 +12565,33 @@ function minLunchBreakMinutes(wId) {
     }
     return out;
   }
+  function smartExperienceLevelFor(worker, areaKey){
+    // La matrice di esperienze è la fonte primaria; i campi legacy restano compatibili.
+    const p=(worker&&worker.profile)||{};
+    const aliases={
+      opening:{legacy:'openingExperience',re:/apertura|opening/i},
+      sand:{legacy:'sandExperience',re:/sabbia|sand/i},
+      loader:{legacy:'loaderExperience',re:/pala|caricatrice|ruspa|loader/i},
+      loading:{legacy:'loadingExperience',re:/camion|carico|preparazione ordini|loading/i}
+    };
+    const cfg=aliases[areaKey];
+    if(!cfg)return 'unknown';
+    const areas=Array.isArray(p.experienceAreas)?p.experienceAreas:[];
+    const hit=areas.find(a=>a&&(String(a.id||'').toLowerCase()===areaKey||cfg.re.test(String(a.label||''))));
+    const level=(hit&&hit.level)||p[cfg.legacy]||'unknown';
+    return ['unknown','assisted','autonomous','mentor'].includes(level)?level:'unknown';
+  }
+
   function smartCoverageMetrics(week,day){
-    const mag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()].filter(id=>!!workerObj(id));
-    const imp=[...SABATO_UFFICIO_IDS(),SEVERIN_ID()].filter(id=>!!workerObj(id));
+    // Score e audit devono usare gli stessi profili e lo stesso pool giornaliero.
+    const configuredMag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()];
+    const mag=[...new Set([
+      ...configuredMag,
+      ...(appData.workers||[])
+        .filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true)
+        .map(w=>w.id)
+    ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
+    const imp=officeCoverageIdsForDay(day);
     return {
       magOpen:allIntervalsCovered(week,mag,day,'06:30','08:30',R().minAperturaMag??2,15),
       magClose:allIntervalsCovered(week,mag,day,'17:00','17:30',1,15),
@@ -12803,9 +12838,8 @@ function minLunchBreakMinutes(wId) {
       if(burden>0 && delta[f]>0){ score-=Math.min(180,wgt*burden*delta[f]); why.push(`${f} storico sopra media`); }
     });
     if(profile.jolly) { score+=15; why.push('Jolly disponibile'); }
-    const exp = (w && w.profile) || {};
     if (profile.warehouse && shift && shift.mIn === '06:30') {
-      const level = exp.openingExperience || 'unknown';
+      const level = smartExperienceLevelFor(w, 'opening');
       const openingBonus = level === 'mentor' ? 65 : level === 'autonomous' ? 35 : level === 'assisted' ? -20 : 0;
       if (openingBonus) { score += openingBonus; why.push('esperienza apertura: ' + level); }
     }
