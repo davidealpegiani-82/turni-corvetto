@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.42</title>
+  <title>Turni Corvetto v9.11.43</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.42';
+    const APP_VERSION = '9.11.43';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.43 — Forza applicazione proposta in carenza personale (override copertura minima con conferma esplicita)',
     '9.11.42 — Ripristino completo: JS valido, home Oggi con dati, nav/modali fuori dalle stringhe di stampa',
     '9.11.41 — Fix critico: ripristinata sintassi JS (home Oggi/dati); refresh dati su Oggi dopo sync',
     '9.11.40 — Modifica turni manuale: selettore collaboratore/giorno, accesso da Oggi e Turni, celle manuali evidenziate e protette',
@@ -2160,7 +2161,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.42</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.43</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2182,7 +2183,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.42</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.43</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2611,9 +2612,14 @@
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">Rivedi e applica. Celle manuali e assenze restano protette.</p>
     <div class="proposal-summary" id="proposalSummary"></div>
     <div class="proposal-section" id="proposalViolationsSection" style="display:none;border:1px solid rgba(239,68,68,.45);border-radius:12px;padding:10px;background:rgba(239,68,68,.08);">
-      <h4 style="color:#f87171;margin:0 0 6px;">⛔ Violazioni — applicazione bloccata</h4>
-      <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;line-height:1.35;">Queste fasce restano scoperte o violano i vincoli. La proposta non si può applicare finché non sono risolte (scelte, assenze, impegni o rigenerazione).</p>
+      <h4 style="margin:0 0 6px;color:#dc2626;">VIOLAZIONI — APPLICAZIONE BLOCCATA DI DEFAULT</h4>
+      <p style="margin:0 0 8px;font-size:12px;line-height:1.4;color:var(--text-muted);">
+        Queste fasce restano scoperte o sotto i minimi. In <strong>via eccezionale</strong> (es. carenza magazzino) puoi forzare l’applicazione.
+      </p>
       <div class="proposal-list" id="proposalViolations"></div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">
+        <button type="button" class="danger" id="btnForceApplyCoverage" onclick="applyPendingProposal({forceCoverage:true})">⚠️ Forza applicazione (eccezione)</button>
+      </div>
     </div>
 
     <div class="proposal-section" id="proposalChoicesSection" style="display:none;">
@@ -7946,7 +7952,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.42', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.43', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -15556,7 +15562,12 @@ function showProposalReviewModal() {
     return out;
   }
 
-function applyPendingProposal() {
+window.applyPendingProposal = applyPendingProposal;
+function applyPendingProposal(options) {
+    // options.forceCoverage = override minimi copertura
+
+    options = options || {};
+    const forceCoverage = !!options.forceCoverage;
     const p = window.pendingTurnProposal;
     if (!p || !p.weekKey || !p.week) {
       showToast('Nessuna proposta da applicare', 'error');
@@ -15569,9 +15580,8 @@ function applyPendingProposal() {
       }
     } catch (eRot) { console.warn(eRot); }
 
-    // Dopo OGNI mutazione post-generazione: rivalidazione completa.
-    // Le scoperture di copertura sono VINCOLI, non avvisi facoltativi.
-    const blocking = validateProposalBeforeApply(p);
+    // Validazione: separa vincoli DURI da scoperture copertura (forzabili in eccezione).
+    const hardBlocking = validateProposalBeforeApply(p) || [];
     const coverage = (typeof analyzeCoverage === 'function') ? analyzeCoverage(p.week) : (p.coverage || []);
     p.coverage = coverage;
     const dayGaps = (coverage || []).filter(c => c && (c.magOk === false || c.impOk === false));
@@ -15583,23 +15593,68 @@ function applyPendingProposal() {
       finalCoverageCheckedAt: new Date().toISOString()
     });
 
+    const coverageWarnings = [];
     if (dayGaps.length) {
-      blocking.push('Copertura insufficiente (apertura/chiusura) nei giorni: ' + dayGaps.map(c => c.day || c.dayLabel || '?').join(', ') + '.');
+      coverageWarnings.push('Copertura insufficiente (apertura/chiusura) nei giorni: ' + dayGaps.map(c => c.day || c.dayLabel || '?').join(', ') + '.');
     }
     if (finalGaps.length) {
       const detail = finalGaps.slice(0, 12).map(g =>
         (g.dayLabel || '?') + ' ' + (g.label || g.area || '') + ' ' + (g.start || '') + '-' + (g.end || '') +
         ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')'
       );
-      blocking.push('COPERTURA NON RISOLTA in ' + finalGaps.length + ' intervalli: ' + detail.join('; ') + (finalGaps.length > 12 ? '; …' : '') + '.');
+      coverageWarnings.push('COPERTURA NON RISOLTA in ' + finalGaps.length + ' intervalli: ' + detail.join('; ') + (finalGaps.length > 12 ? '; …' : '') + '.');
     }
 
-    if (blocking.length) {
-      alert('La proposta NON può essere applicata (vincoli non soddisfatti):\n\n• ' + blocking.join('\n• ') + '\n\nCorreggi le scelte o rigenera dopo aver sistemato assenze/impegni.');
-      showToast('Proposta bloccata: restano violazioni di copertura o vincoli', 'error', 5500);
-      // Aggiorna la modale se aperta, così l’utente vede i gap aggiornati
+    // Vincoli duri (scelte mancanti, orari invalidi, conflitti): sempre bloccanti
+    if (hardBlocking.length) {
+      alert('La proposta NON può essere applicata (vincoli non soddisfatti):\n\n• ' + hardBlocking.join('\n• ') + '\n\nCorreggi le scelte o rigenera dopo aver sistemato assenze/impegni.');
+      showToast('Proposta bloccata: vincoli non di sola copertura', 'error', 5500);
       try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi) {}
       return;
+    }
+
+    // Scoperture copertura: bloccanti di default, forzabili in eccezione (es. carenza magazzino)
+    if (coverageWarnings.length && !forceCoverage) {
+      const msg =
+        'Copertura sotto i minimi:\n\n• ' + coverageWarnings.join('\n• ') +
+        '\n\nIn via eccezionale (es. carenza di personale) puoi comunque applicare la proposta.\n\n' +
+        'Vuoi FORZARE l\'applicazione nonostante la copertura insufficiente?';
+      const ok = confirm(msg);
+      if (!ok) {
+        showToast('Applicazione annullata — copertura sotto minimo', 'warn', 4000);
+        try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi2) {}
+        return;
+      }
+      // seconda conferma esplicita
+      const ok2 = confirm(
+        'CONFERMA ECCEZIONE\n\nStai applicando turni con copertura sotto i minimi (es. 1 sola persona in apertura magazzino).\n\nProcedere?'
+      );
+      if (!ok2) {
+        showToast('Applicazione annullata', 'info', 2500);
+        return;
+      }
+      p.meta = Object.assign({}, p.meta || {}, {
+        forceCoverageOverride: true,
+        forceCoverageAt: new Date().toISOString(),
+        forceCoverageReasons: coverageWarnings.slice()
+      });
+      try {
+        p.notes = (p.notes || []).concat([
+          '⚠️ ECCEZIONE: proposta applicata con copertura sotto i minimi (forzata dall\'utente). ' + coverageWarnings.join(' ')
+        ]);
+      } catch (eN) {}
+      try { if (typeof appendAudit === 'function') appendAudit('proposta_forzata_copertura', p.weekKey || ''); } catch (eA) {}
+    } else if (coverageWarnings.length && forceCoverage) {
+      p.meta = Object.assign({}, p.meta || {}, {
+        forceCoverageOverride: true,
+        forceCoverageAt: new Date().toISOString(),
+        forceCoverageReasons: coverageWarnings.slice()
+      });
+      try {
+        p.notes = (p.notes || []).concat([
+          '⚠️ ECCEZIONE: proposta applicata con copertura sotto i minimi (forzata dall\'utente).'
+        ]);
+      } catch (eN2) {}
     }
 
     // Solo avvisi non bloccanti (note motore / overtime): informativi, non di copertura
@@ -15645,7 +15700,7 @@ function applyPendingProposal() {
       window._pendingRemoteData = null;
       dismissRemoteUpdate();
     } catch (eClr) {}
-    showToast('Proposta applicata. Puoi annullare con ↩️', 'success', 4000);
+    showToast((p.meta && p.meta.forceCoverageOverride) ? 'Proposta applicata in ECCEZIONE (copertura sotto minimo). Annulla con ↩️' : 'Proposta applicata. Puoi annullare con ↩️', 'success', 4500);
     if (typeof checkWeeklyHoursAnomalies === 'function') checkWeeklyHoursAnomalies();
   }
 
