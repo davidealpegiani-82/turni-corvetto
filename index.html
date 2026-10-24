@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.44</title>
+  <title>Turni Corvetto v9.11.45</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.44';
+    const APP_VERSION = '9.11.45';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
     '9.11.43 — Forza applicazione proposta in carenza personale (override copertura minima con conferma esplicita)',
     '9.11.42 — Ripristino completo: JS valido, home Oggi con dati, nav/modali fuori dalle stringhe di stampa',
@@ -2162,7 +2163,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.44</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.45</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2184,7 +2185,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.44</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.45</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6016,7 +6017,6 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
 
 function renderWeek() {
     currentWeekKey = getWeekKey(currentDate);
-    try { if (typeof pruneStaleMedicalLeaveCells === 'function') pruneStaleMedicalLeaveCells(); } catch (ePrune) {}
     try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch (eMed) {}
     try { if (typeof updateWeekStatusUI === 'function') setTimeout(updateWeekStatusUI, 0); } catch (eUx) {}
     try { if (typeof renderOperationalHome === 'function' && currentView === 'oggi') setTimeout(renderOperationalHome, 0); } catch (eOp) {}
@@ -7060,18 +7060,28 @@ function renderWeek() {
 
     // 4) Cervello ufficio: ribilancia apertura/chiusura sulle settimane toccate
     //    (senza rigenerare tutta la settimana: solo celle non manualEdit)
-    targetWeeks.forEach(function(targetWeekKey) {
-      try {
-        const week = appData.weeks[targetWeekKey];
-        if (!week) return;
-        if (typeof finalizeProposalWeek === 'function') {
-          const n1 = finalizeProposalWeek(week, [], targetWeekKey) || [];
-          n1.slice(0, 8).forEach(function(msg) {
-            changes.push({ who: 'Ufficio', day: targetWeekKey, before: '—', after: String(msg), cause: reason });
-          });
-        }
-      } catch (eBal) { console.warn('Rebalance post-variazione', targetWeekKey, eBal); }
-    });
+    // Evita freeze: niente finalize completo su tutte le settimane.
+    // Solo bilanciamento leggero sulla settimana corrente (e max 1 altra).
+    try {
+      const isMedical = /malattia|ricovero/i.test(String(reason || '') + String(detail || ''));
+      const keys = (targetWeeks || []).filter(Boolean);
+      const limited = isMedical
+        ? [currentWeekKey].filter(Boolean)
+        : keys.slice(0, 2);
+      limited.forEach(function(targetWeekKey) {
+        try {
+          const week = appData.weeks[targetWeekKey];
+          if (!week) return;
+          // Solo ensure close coverage, non tutta la pipeline
+          if (typeof ensureOfficeCloseCoverage === 'function') {
+            const n1 = ensureOfficeCloseCoverage(week) || [];
+            n1.slice(0, 4).forEach(function(msg) {
+              changes.push({ who: 'Ufficio', day: targetWeekKey, before: '—', after: String(msg), cause: reason });
+            });
+          }
+        } catch (eBal) { console.warn('Rebalance post-variazione', targetWeekKey, eBal); }
+      });
+    } catch (eAutoBal) { console.warn(eAutoBal); }
 
     syncToCloud();
     if (typeof renderWeek === 'function') renderWeek();
@@ -7956,7 +7966,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.44', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.45', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -17347,26 +17357,34 @@ async function downloadJpgFromPreview() {
   function closeOpenEndedMedicalWithDate(reqId, toDay) {
     const req = (appData.leaveRequests || []).find(function(r) { return r.id === reqId; });
     if (!req) return alert('Richiesta non trovata');
-    if (!toDay) return alert('Inserisci la data di fine');
+    if (!toDay || !/^\d{4}-\d{2}-\d{2}$/.test(toDay)) return alert('Inserisci la data di fine (AAAA-MM-GG)');
     const undoSnapshot = snapshotWeeks();
-    // Pulisci tutto il vecchio periodo (inclusi giorni orfani)
-    try { restoreLeaveEffects(req); } catch (e) {}
-    req.toDay = toDay;
-    req.openEnded = false;
-    req.mode = 'range';
-    if (!req.fromDay && req.day) req.fromDay = req.day;
-    // Riapplica solo fino a toDay
-    if (req.status === 'approvata') {
-      req.turnsBefore = (typeof captureLeaveBaseline === 'function') ? captureLeaveBaseline(req) : {};
-      applyLeaveToTurns(req);
-    }
-    // Extra: prune globale
-    try { pruneStaleMedicalLeaveCells(); } catch (e2) {}
-    syncToCloud();
-    if (typeof renderWeek === 'function') renderWeek();
-    if (typeof renderMalattiaView === 'function') renderMalattiaView();
-    showToast('Ricovero/malattia chiuso al ' + toDay, 'success');
-    try { pushUndo('Chiusura assenza medica', undoSnapshot); } catch (e3) {}
+    showToast('Chiusura in corso…', 'info', 1500);
+    setTimeout(function() {
+      try {
+        try { restoreLeaveEffects(req); } catch (e) {}
+        req.toDay = toDay;
+        req.openEnded = false;
+        req.mode = 'range';
+        if (!req.fromDay && req.day) req.fromDay = req.day;
+        if (req.note && /in corso/i.test(req.note)) {
+          req.note = String(req.note).replace(/\s*[–-]\s*in corso.*/i, '').trim();
+        }
+        if (req.status === 'approvata') {
+          req.turnsBefore = (typeof captureLeaveBaseline === 'function') ? captureLeaveBaseline(req) : {};
+          applyLeaveToTurns(req);
+        }
+        try { pruneStaleMedicalLeaveCells({ full: false }); } catch (e2) {}
+        syncToCloud();
+        if (typeof renderWeek === 'function') renderWeek();
+        if (typeof renderMalattiaView === 'function') renderMalattiaView();
+        showToast('Ricovero/malattia chiuso al ' + toDay, 'success');
+        try { pushUndo('Chiusura assenza medica', undoSnapshot); } catch (e3) {}
+      } catch (eAll) {
+        console.error(eAll);
+        showToast('Errore in chiusura — riprova', 'error');
+      }
+    }, 30);
   }
   window.closeOpenEndedMedicalWithDate = closeOpenEndedMedicalWithDate;
 
@@ -17406,15 +17424,33 @@ async function downloadJpgFromPreview() {
     } else appData.leaveRequests.push(req);
 
     if (status === 'approvata') {
-      applyLeaveToTurns(req);
       const w = workerObj(workerId);
-      changes.push({who:w?w.name:workerId,day:fromDay+(req.toDay?' → '+req.toDay:' → in corso'),before:'disponibile',after:'MALATTIA',cause:tipo+(req.openEnded?' (senza data fine)':'')});
+      changes.push({who:w?w.name:workerId,day:fromDay+(req.toDay?' → '+req.toDay:' → in corso'),before:'disponibile',after:tipo.toUpperCase(),cause:tipo+(req.openEnded?' (senza data fine)':'')});
       closeModal('malattiaModal');
-      autoUpdateShiftsAfterChange({reason:tipo+' registrata',detail:(w?w.name:'')+' — turni aggiornati',changes,undoSnapshot});
+      showToast('Salvataggio ' + tipo + '…', 'info', 1500);
+      // Differisci il lavoro pesante per non bloccare la UI
+      setTimeout(function() {
+        try {
+          applyLeaveToTurns(req);
+          try { if (typeof pruneStaleMedicalLeaveCells === 'function') pruneStaleMedicalLeaveCells(); } catch (eP) {}
+          autoUpdateShiftsAfterChange({
+            reason: tipo + ' registrata',
+            detail: (w ? w.name : '') + ' — turni aggiornati',
+            changes: changes,
+            undoSnapshot: undoSnapshot
+          });
+        } catch (eSave) {
+          console.error(eSave);
+          syncToCloud();
+          if (typeof renderWeek === 'function') renderWeek();
+          showToast('Salvato con avvisi — controlla la tabella', 'warn', 4000);
+        }
+      }, 30);
     } else {
       pushUndo('Modifica richiesta assenza', undoSnapshot);
       syncToCloud(); closeModal('malattiaModal');
       if (typeof renderLeaveView === 'function') renderLeaveView();
+      if (typeof renderMalattiaView === 'function') renderMalattiaView();
       showToast('Malattia salvata senza aggiornare i turni', 'info');
     }
   }
@@ -17766,74 +17802,104 @@ async function downloadJpgFromPreview() {
    * collegate a una richiesta ma FUORI dal periodo valido
    * (es. ricovero chiuso il 16/10 ancora visibile a novembre).
    */
-  function pruneStaleMedicalLeaveCells() {
+  var _pruneMedicalBusy = false;
+  function pruneStaleMedicalLeaveCells(opts) {
+    if (_pruneMedicalBusy) return 0;
+    _pruneMedicalBusy = true;
     let n = 0;
     try {
+      opts = opts || {};
       const weeks = appData.weeks || {};
-      Object.keys(weeks).forEach(function(weekKey) {
+      // Solo settimane rilevanti: corrente + quelle toccate da richieste mediche
+      let weekKeys = [];
+      if (opts.full) {
+        weekKeys = Object.keys(weeks);
+      } else {
+        const set = {};
+        if (typeof currentWeekKey !== 'undefined' && currentWeekKey) set[currentWeekKey] = true;
+        try {
+          (appData.leaveRequests || []).forEach(function(req) {
+            if (!req || !req.isMalattia && req.tipo !== 'Malattia' && req.tipo !== 'Ricovero') return;
+            if (req.status !== 'approvata') return;
+            // al massimo ~1 anno di chiavi, non oltre oggi
+            eachDateInRequest(req, function(d) {
+              try { set[getWeekKey(d)] = true; } catch (e) {}
+            }, false);
+            Object.keys(req.turnsBefore || {}).forEach(function(dk) {
+              try {
+                const d = new Date(dk + 'T12:00:00');
+                if (!isNaN(d.getTime())) set[getWeekKey(d)] = true;
+              } catch (e2) {}
+            });
+          });
+        } catch (e3) {}
+        weekKeys = Object.keys(set);
+        // safety: mai scansionare più di 30 settimane in un colpo
+        if (weekKeys.length > 30) weekKeys = weekKeys.slice(0, 30);
+      }
+
+      const today = localDateKey(new Date());
+      weekKeys.forEach(function(weekKey) {
         const week = weeks[weekKey];
         if (!week || typeof week !== 'object') return;
+        let monday = null;
+        try {
+          monday = (typeof smartWeekMondayFromKey === 'function') ? smartWeekMondayFromKey(weekKey) : null;
+        } catch (eM) { monday = null; }
+        if (!monday || isNaN(monday.getTime())) return;
+
         Object.keys(week).forEach(function(wid) {
           const days = week[wid];
           if (!days || typeof days !== 'object') return;
-          Object.keys(days).forEach(function(dayKey) {
-            const cell = days[dayKey];
-            if (!cell || typeof cell !== 'object') return;
+          for (let di = 0; di <= 5; di++) {
+            const cell = days[di] || days[String(di)];
+            if (!cell || typeof cell !== 'object') continue;
             const st = String(cell.status || '').toUpperCase();
             const lt = String(cell.leaveType || '').toLowerCase();
-            const isMed = st === 'MALATTIA' || st === 'RICOVERO' || lt === 'malattia' || lt === 'ricovero' || !!cell.isMalattia;
-            if (!isMed && !cell.leaveRequestId) return;
+            const isMed = st === 'MALATTIA' || st === 'RICOVERO' || lt === 'malattia' || lt === 'ricovero';
+            if (!isMed && !cell.leaveRequestId) continue;
+            if (cell.manualEdit) continue;
+
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + di);
+            d.setHours(12, 0, 0, 0);
+            const dateKey = localDateKey(d);
 
             let req = null;
             if (cell.leaveRequestId) {
               req = (appData.leaveRequests || []).find(function(r) { return r.id === cell.leaveRequestId; });
             }
-            // Ricostruisci data della cella
-            let dateKey = '';
-            try {
-              const monday = (typeof smartWeekMondayFromKey === 'function')
-                ? smartWeekMondayFromKey(weekKey)
-                : null;
-              const di = parseInt(dayKey, 10);
-              if (monday && !isNaN(di) && di >= 0 && di <= 5) {
-                const d = new Date(monday);
-                d.setDate(monday.getDate() + di);
-                d.setHours(12, 0, 0, 0);
-                dateKey = localDateKey(d);
-              }
-            } catch (eD) {}
 
             let shouldClear = false;
             if (req) {
-              // Richiesta non più approvata o fuori periodo
               if (req.status !== 'approvata') shouldClear = true;
               else if (dateKey && !isDateInLeaveRequest(req, dateKey)) shouldClear = true;
             } else if (cell.leaveRequestId) {
-              // ID richiesta sparito: togli causale orfana
               shouldClear = true;
-            } else if (isMed && dateKey) {
-              // Cella medica senza id: se open-ended note ma oltre oggi, pulisci
-              const today = localDateKey(new Date());
-              if (dateKey > today && /in corso|dimissione|prognosi/i.test(String(cell.note || ''))) {
-                shouldClear = true;
-              }
+            } else if (isMed && dateKey > today && /in corso|dimissione|prognosi/i.test(String(cell.note || ''))) {
+              shouldClear = true;
             }
 
-            if (shouldClear && !cell.manualEdit) {
-              days[dayKey] = {
+            if (shouldClear) {
+              const empty = {
                 mIn: '', mOut: '', pIn: '', pOut: '',
                 status: '', note: '', leaveType: '', leaveFullDay: false,
                 leaveRequestId: '', generated: true
               };
+              days[di] = empty;
+              days[String(di)] = empty;
               n++;
             }
-          });
+          }
         });
       });
     } catch (e) { console.warn('pruneStaleMedicalLeaveCells', e); }
+    _pruneMedicalBusy = false;
     return n;
   }
   window.pruneStaleMedicalLeaveCells = pruneStaleMedicalLeaveCells;
+
+
 
 
   function eachDateInRequest(req, fn, includeSaturday) {
@@ -17857,7 +17923,12 @@ async function downloadJpgFromPreview() {
       } else {
         return;
       }
-      while (d <= end) {
+      if (isNaN(d.getTime()) || isNaN(end.getTime())) return;
+      if (d > end) return;
+      // Safety: mai più di 400 giorni (evita freeze su date corrotte)
+      let guard = 0;
+      while (d <= end && guard < 400) {
+        guard++;
         const wd = d.getDay();
         if (wd >= 1 && wd <= 5) {
           fn(new Date(d.getTime()));
