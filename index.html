@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.39</title>
+  <title>Turni Corvetto v9.11.40</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.39';
+    const APP_VERSION = '9.11.40';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.40 — Modifica turni manuale: selettore collaboratore/giorno, accesso da Oggi e Turni, celle manuali evidenziate e protette',
     '9.11.39 — Assistente operativo: home Oggi, suggerimenti azionabili, nav semplificata, pubblica settimana',
     '9.11.38 — UX quotidiana: home settimana, semaforo, barra azioni mobile, celle più chiare, checklist pre-pubblicazione, header compatto',
     '9.11.37 — Pipeline unica finalizeProposalWeek: rotazione → eventi → bilancio chiusura → riparazione → pause → Severin; rebalance non sovrascrive più il bilancio',
@@ -2061,7 +2062,7 @@
     .op-hero p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
     .op-status-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
     .op-actions {
-      display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:8px; margin: 0 0 16px;
+      display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin: 0 0 16px;
     }
     @media (max-width:560px) {
       .op-actions { grid-template-columns: 1fr; }
@@ -2124,6 +2125,16 @@
     #viewTurni .week-home { display: none; } /* home dedicata in Oggi */
     body.op-mode-oggi .top-controls-extra { display:none; }
 
+
+    .cell-manual-badge {
+      position:absolute; top:2px; right:2px; font-size:9px; font-weight:800;
+      background:rgba(37,99,235,.15); color:#2563eb; border-radius:4px; padding:0 3px;
+      line-height:1.3;
+    }
+    body.light-theme .cell-manual-badge { background:#dbeafe; color:#1d4ed8; }
+    td.cell-shift.manual-edit { box-shadow: inset 0 0 0 1.5px rgba(37,99,235,.35); }
+    .manual-hint { font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.35; }
+
 </style>
 </head>
 <body>
@@ -2147,7 +2158,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.39</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.40</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2169,7 +2180,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.39</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.40</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2199,6 +2210,7 @@
       <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
       <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
       <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
+      <button class="alt" onclick="openManualEditPicker()" title="Modifica manualmente un turno">✏️ Modifica turno</button>
       <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
     </div>
     <div class="leave-toolbar toolbar-secondary" style="margin-bottom:0;">
@@ -2267,6 +2279,7 @@
 
   <div class="op-actions">
     <button type="button" class="primary" onclick="generateAutoProposal()">✨ Genera turni</button>
+    <button type="button" class="secondary" onclick="openManualEditPicker()">✏️ Modifica turno</button>
     <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
     <button type="button" class="secondary" onclick="publishWeekOperational()">📤 Pubblica</button>
   </div>
@@ -2282,6 +2295,7 @@
 
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;">
     <button type="button" class="alt" onclick="switchView('turni')">Apri tabella turni</button>
+    <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
     <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
     <button type="button" class="alt" onclick="switchView('eventi')">Tutti gli impegni</button>
   </div>
@@ -2712,9 +2726,30 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Modal Modifica Giorno -->
+
+<div class="modal-backdrop" id="manualEditPickerModal" style="display:none;" onclick="if(event.target===this)closeModal('manualEditPickerModal')">
+  <div class="modal" style="max-width:420px;" onclick="event.stopPropagation()">
+    <h3 style="margin:0 0 6px;">✏️ Modifica turno</h3>
+    <p class="manual-hint">Scegli collaboratore e giorno. Le modifiche manuali restano protette dalla generazione automatica.</p>
+    <div class="form-group">
+      <label>Collaboratore</label>
+      <select id="manualEditWorker" style="width:100%;"></select>
+    </div>
+    <div class="form-group">
+      <label>Giorno</label>
+      <select id="manualEditDay" style="width:100%;"></select>
+    </div>
+    <div class="modal-actions" style="justify-content:flex-end;gap:8px;margin-top:12px;">
+      <button type="button" class="alt" onclick="closeModal('manualEditPickerModal')">Annulla</button>
+      <button type="button" class="btn-proposal" onclick="confirmManualEditPicker()">Modifica orari…</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="dayModal">
   <div class="modal">
     <h3 id="modalDayTitle">Modifica Turno</h3>
+    <p class="manual-hint" id="manualEditHint">Modifica manuale: questo turno non verrà sovrascritto da «Genera proposta».</p>
     <button style="width:100%; margin-bottom:16px;" class="alt" onclick="copyPreviousDay()">📋 Copia dal giorno precedente</button>
     
     <div class="form-group">
@@ -7905,7 +7940,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.39', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.40', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8772,9 +8807,69 @@ function minLunchBreakMinutes(wId) {
     return total;
   }
 
+
+  function openManualEditPicker() {
+    try {
+      const selW = document.getElementById('manualEditWorker');
+      const selD = document.getElementById('manualEditDay');
+      if (!selW || !selD) {
+        switchView('turni');
+        showToast('Tocca una cella in tabella per modificare il turno', 'info', 3500);
+        return;
+      }
+      const workers = (appData.workers || []).filter(function(w) { return w.selected !== false; });
+      selW.innerHTML = workers.map(function(w) {
+        return '<option value="' + escapeHtmlV47(w.id) + '">' + escapeHtmlV47(w.name || w.id) + '</option>';
+      }).join('');
+      const dayNames = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+      let dates = [];
+      try {
+        if (typeof eventWeekDates === 'function') dates = eventWeekDates(currentDate) || [];
+      } catch (e) {}
+      selD.innerHTML = dayNames.map(function(n, i) {
+        let extra = '';
+        if (dates[i]) {
+          try { extra = ' ' + dates[i].getDate() + '/' + (dates[i].getMonth()+1); } catch (e2) {}
+        }
+        return '<option value="' + i + '">' + n + extra + '</option>';
+      }).join('');
+      // Preselect today if in week
+      try {
+        const today = new Date(); today.setHours(12,0,0,0);
+        const di = (typeof dateToDayIdx === 'function') ? dateToDayIdx(today) : -1;
+        if (di >= 0 && di <= 5) selD.value = String(di);
+      } catch (e3) {}
+      openModal('manualEditPickerModal');
+    } catch (e) {
+      console.warn(e);
+      switchView('turni');
+      showToast('Tocca una cella per modificare', 'info');
+    }
+  }
+  window.openManualEditPicker = openManualEditPicker;
+
+  function confirmManualEditPicker() {
+    const wId = document.getElementById('manualEditWorker') && document.getElementById('manualEditWorker').value;
+    const day = parseInt(document.getElementById('manualEditDay') && document.getElementById('manualEditDay').value, 10);
+    if (!wId || isNaN(day)) {
+      showToast('Seleziona collaboratore e giorno', 'warn');
+      return;
+    }
+    closeModal('manualEditPickerModal');
+    let dateObj = null;
+    try {
+      const dates = (typeof eventWeekDates === 'function') ? eventWeekDates(currentDate) : [];
+      dateObj = dates[day] || new Date();
+    } catch (e) { dateObj = new Date(); }
+    if (typeof openDayModal === 'function') openDayModal(wId, day, dateObj);
+  }
+  window.confirmManualEditPicker = confirmManualEditPicker;
+
+
   function openDayModal(wId, day, dateObj) {
     currentWorkerId = wId;
     currentDayIdx = day;
+    // exposed for picker / external calls
     let daysNames = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"];
     let monthsNames = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
     let worker = appData.workers.find(w => w.id === wId);
@@ -8790,6 +8885,7 @@ function minLunchBreakMinutes(wId) {
 
     document.getElementById('dayModal').style.display = 'flex';
   }
+  window.openDayModal = openDayModal;
 
   function setQuickHours(mIn, mOut, pIn, pOut) {
     document.getElementById('mIn').value = mIn;
@@ -8979,6 +9075,7 @@ function minLunchBreakMinutes(wId) {
       delete appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx];
     }
     closeModal('dayModal');
+    try { if (typeof renderOperationalHome === 'function') renderOperationalHome(); } catch (e) {}
     syncToCloud();
     renderWeek();
   }
@@ -9056,7 +9153,8 @@ function minLunchBreakMinutes(wId) {
     closeModal('dayModal');
     syncToCloud();
     renderWeek();
-    showToast('Turno salvato', 'success', 1800);
+    try { if (typeof renderOperationalHome === 'function') renderOperationalHome(); } catch (eOp) {}
+    showToast('Turno salvato (protetto dalla generazione)', 'success', 2200);
   }
 
   // ========== GENERAZIONE AUTOMATICA PROPOSTA TURNI ==========
