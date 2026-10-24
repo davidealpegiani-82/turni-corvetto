@@ -4809,9 +4809,8 @@ function isUsableAppData(value) {
   // per l'apertura e la copertura ufficio contano solo Alpegiani, Caregnato e Severin.
   // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
   function officeCoverageIdsForDay(day) {
-    // Pool copertura ufficio: rotazione (Alpegiani/Poppa/Caregnato) + Severin.
-    // Esclude Finiture/Idalia: non devono mascherare una scopertura del banco edile.
-    return [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
+    // Pool base: rotazione ufficio + Severin. Finiture/Idalia non coprono il banco edile.
+    const base=[...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
       .filter(function(id) {
         const w = workerObj(id);
         if (!w || w.selected === false) return false;
@@ -4820,6 +4819,19 @@ function isUsableAppData(value) {
         if (/finitur|idalia|sandrini/.test(blob)) return false;
         return true;
       });
+    // Mercoledì è un pool vincolato: soltanto Alpegiani, Caregnato e Severin.
+    // Riconoscimento per nome/ruolo, non per ordine anagrafico: Poppa e altri
+    // addetti non devono mascherare una scopertura in quella giornata.
+    if (Number(day) === 2) {
+      return base.filter(function(id) {
+        const w=workerObj(id);
+        if (!w) return false;
+        const blob=(String(w.name||'')+' '+String(w.role||'')).toLowerCase();
+        return /alpegiani|caregnato|severin/.test(blob) ||
+          workerBrain(w).officeProfile === 'severin';
+      });
+    }
+    return base;
   }
 
   function analyzeCoverage(week) {
@@ -10568,6 +10580,17 @@ function minLunchBreakMinutes(wId) {
   function runSmartBrainRegressionSuite(){
     const keys=['M37','M38','M39','M40','M41','M42','M43','M44','M45','M46','M47'];
     const results=keys.map(runSmartRegressionScenario);
+    // Regole di copertura per giorno: mercoledì è un gruppo ristretto,
+    // mentre martedì usa il pool ufficio ordinario.
+    const tuesdayPool=officeCoverageIdsForDay(1).map(id=>workerObj(id)).filter(Boolean);
+    const wednesdayPool=officeCoverageIdsForDay(2).map(id=>workerObj(id)).filter(Boolean);
+    const hasName=(arr,re)=>arr.some(w=>re.test(String(w.name||'')+' '+String(w.role||'')));
+    const hasPoppa=(arr)=>arr.some(w=>/poppa/i.test(String(w.name||'')+' '+String(w.role||'')));
+    [
+      {key:'DAY-TUE',title:'Pool ufficio martedì',ok:hasName(tuesdayPool,/alpegiani/i)&&hasName(tuesdayPool,/caregnato/i)&&hasName(tuesdayPool,/poppa/i)&&hasName(tuesdayPool,/severin/i),msg:'Martedì include il gruppo ufficio ordinario e Severin'},
+      {key:'DAY-WED',title:'Pool ufficio mercoledì',ok:hasName(wednesdayPool,/alpegiani/i)&&hasName(wednesdayPool,/caregnato/i)&&hasName(wednesdayPool,/severin/i)&&!hasPoppa(wednesdayPool),msg:'Mercoledì include Alpegiani, Caregnato e Severin; esclude Poppa'},
+      {key:'DAY-WED-NO-FINITURE',title:'Esclusione Finiture mercoledì',ok:!hasName(wednesdayPool,/finitur|idalia|sandrini/i),msg:'Finiture/Idalia non vengono conteggiate per il banco edile'}
+    ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
