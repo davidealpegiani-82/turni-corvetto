@@ -11118,6 +11118,23 @@ function minLunchBreakMinutes(wId) {
       const actual=smartExperienceLevelFor(t.worker,t.area), ok=actual===t.expected;
       results.push({key:t.key,status:ok?'pass':'fail',title:t.title,checks:[{ok,msg:'Atteso '+t.expected+' · ottenuto '+actual}]});
     });
+    // Test di regressione: con una sola persona disponibile e presente in apertura,
+    // il controllo deve comunque richiedere 2 persone, non abbassare il minimo a 1.
+    const selectedSnapshot=appData.workers.map(w=>({w,had:Object.prototype.hasOwnProperty.call(w,'selected'),value:w.selected}));
+    try{
+      const officeIds=[...new Set([...SABATO_UFFICIO_IDS(),SEVERIN_ID()])];
+      const keepId=officeCoverageIdsForDay(2)[0];
+      appData.workers.forEach(w=>{if(officeIds.includes(w.id))w.selected=(w.id===keepId);});
+      const oneWorkerWeek={};
+      if(keepId)putGenerated(oneWorkerWeek,keepId,2,{mIn:'06:30',mOut:'12:30',pIn:'13:00',pOut:'17:30'});
+      const row=analyzeCoverage(oneWorkerWeek)[2];
+      const ok=!!row&&row.impOpen===1&&row.minImp===2&&row.impOpenOk===false;
+      results.push({key:'COVERAGE-MIN',status:ok?'pass':'fail',title:'Minimo ufficio non si riduce in carenza',checks:[{ok,msg:'Con 1 presente su 2 richiesti, la fascia deve restare scoperta'}]});
+    }catch(e){
+      results.push({key:'COVERAGE-MIN',status:'fail',title:'Minimo ufficio non si riduce in carenza',checks:[{ok:false,msg:'Test non eseguibile: '+(e&&e.message||e)}]});
+    }finally{
+      selectedSnapshot.forEach(x=>{if(x.had)x.w.selected=x.value;else delete x.w.selected;});
+    }
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
