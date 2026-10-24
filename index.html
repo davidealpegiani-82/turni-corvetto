@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.45</title>
+  <title>Turni Corvetto v9.11.46</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.45';
+    const APP_VERSION = '9.11.46';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
     '9.11.43 — Forza applicazione proposta in carenza personale (override copertura minima con conferma esplicita)',
@@ -2163,7 +2164,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.45</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.46</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2185,7 +2186,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.45</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.46</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -6688,24 +6689,42 @@ function renderWeek() {
       var shiftH = (typeof shiftMinutes === 'function' ? shiftMinutes(dayData) : 0) / 60;
       var otH = Number(dayData.overtimeMinutes || 0) / 60;
 
-      // Se lo straordinario era stato generato automaticamente da un impegno,
-      // ricalcolarlo con la regola corretta anche per le celle già salvate:
-      // corso sovrapposto al turno = 0 ore extra; resta solo indisponibilità.
+      // SEMPRE ricalcola lo straordinario da impegni quando ci sono eventi del giorno.
+      // Corso/impegno DENTRO il turno = 0 ore extra (già nel turno).
+      // Solo la parte FUORI orario entra in otH. Ignora overtimeMinutes stantii.
       var eventIntervalsForHours = [];
       if (dateObj && wId && typeof getWorkerDayEventIntervals === 'function') {
         try { eventIntervalsForHours = getWorkerDayEventIntervals(wId, dateObj) || []; } catch (eEventsHours) {}
       }
-      var eventGeneratedOvertime = /impegno|evento|fuori orario/i.test(String(dayData.overtimeNote || ''));
-      if (eventIntervalsForHours.length && (otH <= 0 || eventGeneratedOvertime)) {
+      if (eventIntervalsForHours.length && typeof computeEventOvertimeMinutes === 'function') {
         var eventOtMinutes = 0;
         try {
           eventIntervalsForHours.forEach(function(iv) {
-            if (typeof computeEventOvertimeMinutes === 'function') {
-              eventOtMinutes += computeEventOvertimeMinutes(dayData, minToTime(iv[0]), minToTime(iv[1]));
-            }
+            eventOtMinutes += computeEventOvertimeMinutes(dayData, minToTime(iv[0]), minToTime(iv[1]));
           });
-          otH = eventOtMinutes / 60;
+          // Se l'overtime era da impegno (o non c'è nota manuale), usa il ricalcolo
+          var manualOt = otH > 0.05 && !/impegno|evento|fuori orario|corso/i.test(String(dayData.overtimeNote || ''));
+          if (!manualOt) {
+            otH = eventOtMinutes / 60;
+          }
         } catch (eOt) {}
+      }
+
+      // Preferisci unione intervalli (turno ∪ eventi) se più bassa e coerente:
+      // evita 9.5 + 3.5 = 13 quando il corso è già nel mattino.
+      if (typeof calcHours === 'function' && dateObj) {
+        try {
+          var mergedH = calcHours(dayData, wId, dateObj);
+          // mergedH = unione senza doppio conteggio; usalo se è sensato
+          if (mergedH > 0 && mergedH <= shiftH + otH + 0.05) {
+            // se leave parziale, aggiungi leave solo se non già nel merge
+            if (leaveH > 0.05) {
+              // permesso parziale: merged già solo lavoro; leave si somma
+              return Math.round((mergedH + leaveH) * 100) / 100;
+            }
+            return Math.round(mergedH * 100) / 100;
+          }
+        } catch (eMerge) {}
       }
 
       // Se il turno sembra esteso oltre il nastro per coprire un impegno, usa il nastro come ore lavoro
@@ -6717,7 +6736,7 @@ function renderWeek() {
       if (leaveH > 0 && nastro > 0 && sum >= nastro - 0.15 && sum <= nastro + 0.35 && otH < 0.2) {
         return nastro;
       }
-      return sum;
+      return Math.round(sum * 100) / 100;
     }
 
     if (st === 'EVENTO') {
@@ -7966,7 +7985,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.45', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.46', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
