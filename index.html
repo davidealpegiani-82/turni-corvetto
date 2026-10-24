@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.42';
+    const APP_VERSION = '9.11.43';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -2160,7 +2160,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.42</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.43</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2182,7 +2182,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.42</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.43</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -13384,9 +13384,9 @@ function minLunchBreakMinutes(wId) {
     if (!clearMode) {
       var ans = window.prompt(
         'Genera proposta — cosa fare della settimana corrente?\n\n' +
-        '1 = Svuota tutto e rigenera\n' +
+        '1 = Rigenera i turni automatici (conserva le celle manuali)\n' +
         '2 = Solo celle vuote\n' +
-        '3 = Solo celle non modificate a mano\n\n' +
+        '3 = Rigenera le celle automatiche e conserva le manuali\n\n' +
         'Scrivi 1, 2 o 3',
         '1'
       );
@@ -13406,19 +13406,21 @@ function minLunchBreakMinutes(wId) {
     try {
       if (!appData.weeks) appData.weeks = {};
       if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
-      if (clearMode === 'all') {
-        appData.weeks[currentWeekKey] = {};
-      } else if (clearMode === 'empty') {
-        // lascia tutto com'è: il motore riempie i buchi
-      } else if (clearMode === 'nonmanual') {
-        const wk = appData.weeks[currentWeekKey];
+      if (clearMode === 'all' || clearMode === 'nonmanual') {
+        // Non cancellare mai le celle inserite/modificate manualmente: anche la
+        // rigenerazione completa deve lasciare intatti i vincoli espliciti dell'utente.
+        const wk = appData.weeks[currentWeekKey] || {};
         Object.keys(wk).forEach(function(wid) {
           const days = wk[wid] || {};
           Object.keys(days).forEach(function(d) {
-            if (days[d] && days[d].manualEdit) return;
+            if (days[d] && days[d].manualEdit === true) return;
             delete days[d];
           });
+          if (!Object.keys(days).length) delete wk[wid];
         });
+        appData.weeks[currentWeekKey] = wk;
+      } else if (clearMode === 'empty') {
+        // Lascia tutte le celle esistenti: il motore riempie solo i buchi.
       }
     } catch (eClr) {}
 
@@ -15571,37 +15573,40 @@ function applyPendingProposal() {
 
     // Dopo OGNI mutazione post-generazione: rivalidazione completa.
     // Le scoperture di copertura sono VINCOLI, non avvisi facoltativi.
-    const blocking = validateProposalBeforeApply(p);
+    const validationBlocking = validateProposalBeforeApply(p);
     const coverage = (typeof analyzeCoverage === 'function') ? analyzeCoverage(p.week) : (p.coverage || []);
     p.coverage = coverage;
     const dayGaps = (coverage || []).filter(c => c && (c.magOk === false || c.impOk === false));
     let finalGaps = [];
     try { finalGaps = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; } catch (eCoverage) {}
     p.finalCoverageGaps = finalGaps;
-    p.meta = Object.assign({}, p.meta || {}, {
-      finalCoverageGapCount: finalGaps.length,
-      finalCoverageCheckedAt: new Date().toISOString()
-    });
-
-    if (dayGaps.length) {
-      blocking.push('Copertura insufficiente (apertura/chiusura) nei giorni: ' + dayGaps.map(c => c.day || c.dayLabel || '?').join(', ') + '.');
-    }
+    p.meta = Object.assign({}, p.meta || {}, { finalCoverageGapCount: finalGaps.length, finalCoverageCheckedAt: new Date().toISOString() });
+    const coverageBlocking = [];
+    if (dayGaps.length) coverageBlocking.push('Copertura insufficiente (apertura/chiusura) nei giorni: ' + dayGaps.map(c => c.day || c.dayLabel || '?').join(', ') + '.');
     if (finalGaps.length) {
-      const detail = finalGaps.slice(0, 12).map(g =>
-        (g.dayLabel || '?') + ' ' + (g.label || g.area || '') + ' ' + (g.start || '') + '-' + (g.end || '') +
-        ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')'
-      );
-      blocking.push('COPERTURA NON RISOLTA in ' + finalGaps.length + ' intervalli: ' + detail.join('; ') + (finalGaps.length > 12 ? '; …' : '') + '.');
+      const detail = finalGaps.slice(0, 12).map(g => (g.dayLabel || '?') + ' ' + (g.label || g.area || '') + ' ' + (g.start || '') + '-' + (g.end || '') + ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')');
+      coverageBlocking.push('COPERTURA NON RISOLTA in ' + finalGaps.length + ' intervalli: ' + detail.join('; ') + (finalGaps.length > 12 ? '; …' : '') + '.');
     }
-
-    if (blocking.length) {
-      alert('La proposta NON può essere applicata (vincoli non soddisfatti):\n\n• ' + blocking.join('\n• ') + '\n\nCorreggi le scelte o rigenera dopo aver sistemato assenze/impegni.');
-      showToast('Proposta bloccata: restano violazioni di copertura o vincoli', 'error', 5500);
-      // Aggiorna la modale se aperta, così l’utente vede i gap aggiornati
+    // La forzatura è un'eccezione esplicita e tracciata: deroga solo alla copertura minima.
+    // Validazioni di integrità, assenze, orari, scelte irrisolte e conflitti restano bloccanti.
+    if (validationBlocking.length) {
+      alert('La proposta NON può essere applicata (vincoli non derogabili):\n\n• ' + validationBlocking.join('\n• ') + '\n\nCorreggi questi problemi e riprova. La forzatura riguarda esclusivamente il minimo di copertura.');
+      showToast('Proposta bloccata: ci sono vincoli non derogabili', 'error', 5500);
       try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi) {}
       return;
     }
-
+    if (coverageBlocking.length) {
+      const summary = finalGaps.slice(0, 8).map(g => (g.dayLabel || '?') + ' · ' + (g.label || g.area || 'copertura') + ' ' + (g.start || '') + '-' + (g.end || '') + ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')');
+      const prompt = 'ATTENZIONE — COPERTURA SOTTO IL MINIMO\n\n' + coverageBlocking.join('\n\n') + (summary.length ? '\n\nIntervalli principali:\n• ' + summary.join('\n• ') : '') + '\n\nVuoi applicare comunque questa proposta in via eccezionale?\n\nLa forzatura ignora SOLO il minimo di copertura; non aggira controlli su assenze, orari non validi, modifiche concorrenti o scelte non confermate.';
+      if (!confirm(prompt)) {
+        showToast('Applicazione annullata: proposta non modificata', 'info', 3500);
+        try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi) {}
+        return;
+      }
+      p.meta = Object.assign({}, p.meta || {}, { coverageOverride: true, coverageOverrideAt: new Date().toISOString(), coverageOverrideGapCount: finalGaps.length, coverageOverrideDays: [...new Set(finalGaps.map(g => g.dayLabel || g.day || '?'))] });
+      p.notes = (p.notes || []).concat(['⚠️ FORZATURA COPERTURA autorizzata manualmente: applicata sotto il minimo in via eccezionale. Intervalli scoperti: ' + finalGaps.length + '.']);
+      try { if (typeof appendAudit === 'function') appendAudit('forzatura_copertura_minima', p.weekKey + ' · ' + finalGaps.length + ' intervalli'); } catch (eAudit) {}
+    }
     // Solo avvisi non bloccanti (note motore / overtime): informativi, non di copertura
     let warnings = [];
     try {
