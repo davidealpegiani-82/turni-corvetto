@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.46';
+    const APP_VERSION = '9.11.47';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.47 — Copertura mercoledì vincolata; competenze dinamiche; test automatici pool ufficio e profili',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
@@ -2164,7 +2165,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.46</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.47</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2186,7 +2187,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.46</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.47</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5214,9 +5215,8 @@ function isUsableAppData(value) {
   // per l'apertura e la copertura ufficio contano solo Alpegiani, Caregnato e Severin.
   // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
   function officeCoverageIdsForDay(day) {
-    // Pool copertura ufficio: rotazione (Alpegiani/Poppa/Caregnato) + Severin.
-    // Esclude Finiture/Idalia: non devono mascherare una scopertura del banco edile.
-    return [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
+    // Pool base: rotazione ufficio + Severin. Finiture/Idalia non coprono il banco edile.
+    const base=[...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
       .filter(function(id) {
         const w = workerObj(id);
         if (!w || w.selected === false) return false;
@@ -5225,11 +5225,28 @@ function isUsableAppData(value) {
         if (/finitur|idalia|sandrini/.test(blob)) return false;
         return true;
       });
+    // Mercoledì è un pool vincolato: soltanto Alpegiani, Caregnato e Severin.
+    // Si usa l'identità del collaboratore, non l'ordine della rotazione:
+    // Poppa e gli altri addetti non devono mascherare una scopertura in quel giorno.
+    if (Number(day) === 2) {
+      return base.filter(function(id) {
+        const w=workerObj(id);
+        if (!w) return false;
+        const blob=(String(w.name||'')+' '+String(w.role||'')).toLowerCase();
+        return /alpegiani|caregnato|severin/.test(blob) ||
+          workerBrain(w).officeProfile === 'severin';
+      });
+    }
+    return base;
   }
 
   function analyzeCoverage(week) {
     const days = ['Lun','Mar','Mer','Gio','Ven','Sab'];
-    const magIds = [...MAG_PAIR_A(), ...MAG_PAIR_B(), MARIO_ID()].filter(id => !!workerObj(id));
+    const configuredMag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()];
+    const magIds=[...new Set([
+      ...configuredMag,
+      ...(appData.workers||[]).filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true).map(w=>w.id)
+    ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
 
     const minCloseMag = 1;
     const minCloseImp = 1;
@@ -5246,7 +5263,7 @@ function isUsableAppData(value) {
       const impClose = day === 5 ? countCovered(week, impIds, day, timeToMin('09:00')) : countCovered(week, impIds, day, timeToMin('17:15'));
       const magOpenOk = magOpen >= minMag;
       const magCloseOk = day === 5 ? true : (magClose >= minCloseMag);
-      const impOpenOk = impOpen >= Math.min(minImp, impIds.length);
+      const impOpenOk = impOpen >= minImp;
       const impCloseOk = day === 5 ? true : (impClose >= minCloseImp);
       rows.push({
         day: days[day],
@@ -11081,6 +11098,43 @@ function minLunchBreakMinutes(wId) {
   function runSmartBrainRegressionSuite(){
     const keys=['M37','M38','M39','M40','M41','M42','M43','M44','M45','M46','M47'];
     const results=keys.map(runSmartRegressionScenario);
+    // Verifiche quotidiane non dipendenti da turni salvati: pool ammessi per giorno.
+    const tuesdayPool=officeCoverageIdsForDay(1).map(id=>workerObj(id)).filter(Boolean);
+    const wednesdayPool=officeCoverageIdsForDay(2).map(id=>workerObj(id)).filter(Boolean);
+    const hasName=(arr,re)=>arr.some(w=>re.test(String(w.name||'')+' '+String(w.role||'')));
+    const hasPoppa=(arr)=>arr.some(w=>/poppa/i.test(String(w.name||'')+' '+String(w.role||'')));
+    [
+      {key:'DAY-TUE',title:'Pool ufficio martedì',ok:hasName(tuesdayPool,/alpegiani/i)&&hasName(tuesdayPool,/caregnato/i)&&hasName(tuesdayPool,/poppa/i)&&hasName(tuesdayPool,/severin/i),msg:'Martedì include il gruppo ufficio ordinario e Severin'},
+      {key:'DAY-WED',title:'Pool ufficio mercoledì',ok:hasName(wednesdayPool,/alpegiani/i)&&hasName(wednesdayPool,/caregnato/i)&&hasName(wednesdayPool,/severin/i)&&!hasPoppa(wednesdayPool),msg:'Mercoledì include Alpegiani, Caregnato e Severin; esclude Poppa'},
+      {key:'DAY-WED-NO-FINITURE',title:'Esclusione Finiture mercoledì',ok:!hasName(wednesdayPool,/finitur|idalia|sandrini/i),msg:'Finiture/Idalia non conteggiate per il banco edile'}
+    ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
+    [
+      {key:'EXP1',title:'Esperienza apertura dinamica: mentor',worker:{profile:{experienceAreas:[{id:'opening',level:'mentor'}]}},area:'opening',expected:'mentor'},
+      {key:'EXP2',title:'Etichetta personalizzata: apertura autonoma',worker:{profile:{experienceAreas:[{label:'Apertura piazzale',level:'autonomous'}]}},area:'opening',expected:'autonomous'},
+      {key:'EXP3',title:'Compatibilità profilo storico',worker:{profile:{openingExperience:'assisted'}},area:'opening',expected:'assisted'},
+      {key:'EXP4',title:'Area non riconosciuta: fallback sicuro',worker:{profile:{}},area:'unknown-area',expected:'unknown'},
+      {key:'EXP5',title:'Livello non valido: fallback sicuro',worker:{profile:{experienceAreas:[{id:'opening',level:'guru'}]}},area:'opening',expected:'unknown'}
+    ].forEach(t=>{
+      const actual=smartExperienceLevelFor(t.worker,t.area), ok=actual===t.expected;
+      results.push({key:t.key,status:ok?'pass':'fail',title:t.title,checks:[{ok,msg:'Atteso '+t.expected+' · ottenuto '+actual}]});
+    });
+    // Test di regressione: con una sola persona disponibile e presente in apertura,
+    // il controllo deve comunque richiedere 2 persone, non abbassare il minimo a 1.
+    const selectedSnapshot=appData.workers.map(w=>({w,had:Object.prototype.hasOwnProperty.call(w,'selected'),value:w.selected}));
+    try{
+      const officeIds=[...new Set([...SABATO_UFFICIO_IDS(),SEVERIN_ID()])];
+      const keepId=officeCoverageIdsForDay(2)[0];
+      appData.workers.forEach(w=>{if(officeIds.includes(w.id))w.selected=(w.id===keepId);});
+      const oneWorkerWeek={};
+      if(keepId)putGenerated(oneWorkerWeek,keepId,2,{mIn:'06:30',mOut:'12:30',pIn:'13:00',pOut:'17:30'});
+      const row=analyzeCoverage(oneWorkerWeek)[2];
+      const ok=!!row&&row.impOpen===1&&row.minImp===2&&row.impOpenOk===false;
+      results.push({key:'COVERAGE-MIN',status:ok?'pass':'fail',title:'Minimo ufficio non si riduce in carenza',checks:[{ok,msg:'Con 1 presente su 2 richiesti, la fascia deve restare scoperta'}]});
+    }catch(e){
+      results.push({key:'COVERAGE-MIN',status:'fail',title:'Minimo ufficio non si riduce in carenza',checks:[{ok:false,msg:'Test non eseguibile: '+(e&&e.message||e)}]});
+    }finally{
+      selectedSnapshot.forEach(x=>{if(x.had)x.w.selected=x.value;else delete x.w.selected;});
+    }
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
@@ -11099,7 +11153,7 @@ function minLunchBreakMinutes(wId) {
     const overall=fail===0 && skip===0;
     document.getElementById('rulesTestResult').innerHTML=`
       <div class="test-block">
-        <strong>🧠 Smart Brain Regression M37–M47</strong><br>
+        <strong>🧠 Smart Brain Regression M37–M47 + competenze/coperture</strong><br>
         <span class="test-pass">${pass} pass</span> ·
         <span class="test-fail">${fail} fail</span> ·
         <span class="test-skip">${skip} skip</span>
@@ -12554,9 +12608,32 @@ function minLunchBreakMinutes(wId) {
     }
     return out;
   }
+  function smartExperienceLevelFor(worker, areaKey){
+    // La matrice dinamica prevale sui campi storici; fallback per i profili esistenti.
+    const p=(worker&&worker.profile)||{};
+    const aliases={
+      opening:{legacy:'openingExperience',re:/apertura|opening/i},
+      sand:{legacy:'sandExperience',re:/sabbia|sand/i},
+      loader:{legacy:'loaderExperience',re:/pala|caricatrice|ruspa|loader/i},
+      loading:{legacy:'loadingExperience',re:/camion|carico|preparazione ordini|loading/i}
+    };
+    const cfg=aliases[areaKey];
+    if(!cfg)return 'unknown';
+    const areas=Array.isArray(p.experienceAreas)?p.experienceAreas:[];
+    const hit=areas.find(a=>a&&(String(a.id||'').toLowerCase()===areaKey||cfg.re.test(String(a.label||''))));
+    const level=(hit&&hit.level)||p[cfg.legacy]||'unknown';
+    return ['unknown','assisted','autonomous','mentor'].includes(level)?level:'unknown';
+  }
+
   function smartCoverageMetrics(week,day){
-    const mag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()].filter(id=>!!workerObj(id));
-    const imp=[...SABATO_UFFICIO_IDS(),SEVERIN_ID()].filter(id=>!!workerObj(id));
+    const configuredMag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()];
+    const mag=[...new Set([
+      ...configuredMag,
+      ...(appData.workers||[])
+        .filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true)
+        .map(w=>w.id)
+    ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
+    const imp=officeCoverageIdsForDay(day);
     return {
       magOpen:allIntervalsCovered(week,mag,day,'06:30','08:30',R().minAperturaMag??2,15),
       magClose:allIntervalsCovered(week,mag,day,'17:00','17:30',1,15),
@@ -12578,9 +12655,7 @@ function minLunchBreakMinutes(wId) {
     const mag = [...new Set([
       ...configuredMag,
       ...(appData.workers || [])
-        .filter(w => w && w.selected !== false &&
-          (String(w.group || '').toUpperCase() === 'MAGAZZINO' ||
-           workerBrain(w).warehouse === true))
+        .filter(w => w && w.selected !== false && smartWorkerBrainProfile(w).warehouse === true)
         .map(w => w.id)
     ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
 
@@ -12803,9 +12878,8 @@ function minLunchBreakMinutes(wId) {
       if(burden>0 && delta[f]>0){ score-=Math.min(180,wgt*burden*delta[f]); why.push(`${f} storico sopra media`); }
     });
     if(profile.jolly) { score+=15; why.push('Jolly disponibile'); }
-    const exp = (w && w.profile) || {};
     if (profile.warehouse && shift && shift.mIn === '06:30') {
-      const level = exp.openingExperience || 'unknown';
+      const level = smartExperienceLevelFor(w, 'opening');
       const openingBonus = level === 'mentor' ? 65 : level === 'autonomous' ? 35 : level === 'assisted' ? -20 : 0;
       if (openingBonus) { score += openingBonus; why.push('esperienza apertura: ' + level); }
     }
@@ -13126,11 +13200,13 @@ function minLunchBreakMinutes(wId) {
     const nextUfficio = (typeof nextInRotation === 'function') ? nextInRotation(SABATO_UFFICIO_IDS(), lastSat.ufficio) : null;
     const prevUfficio = lastSat.ufficio || null;
     const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
-    const pool = SABATO_UFFICIO_IDS().concat(sev ? [sev] : []).filter(function(id, i, a) {
+    const allPool = SABATO_UFFICIO_IDS().concat(sev ? [sev] : []).filter(function(id, i, a) {
       return id && a.indexOf(id) === i && !!workerObj(id);
     });
 
-    function targetsFor(n) {
+    function targetsFor(n, day) {
+      // Mercoledì: regola specifica della filiale, 2 in apertura e almeno 1 in chiusura.
+      if (day === 2) return { open: Math.min(2, n), close: Math.min(1, n) };
       if (n >= 5) return targetsMap[5] || { open: 3, close: 2 };
       if (n === 4) return targetsMap[4] || { open: 2, close: 2 };
       // Con 3 presenti (es. Poppa, Davide e Severin), chiedi copertura
@@ -13142,6 +13218,7 @@ function minLunchBreakMinutes(wId) {
     }
 
     for (let day = 0; day <= 4; day++) {
+      const pool = typeof officeCoverageIdsForDay === 'function' ? officeCoverageIdsForDay(day) : allPool;
       const present = pool.filter(function(id) {
         const c = cellAt(week, id, day);
         return c && !isHardUnavailableCell(c) && (c.mIn || c.pIn);
@@ -13149,7 +13226,7 @@ function minLunchBreakMinutes(wId) {
       const n = present.length;
       if (n < 2) continue;
 
-      const tgt = targetsFor(n);
+      const tgt = targetsFor(n, day);
       let nOpen = present.filter(function(id) {
         return coveredAt(cellAt(week, id, day), timeToMin('06:45'));
       }).length;
