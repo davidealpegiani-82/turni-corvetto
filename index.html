@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.39';
+    const APP_VERSION = '9.11.40';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.40 — Correzione critica: rigenerazione protetta delle celle manuali; le coperture manuali non vengono cancellate prima dell'audit',
     '9.11.39 — Smart Brain: competenze dinamiche per apertura, copertura allineata ai profili reali; accessi rapidi a diagnosi, competenze e test',
     '9.11.38 — UX quotidiana: home settimana, semaforo, barra azioni mobile, celle più chiare, checklist pre-pubblicazione, header compatto',
     '9.11.37 — Pipeline unica finalizeProposalWeek: rotazione → eventi → bilancio chiusura → riparazione → pause → Severin; rebalance non sovrascrive più il bilancio',
@@ -2068,7 +2069,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.39</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.40</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2090,7 +2091,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.39</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.40</small>
         </div>
       </div>
       <div class="nav-meta">
