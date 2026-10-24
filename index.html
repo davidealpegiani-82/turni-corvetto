@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.38';
+    const APP_VERSION = '9.11.39';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.39 — UX: nuova Sala di controllo con azioni rapide, analisi settimana e accesso a competenze, regole, test ed esportazione',
     '9.11.38 — Smart Brain: score copertura ufficio del mercoledì usa il pool vincolato (Alpegiani/Caregnato/Severin); conteggio magazzino include tutti gli addetti attivi',
     '9.11.37 — Smart Brain: lettura diretta delle esperienze dinamiche del collaboratore per lo scoring apertura, anche senza campi legacy aggiornati',
     '9.11.32 — Malattia e Ricovero distinti in tabella/PDF/stato (RICOVERO ≠ MALATTIA); note open-ended diverse; riparazione etichette dalle richieste',
@@ -1914,6 +1915,38 @@
     body:not(.light-theme) #proposalAiInput {
       background: #1e293b; color: #f8fafc; border-color: #475569;
     }
+
+    /* v9.11.39 — UX: sala di controllo compatta, leggibile e mobile-first */
+    .control-hub {
+      display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);
+      gap:12px; margin:0 0 12px; align-items:stretch;
+    }
+    .control-hub-main, .control-hub-side {
+      border:1px solid var(--border-color, rgba(148,163,184,.24));
+      border-radius:16px; padding:14px; background:var(--card-bg, var(--bg-card, rgba(255,255,255,.035)));
+      min-width:0;
+    }
+    .control-hub-main { background:linear-gradient(135deg, rgba(37,99,235,.12), rgba(20,184,166,.055)); }
+    .control-hub-eyebrow { font-size:10px; text-transform:uppercase; letter-spacing:.11em; font-weight:800; color:var(--text-muted); margin-bottom:5px; }
+    .control-hub-title { font-size:17px; line-height:1.25; font-weight:850; margin:0 0 5px; color:var(--text-main); }
+    .control-hub-copy { margin:0 0 12px; font-size:12px; line-height:1.5; color:var(--text-muted); max-width:58ch; }
+    .control-hub-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .control-hub-actions button { min-height:38px; }
+    .control-hub-side-title { font-size:12px; font-weight:800; margin:0 0 9px; color:var(--text-main); }
+    .control-hub-shortcuts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .control-hub-shortcut { display:flex; align-items:center; gap:8px; text-align:left; min-height:44px; padding:9px 10px; border:1px solid var(--border-color, rgba(148,163,184,.24)); border-radius:11px; background:var(--input-bg, rgba(148,163,184,.06)); color:var(--text-main); font-size:12px; font-weight:750; cursor:pointer; }
+    .control-hub-shortcut:hover { border-color:#3b82f6; background:rgba(59,130,246,.09); }
+    .control-hub-shortcut .hub-icon { display:inline-flex; align-items:center; justify-content:center; width:27px; height:27px; flex:0 0 27px; border-radius:8px; background:rgba(59,130,246,.13); font-size:15px; }
+    .control-hub-foot { margin-top:10px; font-size:10px; color:var(--text-muted); line-height:1.4; }
+    @media(max-width:760px) {
+      .control-hub { grid-template-columns:1fr; gap:9px; }
+      .control-hub-main, .control-hub-side { padding:12px; border-radius:13px; }
+      .control-hub-title { font-size:16px; }
+      .control-hub-actions { display:grid; grid-template-columns:1fr 1fr; }
+      .control-hub-actions button { width:100%; padding:9px 8px; font-size:12px; }
+      .control-hub-shortcuts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
 </style>
 </head>
 <body>
@@ -1936,7 +1969,7 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.32</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
+        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.39</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
         <div class="auth-bar" id="authBar">
           <span id="authStatus">☁️ Sincronizzazione automatica</span>
         </div>
@@ -1954,7 +1987,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.32</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.39</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2042,6 +2075,28 @@
 
 <div id="viewTurni">
   <div class="rules-banner" id="rulesBanner">✅ Controllo regole sulla settimana corrente</div>
+
+  <section class="control-hub" aria-label="Sala di controllo turni">
+    <div class="control-hub-main">
+      <div class="control-hub-eyebrow">Centro operativo · Corvetto</div>
+      <h2 class="control-hub-title">Organizza la settimana, senza perdere il controllo</h2>
+      <p class="control-hub-copy">Genera una proposta, verifica i problemi e controlla le conseguenze prima di applicare le modifiche.</p>
+      <div class="control-hub-actions">
+        <button type="button" class="btn-proposal" onclick="generateAutoProposal()">✨ Genera proposta</button>
+        <button type="button" class="alt" onclick="runGlobalAiWeekProblems()">🧠 Analizza la settimana</button>
+      </div>
+      <div class="control-hub-foot">La proposta resta in anteprima: controllala prima di premere «Applica proposta».</div>
+    </div>
+    <div class="control-hub-side">
+      <div class="control-hub-side-title">Accessi rapidi</div>
+      <div class="control-hub-shortcuts">
+        <button type="button" class="control-hub-shortcut" onclick="openTeamModal()"><span class="hub-icon">👥</span><span>Collaboratori<br><small>Ruoli e competenze</small></span></button>
+        <button type="button" class="control-hub-shortcut" onclick="openRulesModal()"><span class="hub-icon">⚙️</span><span>Regole<br><small>Vincoli e rotazioni</small></span></button>
+        <button type="button" class="control-hub-shortcut" onclick="openRulesTestModal()"><span class="hub-icon">🧪</span><span>Test motore<br><small>Prove senza salvare</small></span></button>
+        <button type="button" class="control-hub-shortcut" onclick="openExportMenu()"><span class="hub-icon">📤</span><span>Esporta<br><small>PDF e altri formati</small></span></button>
+      </div>
+    </div>
+  </section>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
     <p style="margin:0 0 10px;font-size:13px;color:var(--text-muted);">Motore Corvetto: rotazione sabato, coperture, nastro, Severin protetto.</p>
