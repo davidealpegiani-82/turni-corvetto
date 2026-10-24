@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.46';
+    const APP_VERSION = '9.11.47';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.47 — Smart Brain: esperienza dinamica per apertura, pool ufficio del mercoledì corretto, copertura coerente con profili capacità',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
@@ -2164,7 +2165,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.46</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.47</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2186,7 +2187,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.46</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.47</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -11092,6 +11093,30 @@ function minLunchBreakMinutes(wId) {
   function runSmartBrainRegressionSuite(){
     const keys=['M37','M38','M39','M40','M41','M42','M43','M44','M45','M46','M47'];
     const results=keys.map(runSmartRegressionScenario);
+    // Test integrati per competenze dinamiche e pool ufficio del mercoledì.
+    const profileCases=[
+      {key:'EXP1',title:'Esperienza apertura dinamica: mentor',worker:{profile:{experienceAreas:[{id:'opening',level:'mentor'}]}},area:'opening',expected:'mentor'},
+      {key:'EXP2',title:'Etichetta personalizzata: apertura autonoma',worker:{profile:{experienceAreas:[{label:'Apertura piazzale',level:'autonomous'}]}},area:'opening',expected:'autonomous'},
+      {key:'EXP3',title:'Compatibilità con profilo storico',worker:{profile:{openingExperience:'assisted'}},area:'opening',expected:'assisted'},
+      {key:'EXP4',title:'Area sconosciuta: fallback sicuro',worker:{profile:{}},area:'unknown-area',expected:'unknown'},
+      {key:'EXP5',title:'Livello non valido: fallback sicuro',worker:{profile:{experienceAreas:[{id:'opening',level:'guru'}]}},area:'opening',expected:'unknown'}
+    ];
+    profileCases.forEach(t=>{
+      const actual=smartExperienceLevelFor(t.worker,t.area), ok=actual===t.expected;
+      results.push({key:t.key,status:ok?'pass':'fail',title:t.title,checks:[{ok,msg:'Atteso '+t.expected+' · ottenuto '+actual}]});
+    });
+    try {
+      const wed=officeCoverageIdsForDay(2).map(id=>workerObj(id)).filter(Boolean);
+      const names=wed.map(w=>String(w.name||'').toLowerCase());
+      const hasAlpegiani=names.some(n=>n.includes('alpegiani'));
+      const hasCaregnato=names.some(n=>n.includes('caregnato'));
+      const hasSeverin=wed.some(w=>w.id===SEVERIN_ID()||/severin/i.test(String(w.name||'')+' '+String(w.role||'')));
+      const hasPoppa=names.some(n=>n.includes('poppa'));
+      const ok=hasAlpegiani&&hasCaregnato&&hasSeverin&&!hasPoppa;
+      results.push({key:'COV-WED',status:ok?'pass':'fail',title:'Pool ufficio del mercoledì',checks:[{ok,msg:'Alpegiani, Caregnato e Severin inclusi; Poppa escluso'}]});
+    } catch(e) {
+      results.push({key:'COV-WED',status:'fail',title:'Pool ufficio del mercoledì',checks:[{ok:false,msg:'Errore controllo pool: '+(e&&e.message||e)}]});
+    }
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
@@ -11110,7 +11135,7 @@ function minLunchBreakMinutes(wId) {
     const overall=fail===0 && skip===0;
     document.getElementById('rulesTestResult').innerHTML=`
       <div class="test-block">
-        <strong>🧠 Smart Brain Regression M37–M47</strong><br>
+        <strong>🧠 Smart Brain Regression M37–M47 + profili/copertura</strong><br>
         <span class="test-pass">${pass} pass</span> ·
         <span class="test-fail">${fail} fail</span> ·
         <span class="test-skip">${skip} skip</span>
@@ -11118,7 +11143,7 @@ function minLunchBreakMinutes(wId) {
           La suite confronta score e coperture prima/dopo Smart Brain e controlla i vincoli duri degli scenari.
         </div>
       </div>${rows}`;
-    showToast(`Smart Brain M37–M47: ${pass} ok, ${fail} fail, ${skip} skip`,overall?'success':'warn',5000);
+    showToast(`Smart Brain: ${pass} ok, ${fail} fail, ${skip} skip`,overall?'success':'warn',5000);
     return {pass,fail,skip,results};
   }
 
