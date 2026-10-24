@@ -5242,7 +5242,11 @@ function isUsableAppData(value) {
 
   function analyzeCoverage(week) {
     const days = ['Lun','Mar','Mer','Gio','Ven','Sab'];
-    const magIds = [...MAG_PAIR_A(), ...MAG_PAIR_B(), MARIO_ID()].filter(id => !!workerObj(id));
+    const configuredMag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()];
+    const magIds=[...new Set([
+      ...configuredMag,
+      ...(appData.workers||[]).filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true).map(w=>w.id)
+    ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
 
     const minCloseMag = 1;
     const minCloseImp = 1;
@@ -5259,7 +5263,7 @@ function isUsableAppData(value) {
       const impClose = day === 5 ? countCovered(week, impIds, day, timeToMin('09:00')) : countCovered(week, impIds, day, timeToMin('17:15'));
       const magOpenOk = magOpen >= minMag;
       const magCloseOk = day === 5 ? true : (magClose >= minCloseMag);
-      const impOpenOk = impOpen >= Math.min(minImp, impIds.length);
+      const impOpenOk = impOpen >= minImp;
       const impCloseOk = day === 5 ? true : (impClose >= minCloseImp);
       rows.push({
         day: days[day],
@@ -13179,11 +13183,13 @@ function minLunchBreakMinutes(wId) {
     const nextUfficio = (typeof nextInRotation === 'function') ? nextInRotation(SABATO_UFFICIO_IDS(), lastSat.ufficio) : null;
     const prevUfficio = lastSat.ufficio || null;
     const sev = (typeof SEVERIN_ID === 'function') ? SEVERIN_ID() : null;
-    const pool = SABATO_UFFICIO_IDS().concat(sev ? [sev] : []).filter(function(id, i, a) {
+    const allPool = SABATO_UFFICIO_IDS().concat(sev ? [sev] : []).filter(function(id, i, a) {
       return id && a.indexOf(id) === i && !!workerObj(id);
     });
 
-    function targetsFor(n) {
+    function targetsFor(n, day) {
+      // Mercoledì: regola specifica della filiale, 2 in apertura e almeno 1 in chiusura.
+      if (day === 2) return { open: Math.min(2, n), close: Math.min(1, n) };
       if (n >= 5) return targetsMap[5] || { open: 3, close: 2 };
       if (n === 4) return targetsMap[4] || { open: 2, close: 2 };
       // Con 3 presenti (es. Poppa, Davide e Severin), chiedi copertura
@@ -13195,6 +13201,7 @@ function minLunchBreakMinutes(wId) {
     }
 
     for (let day = 0; day <= 4; day++) {
+      const pool = typeof officeCoverageIdsForDay === 'function' ? officeCoverageIdsForDay(day) : allPool;
       const present = pool.filter(function(id) {
         const c = cellAt(week, id, day);
         return c && !isHardUnavailableCell(c) && (c.mIn || c.pIn);
@@ -13202,7 +13209,7 @@ function minLunchBreakMinutes(wId) {
       const n = present.length;
       if (n < 2) continue;
 
-      const tgt = targetsFor(n);
+      const tgt = targetsFor(n, day);
       let nOpen = present.filter(function(id) {
         return coveredAt(cellAt(week, id, day), timeToMin('06:45'));
       }).length;
