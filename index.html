@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.41</title>
+  <title>Turni Corvetto v9.11.42</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.41';
+    const APP_VERSION = '9.11.42';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.42 — Ripristino completo: JS valido, home Oggi con dati, nav/modali fuori dalle stringhe di stampa',
     '9.11.41 — Fix critico: ripristinata sintassi JS (home Oggi/dati); refresh dati su Oggi dopo sync',
     '9.11.40 — Modifica turni manuale: selettore collaboratore/giorno, accesso da Oggi e Turni, celle manuali evidenziate e protette',
     '9.11.39 — Assistente operativo: home Oggi, suggerimenti azionabili, nav semplificata, pubblica settimana',
@@ -2159,7 +2160,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.41</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.42</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2181,7 +2182,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.41</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.42</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -7945,7 +7946,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.41', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.42', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -16756,46 +16757,7 @@ function applyPendingProposal() {
       html += events.map(e=>`<tr><td>${esc(formatEventDate(e.date))}</td><td>${esc(e.title)}</td><td>${esc(e.allDay?'Giornata intera':`${e.fromTime}-${e.toTime}`)}</td><td>${esc(e.location||'')}</td><td>${esc(eventParticipantsNames(e.participantIds).join(', '))}</td></tr>`).join('');
       html += '</tbody></table>';
     }
-    html += '<div class="print-warning">Se i contenuti superano l’area A4, controllare l’anteprima di stampa: il browser potrebbe distribuirli su più pagine per non tagliare informazioni.</div>
-<nav class="bottom-nav" id="bottomNav" aria-label="Azioni rapide">
-  <button type="button" onclick="switchView('oggi')">
-    <span class="ic">🏠</span>Oggi
-  </button>
-  <button type="button" onclick="if(typeof generateAutoProposal==='function')generateAutoProposal();">
-    <span class="ic">✨</span>Genera
-  </button>
-  <button type="button" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">
-    <span class="ic">➕</span>Assenza
-  </button>
-  <button type="button" onclick="if(typeof publishWeekOperational==='function')publishWeekOperational();">
-    <span class="ic">📤</span>Pubblica
-  </button>
-</nav>
-
-<div class="modal-backdrop" id="checklistModal" style="display:none;" onclick="if(event.target===this)closeModal('checklistModal')">
-  <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
-    <h3 style="margin:0 0 8px;">✅ Checklist pre-pubblicazione</h3>
-    <p style="margin:0 0 12px;font-size:12px;color:var(--text-muted);">Controlli rapidi sulla settimana corrente prima di considerare i turni definitivi.</p>
-    <ul class="checklist-list" id="checklistItems"></ul>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">
-      <button type="button" class="alt" onclick="closeModal('checklistModal')">Chiudi</button>
-      <button type="button" class="btn-proposal" onclick="closeModal('checklistModal');generateAutoProposal();">✨ Genera di nuovo</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-backdrop" id="weekIssuesModal" style="display:none;" onclick="if(event.target===this)closeModal('weekIssuesModal')">
-  <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
-    <h3 style="margin:0 0 8px;">⚠️ Problemi settimana</h3>
-    <ul class="checklist-list" id="weekIssuesList"></ul>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
-      <button type="button" class="alt" onclick="closeModal('weekIssuesModal')">Chiudi</button>
-      <button type="button" class="btn-proposal" onclick="closeModal('weekIssuesModal');generateAutoProposal();">✨ Genera</button>
-    </div>
-  </div>
-</div>
-
-</body></html>';
+    html += '<div class="print-warning">Se i contenuti superano l\'area A4, controllare l\'anteprima di stampa: il browser potrebbe distribuirli su piu pagine per non tagliare informazioni.</div></body></html>';
     return html;
   }
 
@@ -18732,6 +18694,46 @@ async function downloadJpgFromPreview() {
     <iframe id="pdfPreviewFrame" title="Anteprima PDF" style="display:none;"></iframe>
   </div>
 </div>
+
+
+<nav class="bottom-nav" id="bottomNav" aria-label="Azioni rapide">
+  <button type="button" onclick="switchView('oggi')">
+    <span class="ic">🏠</span>Oggi
+  </button>
+  <button type="button" onclick="if(typeof generateAutoProposal==='function')generateAutoProposal();">
+    <span class="ic">✨</span>Genera
+  </button>
+  <button type="button" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">
+    <span class="ic">➕</span>Assenza
+  </button>
+  <button type="button" onclick="if(typeof publishWeekOperational==='function')publishWeekOperational();">
+    <span class="ic">📤</span>Pubblica
+  </button>
+</nav>
+
+<div class="modal-backdrop" id="checklistModal" style="display:none;" onclick="if(event.target===this)closeModal('checklistModal')">
+  <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
+    <h3 style="margin:0 0 8px;">✅ Checklist pre-pubblicazione</h3>
+    <p style="margin:0 0 12px;font-size:12px;color:var(--text-muted);">Controlli rapidi sulla settimana corrente prima di considerare i turni definitivi.</p>
+    <ul class="checklist-list" id="checklistItems"></ul>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">
+      <button type="button" class="alt" onclick="closeModal('checklistModal')">Chiudi</button>
+      <button type="button" class="btn-proposal" onclick="closeModal('checklistModal');generateAutoProposal();">✨ Genera di nuovo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="weekIssuesModal" style="display:none;" onclick="if(event.target===this)closeModal('weekIssuesModal')">
+  <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
+    <h3 style="margin:0 0 8px;">⚠️ Problemi settimana</h3>
+    <ul class="checklist-list" id="weekIssuesList"></ul>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="alt" onclick="closeModal('weekIssuesModal')">Chiudi</button>
+      <button type="button" class="btn-proposal" onclick="closeModal('weekIssuesModal');generateAutoProposal();">✨ Genera</button>
+    </div>
+  </div>
+</div>
+
 
 </body>
 </html>
