@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.37</title>
+  <title>Turni Corvetto v9.11.38</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.37';
+    const APP_VERSION = '9.11.38';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.38 — UX quotidiana: home settimana, semaforo, barra azioni mobile, celle più chiare, checklist pre-pubblicazione, header compatto',
     '9.11.37 — Pipeline unica finalizeProposalWeek: rotazione → eventi → bilancio chiusura → riparazione → pause → Severin; rebalance non sovrascrive più il bilancio',
     '9.11.36 — Allineamento versioni UI/SW/cache; pool copertura ufficio senza Finiture; sync a revisione e audit sabato confermati',
     '9.11.35 — Sync cloud con controllo revisione; audit coperture sabato; blocco proposte con scoperture residue',
@@ -1915,6 +1916,134 @@
     body:not(.light-theme) #proposalAiInput {
       background: #1e293b; color: #f8fafc; border-color: #475569;
     }
+
+    /* ===== UX 9.11.38: home, semaforo, bottom bar, celle ===== */
+    .week-status-chip {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700;
+      border:1px solid transparent; cursor:pointer; user-select:none;
+      max-width:100%;
+    }
+    .week-status-chip .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .week-status-chip.ok { background:rgba(34,197,94,.12); color:#16a34a; border-color:rgba(34,197,94,.25); }
+    .week-status-chip.ok .dot { background:#22c55e; }
+    .week-status-chip.warn { background:rgba(245,158,11,.12); color:#d97706; border-color:rgba(245,158,11,.28); }
+    .week-status-chip.warn .dot { background:#f59e0b; }
+    .week-status-chip.bad { background:rgba(239,68,68,.12); color:#dc2626; border-color:rgba(239,68,68,.28); }
+    .week-status-chip.bad .dot { background:#ef4444; }
+    body:not(.light-theme) .week-status-chip.ok { color:#4ade80; }
+    body:not(.light-theme) .week-status-chip.warn { color:#fbbf24; }
+    body:not(.light-theme) .week-status-chip.bad { color:#f87171; }
+
+    .week-home {
+      display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;
+      margin:0 0 12px;
+    }
+    @media (max-width:720px) {
+      .week-home { grid-template-columns:1fr; }
+    }
+    .week-home-card {
+      background:var(--card-bg, rgba(255,255,255,.04));
+      border:1px solid var(--border, rgba(255,255,255,.08));
+      border-radius:14px; padding:12px 14px; min-height:88px;
+    }
+    body.light-theme .week-home-card {
+      background:#fff; border-color:#e2e8f0; box-shadow:0 1px 2px rgba(15,23,42,.04);
+    }
+    .week-home-card h4 {
+      margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.04em;
+      color:var(--text-muted); font-weight:700;
+    }
+    .week-home-card ul { margin:0; padding:0; list-style:none; }
+    .week-home-card li {
+      font-size:12.5px; line-height:1.35; padding:4px 0;
+      border-bottom:1px solid rgba(127,127,127,.12);
+    }
+    .week-home-card li:last-child { border-bottom:none; }
+    .week-home-card .empty { font-size:12px; color:var(--text-muted); }
+    .week-home-card .n {
+      display:inline-flex; min-width:20px; justify-content:center;
+      font-weight:800; margin-right:6px; color:var(--accent,#3b82f6);
+    }
+
+    .hint-compact {
+      margin:6px 0 0; font-size:11px; color:var(--text-muted); line-height:1.3;
+    }
+    #turniHelpLong { display:none; }
+    .header-subtitle { font-size:12px !important; }
+    .header h1 { font-size:1.25rem; margin:0; }
+    .auth-bar { display:none !important; }
+
+    /* Celle più chiare */
+    .cell-content-v47 { gap:3px; min-height:48px; }
+    .cell-hours-v47 {
+      font-size:11px; font-weight:700; letter-spacing:-.01em;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+    }
+    .cell-badge-row { display:flex; flex-wrap:wrap; gap:3px; justify-content:center; }
+    .cell-badge {
+      font-size:9px; font-weight:700; padding:1px 5px; border-radius:6px;
+      background:rgba(59,130,246,.12); color:#3b82f6;
+    }
+    body.light-theme .cell-badge { background:#eff6ff; color:#2563eb; }
+    .cell-badge.leave { background:rgba(34,197,94,.14); color:#16a34a; }
+    .cell-badge.medical { background:rgba(239,68,68,.12); color:#dc2626; }
+    .cell-badge.event { background:rgba(168,85,247,.12); color:#9333ea; }
+    .cell-badge.hrs { background:rgba(100,116,139,.12); color:#64748b; }
+    td.cell-shift.medical-leave, .cell-medical-v47 { background:rgba(239,68,68,.06) !important; }
+    td.cell-shift.full-leave { background:rgba(34,197,94,.07) !important; }
+
+    .rules-banner {
+      border-radius:12px; padding:10px 12px; font-size:13px; cursor:pointer;
+      display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap;
+    }
+    .rules-banner .rb-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; width:100%; }
+    .rules-banner .rb-actions button { font-size:11px; padding:4px 10px; min-height:32px; }
+
+    /* Bottom action bar mobile */
+    .bottom-nav {
+      display:none; position:fixed; left:0; right:0; bottom:0; z-index:9000;
+      background:rgba(15,23,42,.92); backdrop-filter:blur(12px);
+      border-top:1px solid rgba(255,255,255,.08);
+      padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+      grid-template-columns:repeat(4,1fr); gap:4px;
+    }
+    body.light-theme .bottom-nav {
+      background:rgba(255,255,255,.96); border-top-color:#e2e8f0;
+    }
+    .bottom-nav button {
+      border:none; background:transparent; color:inherit;
+      display:flex; flex-direction:column; align-items:center; gap:2px;
+      font-size:10px; font-weight:700; padding:6px 2px; border-radius:10px;
+      min-height:48px; cursor:pointer;
+    }
+    .bottom-nav button span.ic { font-size:18px; line-height:1; }
+    .bottom-nav button:active { background:rgba(59,130,246,.12); }
+    @media (max-width:820px) {
+      .bottom-nav { display:grid; }
+      body { padding-bottom:72px; }
+      #turniControlCard .leave-toolbar button.btn-proposal,
+      #turniControlCard .leave-toolbar button.success { display:none; }
+    }
+
+    /* Checklist modal bits */
+    .checklist-list { list-style:none; margin:0; padding:0; }
+    .checklist-list li {
+      display:flex; gap:10px; align-items:flex-start;
+      padding:10px 0; border-bottom:1px solid rgba(127,127,127,.12);
+      font-size:13px;
+    }
+    .checklist-list .ck {
+      width:22px; height:22px; border-radius:50%; display:inline-flex;
+      align-items:center; justify-content:center; font-size:12px; flex-shrink:0;
+    }
+    .checklist-list .ck.ok { background:rgba(34,197,94,.15); }
+    .checklist-list .ck.bad { background:rgba(239,68,68,.15); }
+    .checklist-list .ck.warn { background:rgba(245,158,11,.15); }
+
+    .header-top { align-items:flex-start; }
+    #weekStatusMount { margin:6px 0 0; }
+
 </style>
 </head>
 <body>
@@ -1937,9 +2066,14 @@
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
-        <div class="header-subtitle">Gestione Turni e Ferie · <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.37</strong> <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Tocca per scaricare dal cloud">🟠 Locale</span><span class="save-indicator" id="saveIndicator" title="Stato salvataggio">💾 Tutto salvato</span></div>
-        <div class="auth-bar" id="authBar">
-          <span id="authStatus">☁️ Sincronizzazione automatica</span>
+        <div class="header-subtitle">
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.38</strong>
+          <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
+          <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
+        </div>
+        <div id="weekStatusMount"></div>
+        <div class="auth-bar" id="authBar" style="display:none;">
+          <span id="authStatus">☁️ Sync</span>
         </div>
       </div>
     </div>
@@ -1955,7 +2089,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.37</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.38</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -1988,9 +2122,7 @@
       <button class="alt" onclick="openExportMenu()">📤 Esporta</button>
     </div>
     <p class="toolbar-hint" style="margin:8px 0 0;font-size:11px;color:var(--text-muted);line-height:1.35;">
-      Uso tipico: scegli la settimana → <strong>Genera Proposta</strong> (in Tabella) → controlla → applica.
-      Per PDF/email usa <strong>Esporta</strong>. Team, regole e backup: scheda <strong>Impostazioni</strong> in alto.
-    </p>
+      <p class="hint-compact" id="turniHelpLong">Settimana → Genera → controlla → applica. Esporta per PDF.</p>
   </div>
 
   <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
@@ -2042,7 +2174,25 @@
 </div>
 
 <div id="viewTurni">
-  <div class="rules-banner" id="rulesBanner">✅ Controllo regole sulla settimana corrente</div>
+  <div class="rules-banner" id="rulesBanner" onclick="if(typeof openWeekIssues==='function')openWeekIssues()">✅ Controllo regole sulla settimana corrente</div>
+  <div class="week-home" id="weekHome">
+    <div class="week-home-card">
+      <h4>Coperture</h4>
+      <div id="weekHomeCoverage" class="empty">—</div>
+    </div>
+    <div class="week-home-card">
+      <h4>Assenze in settimana</h4>
+      <div id="weekHomeLeaves" class="empty">—</div>
+    </div>
+    <div class="week-home-card">
+      <h4>Impegni</h4>
+      <div id="weekHomeEvents" class="empty">—</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist settimana</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
+  </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
     <p style="margin:0 0 10px;font-size:13px;color:var(--text-muted);">Motore Corvetto: rotazione sabato, coperture, nastro, Severin protetto.</p>
@@ -4316,7 +4466,241 @@ function isUsableAppData(value) {
   const undoStack = [];
   const MAX_UNDO = 15;
 
+
+  /* ===== UX 9.11.38: home settimana + semaforo + checklist ===== */
+  function computeWeekHealth() {
+    const out = { level: 'ok', label: 'Settimana ok', issues: [], coverage: [], leaves: [], events: [] };
+    try {
+      const week = (appData.weeks && appData.weeks[currentWeekKey]) || {};
+      const dates = (typeof eventWeekDates === 'function') ? eventWeekDates(currentDate) : [];
+      const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+
+      if (typeof analyzeCoverage === 'function') {
+        (analyzeCoverage(week) || []).forEach(function(row) {
+          if (row.magOk === false) {
+            const msg = (row.dayLabel || row.day) + ' magazzino sotto minimo';
+            out.issues.push(msg);
+            out.coverage.push({ day: row.dayLabel || row.day, text: 'Magazzino', bad: true });
+          }
+          if (row.impOk === false) {
+            const msg = (row.dayLabel || row.day) + ' ufficio sotto minimo';
+            out.issues.push(msg);
+            out.coverage.push({ day: row.dayLabel || row.day, text: 'Ufficio', bad: true });
+          }
+          if (row.magOk !== false && row.impOk !== false && (row.dayIdx == null || row.dayIdx <= 4)) {
+            out.coverage.push({ day: row.dayLabel || row.day, text: 'Ok', bad: false });
+          }
+        });
+      }
+
+      (appData.leaveRequests || []).forEach(function(req) {
+        if (!req || req.status !== 'approvata') return;
+        if (typeof eachDateInRequest !== 'function') return;
+        eachDateInRequest(req, function(d) {
+          try {
+            if (getWeekKey(d) !== currentWeekKey) return;
+            const di = dateToDayIdx(d);
+            if (di < 0 || di > 5) return;
+            const w = workerObj(req.workerId);
+            out.leaves.push({
+              name: w ? w.name : req.workerId,
+              tipo: req.tipo || 'Assenza',
+              day: dayNames[di] || ''
+            });
+          } catch (e) {}
+        }, false);
+      });
+
+      (appData.events || []).forEach(function(ev) {
+        if (!ev || !ev.date) return;
+        try {
+          const d = (function(s){ const p=String(s||'').split('-'); if(p.length<3) return null; return new Date(+p[0], +p[1]-1, +p[2], 12,0,0,0); })(ev.date);
+          if (!d || getWeekKey(d) !== currentWeekKey) return;
+          out.events.push({
+            title: ev.title || ev.type || 'Impegno',
+            day: dayNames[dateToDayIdx(d)] || '',
+            who: (ev.participantIds || []).map(function(id) {
+              const w = workerObj(id); return w ? (w.name || '').split(' ')[0] : '';
+            }).filter(Boolean).join(', ')
+          });
+        } catch (e) {}
+      });
+
+      if (typeof checkRest11hViolations === 'function') {
+        try {
+          (checkRest11hViolations(week) || []).forEach(function(v) {
+            out.issues.push(typeof v === 'string' ? v : (v.message || 'Riposo 11h'));
+          });
+        } catch (e) {}
+      }
+
+      const hardIssues = out.issues.filter(function(x) {
+        return /sotto minimo|scopert|11h|riposo/i.test(String(x));
+      });
+      if (hardIssues.length >= 2) {
+        out.level = 'bad';
+        out.label = hardIssues.length + ' problemi critici';
+      } else if (hardIssues.length === 1 || out.issues.length) {
+        out.level = 'warn';
+        out.label = out.issues.length === 1 ? out.issues[0] : (out.issues.length + ' avvisi');
+      } else {
+        out.level = 'ok';
+        out.label = 'Settimana ok';
+      }
+    } catch (e) {
+      out.level = 'warn';
+      out.label = 'Controllo non disponibile';
+    }
+    return out;
+  }
+
+  function updateWeekStatusUI() {
+    const health = computeWeekHealth();
+    const mount = document.getElementById('weekStatusMount');
+    if (mount) {
+      mount.innerHTML = '<span class="week-status-chip ' + health.level + '" onclick="openWeekIssues()" title="Dettagli">' +
+        '<span class="dot"></span><span>' + escapeHtmlV47(health.label) + '</span></span>';
+    }
+
+    const cov = document.getElementById('weekHomeCoverage');
+    if (cov) {
+      const bad = health.coverage.filter(function(x) { return x.bad; });
+      if (!bad.length) {
+        cov.innerHTML = '<div class="empty">Nessuna scopertura rilevata</div>';
+      } else {
+        cov.innerHTML = '<ul>' + bad.slice(0, 6).map(function(x) {
+          return '<li><span class="n">!</span>' + escapeHtmlV47(x.day) + ' · ' + escapeHtmlV47(x.text) + '</li>';
+        }).join('') + '</ul>';
+      }
+    }
+
+    const lv = document.getElementById('weekHomeLeaves');
+    if (lv) {
+      if (!health.leaves.length) {
+        lv.innerHTML = '<div class="empty">Nessuna assenza in settimana</div>';
+      } else {
+        const seen = {};
+        const rows = [];
+        health.leaves.forEach(function(x) {
+          const k = x.name + '|' + x.tipo;
+          if (seen[k]) return;
+          seen[k] = true;
+          rows.push(x);
+        });
+        lv.innerHTML = '<ul>' + rows.slice(0, 6).map(function(x) {
+          return '<li><span class="n">·</span>' + escapeHtmlV47(x.name.split(' ')[0]) +
+            ' · ' + escapeHtmlV47(x.tipo) + '</li>';
+        }).join('') + '</ul>';
+      }
+    }
+
+    const ev = document.getElementById('weekHomeEvents');
+    if (ev) {
+      if (!health.events.length) {
+        ev.innerHTML = '<div class="empty">Nessun impegno in settimana</div>';
+      } else {
+        ev.innerHTML = '<ul>' + health.events.slice(0, 6).map(function(x) {
+          return '<li><span class="n">·</span>' + escapeHtmlV47(x.day) + ' ' +
+            escapeHtmlV47(x.title) + (x.who ? ' · ' + escapeHtmlV47(x.who) : '') + '</li>';
+        }).join('') + '</ul>';
+      }
+    }
+
+    const rb = document.getElementById('rulesBanner');
+    if (rb && health.level !== 'ok') {
+      const icon = health.level === 'bad' ? '🔴' : '🟡';
+      rb.innerHTML = icon + ' <strong>' + escapeHtmlV47(health.label) + '</strong>' +
+        '<span class="rb-actions">' +
+        '<button type="button" class="alt" onclick="event.stopPropagation();openWeekIssues()">Dettagli</button>' +
+        '<button type="button" class="btn-proposal" onclick="event.stopPropagation();generateAutoProposal()">Genera</button>' +
+        '<button type="button" class="alt" onclick="event.stopPropagation();openPublishChecklist()">Checklist</button>' +
+        '</span>';
+      rb.style.borderColor = health.level === 'bad' ? 'rgba(239,68,68,.35)' : 'rgba(245,158,11,.35)';
+    } else if (rb && health.level === 'ok') {
+      rb.innerHTML = '✅ Settimana in regola — tocca per la checklist';
+      rb.style.borderColor = '';
+      rb.onclick = function() { openPublishChecklist(); };
+    }
+    return health;
+  }
+  window.updateWeekStatusUI = updateWeekStatusUI;
+
+  function openWeekIssues() {
+    const health = computeWeekHealth();
+    const list = document.getElementById('weekIssuesList');
+    if (!list) return;
+    if (!health.issues.length) {
+      list.innerHTML = '<li><span class="ck ok">✓</span><span>Nessun problema rilevato su coperture o riposi.</span></li>';
+    } else {
+      list.innerHTML = health.issues.map(function(msg) {
+        return '<li><span class="ck bad">!</span><span>' + escapeHtmlV47(String(msg)) + '</span></li>';
+      }).join('');
+    }
+    openModal('weekIssuesModal');
+  }
+  window.openWeekIssues = openWeekIssues;
+
+  function openPublishChecklist() {
+    const items = [];
+    const health = computeWeekHealth();
+    items.push({
+      ok: health.coverage.filter(function(x){return x.bad;}).length === 0,
+      text: 'Coperture ufficio e magazzino nei minimi'
+    });
+    items.push({
+      ok: !health.issues.some(function(x){ return /11h|riposo/i.test(String(x)); }),
+      text: 'Riposo minimo 11 ore tra turni'
+    });
+    items.push({
+      ok: true,
+      text: 'Assenze in settimana: ' + (health.leaves.length ? health.leaves.length + ' giorni/persone' : 'nessuna')
+    });
+    items.push({
+      ok: true,
+      text: 'Impegni in settimana: ' + (health.events.length ? health.events.length : 'nessuno')
+    });
+    try {
+      if (typeof getItalianHolidays === 'function') {
+        const y = currentDate.getFullYear();
+        const hol = getItalianHolidays(y) || {};
+        const dates = (typeof eventWeekDates === 'function') ? eventWeekDates(currentDate) : [];
+        const hit = (dates || []).filter(function(d) {
+          const k = localDateKey(d);
+          return !!hol[k];
+        });
+        items.push({
+          ok: true,
+          warn: hit.length > 0,
+          text: hit.length ? ('Festività in settimana: ' + hit.map(function(d){ return localDateKey(d); }).join(', ')) : 'Nessuna festività nazionale in settimana'
+        });
+      }
+    } catch (e) {}
+    items.push({
+      ok: health.level !== 'bad',
+      text: health.level === 'bad' ? 'Ci sono problemi critici: non pubblicare senza correggere' : 'Nessun blocco critico alla pubblicazione'
+    });
+
+    const ul = document.getElementById('checklistItems');
+    if (ul) {
+      ul.innerHTML = items.map(function(it) {
+        const cls = it.ok ? (it.warn ? 'warn' : 'ok') : 'bad';
+        const mark = it.ok ? (it.warn ? '!' : '✓') : '!';
+        return '<li><span class="ck ' + cls + '">' + mark + '</span><span>' + escapeHtmlV47(it.text) + '</span></li>';
+      }).join('');
+    }
+    openModal('checklistModal');
+  }
+  window.openPublishChecklist = openPublishChecklist;
+
+
   function showToast(message, type = 'info', ms = 3200) {
+    try {
+      const m = String(message || '');
+      // Meno rumore per messaggi di routine
+      if (/salvato|sincronizz|cloud live|tutto salvato|sync automatica/i.test(m) && type === 'info') {
+        return;
+      }
+    } catch (eQ) {}
     const box = document.getElementById('toastContainer');
     if (!box) { console.log(message); return; }
     const el = document.createElement('div');
@@ -5208,6 +5592,7 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
 function renderWeek() {
     currentWeekKey = getWeekKey(currentDate);
     try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch (eMed) {}
+    try { if (typeof updateWeekStatusUI === 'function') setTimeout(updateWeekStatusUI, 0); } catch (eUx) {}
     try { if (typeof repairPartialLeaveWorkHours === 'function') repairPartialLeaveWorkHours(currentWeekKey); } catch (eRep) {}
     try { if (typeof refreshCoverageBlocksForWeek === "function") refreshCoverageBlocksForWeek(currentWeekKey); } catch (e) {}
     document.getElementById('weekLabel').innerText = getWeekDisplayLabel(currentDate);
@@ -7144,7 +7529,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.37', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.38', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -15322,7 +15707,16 @@ function applyPendingProposal() {
     showToast("Settimana svuotata. Ferie, note ed eventi conservati.", "success", 4000);
   }
 
-  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+  function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+  function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'flex';
+  }
+  window.openModal = openModal;
+  window.closeModal = closeModal;
 
   function openEmailChoice() {
     const modal = document.getElementById('emailChoiceModal');
@@ -15880,7 +16274,46 @@ function applyPendingProposal() {
       html += events.map(e=>`<tr><td>${esc(formatEventDate(e.date))}</td><td>${esc(e.title)}</td><td>${esc(e.allDay?'Giornata intera':`${e.fromTime}-${e.toTime}`)}</td><td>${esc(e.location||'')}</td><td>${esc(eventParticipantsNames(e.participantIds).join(', '))}</td></tr>`).join('');
       html += '</tbody></table>';
     }
-    html += '<div class="print-warning">Se i contenuti superano l’area A4, controllare l’anteprima di stampa: il browser potrebbe distribuirli su più pagine per non tagliare informazioni.</div></body></html>';
+    html += '<div class="print-warning">Se i contenuti superano l’area A4, controllare l’anteprima di stampa: il browser potrebbe distribuirli su più pagine per non tagliare informazioni.</div>
+<nav class="bottom-nav" id="bottomNav" aria-label="Azioni rapide">
+  <button type="button" onclick="switchView('turni'); if(typeof generateAutoProposal==='function')generateAutoProposal();">
+    <span class="ic">✨</span>Genera
+  </button>
+  <button type="button" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal(); else if(typeof openLeaveModal==='function')openLeaveModal();">
+    <span class="ic">🏖️</span>Assenza
+  </button>
+  <button type="button" onclick="switchView('eventi'); if(typeof openEventModal==='function')openEventModal();">
+    <span class="ic">📌</span>Impegno
+  </button>
+  <button type="button" onclick="switchView('turni'); if(typeof openExportMenu==='function')openExportMenu(); else if(typeof exportWeekPDF==='function')exportWeekPDF();">
+    <span class="ic">📤</span>Esporta
+  </button>
+</nav>
+
+<div class="modal-backdrop" id="checklistModal" style="display:none;" onclick="if(event.target===this)closeModal('checklistModal')">
+  <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
+    <h3 style="margin:0 0 8px;">✅ Checklist pre-pubblicazione</h3>
+    <p style="margin:0 0 12px;font-size:12px;color:var(--text-muted);">Controlli rapidi sulla settimana corrente prima di considerare i turni definitivi.</p>
+    <ul class="checklist-list" id="checklistItems"></ul>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">
+      <button type="button" class="alt" onclick="closeModal('checklistModal')">Chiudi</button>
+      <button type="button" class="btn-proposal" onclick="closeModal('checklistModal');generateAutoProposal();">✨ Genera di nuovo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="weekIssuesModal" style="display:none;" onclick="if(event.target===this)closeModal('weekIssuesModal')">
+  <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
+    <h3 style="margin:0 0 8px;">⚠️ Problemi settimana</h3>
+    <ul class="checklist-list" id="weekIssuesList"></ul>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button type="button" class="alt" onclick="closeModal('weekIssuesModal')">Chiudi</button>
+      <button type="button" class="btn-proposal" onclick="closeModal('weekIssuesModal');generateAutoProposal();">✨ Genera</button>
+    </div>
+  </div>
+</div>
+
+</body></html>';
     return html;
   }
 
