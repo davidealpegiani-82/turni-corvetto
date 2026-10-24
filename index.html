@@ -12930,9 +12930,9 @@ function minLunchBreakMinutes(wId) {
     if (!clearMode) {
       var ans = window.prompt(
         'Genera proposta — cosa fare della settimana corrente?\n\n' +
-        '1 = Svuota tutto e rigenera\n' +
+        '1 = Rigenera i turni automatici (conserva le celle manuali)\n' +
         '2 = Solo celle vuote\n' +
-        '3 = Solo celle non modificate a mano\n\n' +
+        '3 = Rigenera le celle automatiche e conserva le manuali\n\n' +
         'Scrivi 1, 2 o 3',
         '1'
       );
@@ -12952,19 +12952,24 @@ function minLunchBreakMinutes(wId) {
     try {
       if (!appData.weeks) appData.weeks = {};
       if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
-      if (clearMode === 'all') {
-        appData.weeks[currentWeekKey] = {};
-      } else if (clearMode === 'empty') {
-        // lascia tutto com'è: il motore riempie i buchi
-      } else if (clearMode === 'nonmanual') {
-        const wk = appData.weeks[currentWeekKey];
+      if (clearMode === 'all' || clearMode === 'nonmanual') {
+        // Protezione assoluta delle celle manuali: la rigenerazione elimina solo
+        // celle automatiche. Una cella manualEdit non deve sparire nemmeno in
+        // modalità "rigenera tutto", altrimenti il motore perde coperture reali
+        // e può presentare una proposta che ignora il lavoro inserito dall'utente.
+        const wk = appData.weeks[currentWeekKey] || {};
         Object.keys(wk).forEach(function(wid) {
           const days = wk[wid] || {};
           Object.keys(days).forEach(function(d) {
-            if (days[d] && days[d].manualEdit) return;
+            const cell = days[d];
+            if (cell && cell.manualEdit === true) return;
             delete days[d];
           });
+          if (!Object.keys(days).length) delete wk[wid];
         });
+        appData.weeks[currentWeekKey] = wk;
+      } else if (clearMode === 'empty') {
+        // Lascia tutte le celle esistenti: il motore riempie soltanto i buchi.
       }
     } catch (eClr) {}
 
