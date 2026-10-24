@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.38</title>
+  <title>Turni Corvetto v9.11.39</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.38';
+    const APP_VERSION = '9.11.39';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.39 — Assistente operativo: home Oggi, suggerimenti azionabili, nav semplificata, pubblica settimana',
     '9.11.38 — UX quotidiana: home settimana, semaforo, barra azioni mobile, celle più chiare, checklist pre-pubblicazione, header compatto',
     '9.11.37 — Pipeline unica finalizeProposalWeek: rotazione → eventi → bilancio chiusura → riparazione → pause → Severin; rebalance non sovrascrive più il bilancio',
     '9.11.36 — Allineamento versioni UI/SW/cache; pool copertura ufficio senza Finiture; sync a revisione e audit sabato confermati',
@@ -2044,6 +2045,85 @@
     .header-top { align-items:flex-start; }
     #weekStatusMount { margin:6px 0 0; }
 
+
+    /* ===== Assistente operativo 9.11.39 ===== */
+    .op-shell { max-width: 720px; margin: 0 auto; }
+    .op-hero {
+      background: linear-gradient(135deg, rgba(37,99,235,.14), rgba(16,185,129,.10));
+      border: 1px solid rgba(37,99,235,.18);
+      border-radius: 18px; padding: 16px 16px 14px; margin: 0 0 14px;
+    }
+    body.light-theme .op-hero {
+      background: linear-gradient(135deg, #eff6ff, #ecfdf5);
+      border-color: #bfdbfe;
+    }
+    .op-hero h2 { margin: 0 0 6px; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+    .op-hero p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    .op-status-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+    .op-actions {
+      display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap:8px; margin: 0 0 16px;
+    }
+    @media (max-width:560px) {
+      .op-actions { grid-template-columns: 1fr; }
+    }
+    .op-actions button {
+      min-height: 48px; border-radius: 14px; font-weight: 800; font-size: 14px;
+      border: none; cursor: pointer;
+    }
+    .op-actions .primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;
+    }
+    .op-actions .secondary {
+      background: rgba(15,23,42,.06); color: inherit;
+      border: 1px solid rgba(127,127,127,.18);
+    }
+    body.light-theme .op-actions .secondary { background: #fff; }
+    .op-section-title {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--text-muted); font-weight: 800; margin: 18px 0 8px;
+    }
+    .op-card {
+      background: var(--card-bg, rgba(255,255,255,.04));
+      border: 1px solid rgba(127,127,127,.14);
+      border-radius: 16px; padding: 12px 14px; margin: 0 0 10px;
+    }
+    body.light-theme .op-card { background:#fff; border-color:#e2e8f0; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .op-card .op-card-head {
+      display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
+    }
+    .op-card .op-card-head strong { font-size: 14px; }
+    .op-card .op-card-head span.meta { font-size: 11px; color: var(--text-muted); }
+    .op-card p.detail { margin: 6px 0 10px; font-size: 13px; color: var(--text-muted); line-height: 1.35; }
+    .op-card .op-card-actions { display:flex; flex-wrap:wrap; gap:6px; }
+    .op-card .op-card-actions button { min-height: 36px; font-size: 12px; border-radius: 10px; padding: 6px 12px; }
+    .op-empty {
+      padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px;
+      border: 1px dashed rgba(127,127,127,.25); border-radius: 14px;
+    }
+    .op-list { list-style:none; margin:0; padding:0; }
+    .op-list li {
+      display:flex; gap:10px; align-items:flex-start; padding: 8px 0;
+      border-bottom: 1px solid rgba(127,127,127,.1); font-size: 13px;
+    }
+    .op-list li:last-child { border-bottom: none; }
+    .op-pill {
+      display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+      border-radius:999px; font-size:12px; font-weight:700;
+    }
+    .op-pill.ok { background:rgba(34,197,94,.12); color:#16a34a; }
+    .op-pill.warn { background:rgba(245,158,11,.12); color:#d97706; }
+    .op-pill.bad { background:rgba(239,68,68,.12); color:#dc2626; }
+    .nav-tabs.view-tabs { gap: 4px; }
+    .nav-tabs.view-tabs button { flex: 1 1 auto; min-width: 0; font-size: 12px; padding: 8px 6px; }
+    .nav-more-panel {
+      display:none; margin: 0 0 12px; padding: 10px; border-radius: 14px;
+      border: 1px solid rgba(127,127,127,.15); background: rgba(127,127,127,.06);
+    }
+    .nav-more-panel.open { display:flex; flex-wrap:wrap; gap:8px; }
+    .nav-more-panel button { min-height: 40px; font-size: 12px; }
+    #viewTurni .week-home { display: none; } /* home dedicata in Oggi */
+    body.op-mode-oggi .top-controls-extra { display:none; }
+
 </style>
 </head>
 <body>
@@ -2067,7 +2147,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.38</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.39</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2089,7 +2169,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.38</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.39</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2098,12 +2178,16 @@
       </div>
     </div>
     <div class="nav-tabs view-tabs">
-      <button type="button" id="tabTurni" class="active-tab" onclick="switchView('turni')">📋 Tabella</button>
-      <button type="button" id="tabFerie" onclick="switchView('ferie')">🏖️ Ferie</button>
-      <button type="button" id="tabEventi" onclick="switchView('eventi')">📌 Eventi</button>
-      <button type="button" id="tabMalattia" onclick="switchView('malattia'); setTimeout(function(){ var m=document.getElementById('malattiaControlCard'); if(m){m.style.display='block';} }, 0)">🤒 Malattia</button>
-      <button type="button" id="tabGuida" onclick="openHelpGuide()">❓ Guida</button>
-      <button type="button" id="tabSettings" onclick="switchView('settings')">⚙️ Impostazioni</button>
+      <button type="button" id="tabOggi" class="active-tab" onclick="switchView('oggi')">🏠 Oggi</button>
+      <button type="button" id="tabTurni" onclick="switchView('turni')">📋 Turni</button>
+      <button type="button" id="tabFerie" onclick="switchView('ferie')">🏖️ Assenze</button>
+      <button type="button" id="tabAltro" onclick="toggleMoreNav()">⋯ Altro</button>
+    </div>
+    <div class="nav-more-panel" id="navMorePanel">
+      <button type="button" class="alt" id="tabEventi" onclick="switchView('eventi'); closeMoreNav();">📌 Impegni</button>
+      <button type="button" class="alt" id="tabMalattia" onclick="switchView('malattia'); closeMoreNav();">🤒 Malattia</button>
+      <button type="button" class="alt" id="tabSettings" onclick="switchView('settings'); closeMoreNav();">⚙️ Impostazioni</button>
+      <button type="button" class="alt" id="tabGuida" onclick="openHelpGuide(); closeMoreNav();">❓ Guida</button>
     </div>
   </div>
 
@@ -2173,7 +2257,37 @@
   </div>
 </div>
 
-<div id="viewTurni">
+
+<div id="viewOggi" class="op-shell">
+  <div class="op-hero">
+    <h2 id="opHeroTitle">Questa settimana</h2>
+    <p id="opHeroSub">Stato operativo della filiale</p>
+    <div class="op-status-row" id="opStatusRow"></div>
+  </div>
+
+  <div class="op-actions">
+    <button type="button" class="primary" onclick="generateAutoProposal()">✨ Genera turni</button>
+    <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
+    <button type="button" class="secondary" onclick="publishWeekOperational()">📤 Pubblica</button>
+  </div>
+
+  <div class="op-section-title">Cosa fare ora</div>
+  <div id="opSuggestions"></div>
+
+  <div class="op-section-title">Assenze</div>
+  <div class="op-card"><ul class="op-list" id="opLeavesList"></ul></div>
+
+  <div class="op-section-title">Impegni</div>
+  <div class="op-card"><ul class="op-list" id="opEventsList"></ul></div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;">
+    <button type="button" class="alt" onclick="switchView('turni')">Apri tabella turni</button>
+    <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
+    <button type="button" class="alt" onclick="switchView('eventi')">Tutti gli impegni</button>
+  </div>
+</div>
+
+<div id="viewTurni" style="display:none;">
   <div class="rules-banner" id="rulesBanner" onclick="if(typeof openWeekIssues==='function')openWeekIssues()">✅ Controllo regole sulla settimana corrente</div>
   <div class="week-home" id="weekHome">
     <div class="week-home-card">
@@ -4460,11 +4574,257 @@ function isUsableAppData(value) {
   }
 
 
-  let currentView = 'turni';
+  let currentView = 'oggi';
 
   // ===== V3: Toast, Undo, Sync status =====
   const undoStack = [];
   const MAX_UNDO = 15;
+
+
+
+  /* ===== Assistente operativo LOGIC 9.11.39 ===== */
+  function getCloseShiftTemplate() {
+    try {
+      const r = (typeof R === 'function') ? R() : {};
+      return Object.assign({ mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30', status:'LAVORO' }, r.ufficio2t || {});
+    } catch (e) {
+      return { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30', status:'LAVORO' };
+    }
+  }
+
+  function findOfficeCloseCandidate(week, day) {
+    try {
+      const pool = (typeof officeCoverageIdsForDay === 'function')
+        ? officeCoverageIdsForDay(day)
+        : (typeof SABATO_UFFICIO_IDS === 'function' ? SABATO_UFFICIO_IDS() : []);
+      const closeProbe = (typeof timeToMin === 'function') ? timeToMin('17:15') : 17 * 60 + 15;
+      const ranked = [];
+      (pool || []).forEach(function(id) {
+        const cell = week[id] && (week[id][day] || week[id][String(day)]);
+        if (!cell) return;
+        if (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(cell)) return;
+        if (cell.manualEdit) return;
+        try {
+          const p = (appData.workerProfiles && appData.workerProfiles[id]) || {};
+          if (p.canClose === false) return;
+        } catch (e) {}
+        if (cell.pOut === '17:30' || cell.pOut === '17:00') return;
+        try {
+          if (typeof isAvailableAtTime === 'function' && !isAvailableAtTime(week, id, day, closeProbe)) return;
+        } catch (e2) {}
+        const isSev = (typeof SEVERIN_ID === 'function' && id === SEVERIN_ID());
+        ranked.push({ id: id, score: isSev ? 2 : 1 });
+      });
+      ranked.sort(function(a, b) { return a.score - b.score; });
+      return ranked.length ? ranked[0].id : null;
+    } catch (e) { return null; }
+  }
+
+  function buildOperationalSuggestions() {
+    const list = [];
+    const week = (appData.weeks && appData.weeks[currentWeekKey]) || {};
+    const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+    try {
+      if (typeof analyzeCoverage === 'function') {
+        (analyzeCoverage(week) || []).forEach(function(row) {
+          const day = row.dayIdx != null ? row.dayIdx : dayNames.indexOf(row.day || row.dayLabel);
+          if (day < 0 || day > 4) return;
+          if (row.impOk === false) {
+            const closeLow = (row.impClose != null && row.minCloseImp != null && row.impClose < row.minCloseImp);
+            const openLow = (row.impOpen != null && row.minImp != null && row.impOpen < row.minImp);
+            if (closeLow) {
+              const cand = findOfficeCloseCandidate(week, day);
+              list.push({
+                id: 'imp-close-' + day,
+                level: 'bad',
+                title: (row.dayLabel || dayNames[day]) + ' · chiusura ufficio scoperta',
+                detail: cand
+                  ? ('Proposta: mettere ' + workerName(cand) + ' in 08:30–17:30')
+                  : 'Nessun candidato automatico: genera i turni o sposta in tabella.',
+                actionLabel: cand ? ('Applica: ' + String(workerName(cand) || '').split(' ')[0]) : 'Genera turni',
+                action: cand ? { type: 'put_close', workerId: cand, day: day } : { type: 'generate' }
+              });
+            } else if (openLow) {
+              list.push({
+                id: 'imp-open-' + day,
+                level: 'warn',
+                title: (row.dayLabel || dayNames[day]) + ' · apertura ufficio debole',
+                detail: 'Servono più persone in apertura.',
+                actionLabel: 'Genera turni',
+                action: { type: 'generate' }
+              });
+            }
+          }
+          if (row.magOk === false) {
+            list.push({
+              id: 'mag-' + day,
+              level: 'warn',
+              title: (row.dayLabel || dayNames[day]) + ' · magazzino sotto minimo',
+              detail: 'Controlla assenze magazzino e rigenera.',
+              actionLabel: 'Genera turni',
+              action: { type: 'generate' }
+            });
+          }
+        });
+      }
+    } catch (e) {}
+
+    try {
+      (appData.leaveRequests || []).forEach(function(req) {
+        if (!req || req.status !== 'approvata') return;
+        if (!(req.tipo === 'Ricovero' || req.openEnded)) return;
+        const w = workerObj(req.workerId);
+        list.push({
+          id: 'leave-' + req.id,
+          level: 'warn',
+          title: (w ? w.name : req.workerId) + ' · ' + (req.tipo || 'Assenza'),
+          detail: req.openEnded ? 'In corso — verifica copertura.' : 'Assenza lunga attiva.',
+          actionLabel: 'Vedi assenze',
+          action: { type: 'open_leaves' }
+        });
+      });
+    } catch (e2) {}
+
+    if (!list.length) {
+      list.push({
+        id: 'ok',
+        level: 'ok',
+        title: 'Nessuna azione urgente',
+        detail: 'Puoi pubblicare o aprire la tabella turni.',
+        actionLabel: 'Pubblica settimana',
+        action: { type: 'publish' }
+      });
+    }
+    return list;
+  }
+
+  function applyOperationalSuggestion(action) {
+    if (!action || !action.type) return;
+    if (action.type === 'generate') { generateAutoProposal(); return; }
+    if (action.type === 'publish') { publishWeekOperational(); return; }
+    if (action.type === 'open_leaves') { switchView('ferie'); return; }
+    if (action.type === 'put_close') {
+      try {
+        if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
+        const week = appData.weeks[currentWeekKey];
+        const id = action.workerId;
+        const day = action.day;
+        if (!week[id]) week[id] = {};
+        const prev = week[id][day] || {};
+        if (prev.manualEdit) { showToast('Cella protetta: apri la tabella', 'warn'); return; }
+        if (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(prev)) {
+          showToast('Persona assente quel giorno', 'warn'); return;
+        }
+        const tpl = getCloseShiftTemplate();
+        const undoSnapshot = snapshotWeeks();
+        week[id][day] = Object.assign({}, prev, tpl, {
+          status: 'LAVORO', generated: true, movedByEngine: true, leaveFullDay: false,
+          mIn: tpl.mIn, mOut: tpl.mOut, pIn: tpl.pIn, pOut: tpl.pOut
+        });
+        week[id][String(day)] = week[id][day];
+        pushUndo('Suggerimento chiusura ' + workerName(id), undoSnapshot);
+        syncToCloud();
+        if (typeof renderWeek === 'function') renderWeek();
+        if (typeof renderOperationalHome === 'function') renderOperationalHome();
+        showToast((workerName(id) || '') + ' in chiusura 08:30–17:30', 'success');
+      } catch (e) {
+        console.warn(e);
+        showToast('Impossibile applicare il suggerimento', 'error');
+      }
+    }
+  }
+  window.applyOperationalSuggestion = applyOperationalSuggestion;
+
+  function renderOperationalHome() {
+    const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : { level:'ok', label:'', leaves:[], events:[] };
+    const title = document.getElementById('opHeroTitle');
+    const sub = document.getElementById('opHeroSub');
+    const status = document.getElementById('opStatusRow');
+    if (title) {
+      try {
+        title.textContent = (typeof getWeekDisplayLabel === 'function')
+          ? getWeekDisplayLabel(currentDate)
+          : ('Settimana ' + (currentWeekKey || ''));
+      } catch (e) { title.textContent = 'Questa settimana'; }
+    }
+    if (sub) {
+      sub.textContent = health.level === 'ok'
+        ? 'Nessun problema critico. Puoi pubblicare o generare i turni.'
+        : 'Ci sono punti da sistemare prima di pubblicare.';
+    }
+    if (status) {
+      const cls = health.level === 'bad' ? 'bad' : (health.level === 'warn' ? 'warn' : 'ok');
+      status.innerHTML = '<span class="op-pill ' + cls + '">' + escapeHtmlV47(health.label || 'Stato') + '</span>';
+    }
+    const box = document.getElementById('opSuggestions');
+    if (box) {
+      const sugs = buildOperationalSuggestions();
+      box.innerHTML = sugs.map(function(s) {
+        const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
+        return '<div class="op-card">' +
+          '<div class="op-card-head"><strong>' + escapeHtmlV47(s.title) + '</strong>' +
+          '<span class="meta">' + escapeHtmlV47(s.level) + '</span></div>' +
+          '<p class="detail">' + escapeHtmlV47(s.detail || '') + '</p>' +
+          '<div class="op-card-actions">' +
+          '<button type="button" class="' + (s.level === 'ok' ? 'alt' : 'btn-proposal') +
+          '" data-op-action=\'' + act + '\' onclick="applyOperationalSuggestion(JSON.parse(this.getAttribute(\'data-op-action\')))">' +
+          escapeHtmlV47(s.actionLabel || 'Ok') + '</button>' +
+          (s.action && s.action.type === 'put_close'
+            ? '<button type="button" class="alt" onclick="switchView(\'turni\')">Apri tabella</button>' : '') +
+          '</div></div>';
+      }).join('');
+    }
+    const leaves = document.getElementById('opLeavesList');
+    if (leaves) {
+      if (!health.leaves || !health.leaves.length) {
+        leaves.innerHTML = '<li style="color:var(--text-muted);border:none;">Nessuna assenza in settimana</li>';
+      } else {
+        const seen = {};
+        leaves.innerHTML = health.leaves.filter(function(x) {
+          const k = x.name + x.tipo; if (seen[k]) return false; seen[k] = true; return true;
+        }).slice(0, 8).map(function(x) {
+          return '<li><span>👤</span><span><strong>' + escapeHtmlV47(x.name) + '</strong> · ' +
+            escapeHtmlV47(x.tipo) + (x.day ? ' · ' + escapeHtmlV47(x.day) : '') + '</span></li>';
+        }).join('');
+      }
+    }
+    const events = document.getElementById('opEventsList');
+    if (events) {
+      if (!health.events || !health.events.length) {
+        events.innerHTML = '<li style="color:var(--text-muted);border:none;">Nessun impegno in settimana</li>';
+      } else {
+        events.innerHTML = health.events.slice(0, 8).map(function(x) {
+          return '<li><span>📌</span><span><strong>' + escapeHtmlV47(x.day || '') + '</strong> ' +
+            escapeHtmlV47(x.title) + (x.who ? ' · ' + escapeHtmlV47(x.who) : '') + '</span></li>';
+        }).join('');
+      }
+    }
+  }
+  window.renderOperationalHome = renderOperationalHome;
+
+  function publishWeekOperational() {
+    try {
+      const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : { level: 'ok' };
+      if (health.level === 'bad') {
+        if (!confirm('Ci sono problemi critici di copertura. Pubblicare comunque?')) {
+          if (typeof openWeekIssues === 'function') openWeekIssues();
+          return;
+        }
+      }
+      if (typeof openExportMenu === 'function') {
+        openExportMenu();
+        showToast('Scegli come pubblicare la settimana', 'info', 2500);
+      } else if (typeof exportToPDF === 'function') {
+        exportToPDF();
+      } else {
+        switchView('turni');
+      }
+    } catch (e) {
+      console.warn(e);
+      switchView('turni');
+    }
+  }
+  window.publishWeekOperational = publishWeekOperational;
 
 
   /* ===== UX 9.11.38: home settimana + semaforo + checklist ===== */
@@ -5172,15 +5532,30 @@ function isUsableAppData(value) {
   window.exportMalattiaPDF = exportMalattiaPDF;
 
 
+  function closeMoreNav() {
+    var p = document.getElementById('navMorePanel');
+    if (p) p.classList.remove('open');
+  }
+  function toggleMoreNav() {
+    var p = document.getElementById('navMorePanel');
+    if (p) p.classList.toggle('open');
+  }
+  window.toggleMoreNav = toggleMoreNav;
+  window.closeMoreNav = closeMoreNav;
+
   function switchView(view) {
     currentView = view;
-    const map = { turni:'viewTurni', proposta:'viewTurni', ferie:'viewFerie', eventi:'viewEventi', malattia:'viewMalattia', settings:'viewSettings' };
-    ['viewTurni','viewFerie','viewEventi','viewMalattia','viewStats','viewSettings'].forEach(function(id) {
+    closeMoreNav();
+    const map = { oggi:'viewOggi', turni:'viewTurni', proposta:'viewTurni', ferie:'viewFerie', eventi:'viewEventi', malattia:'viewMalattia', settings:'viewSettings' };
+    ['viewOggi','viewTurni','viewFerie','viewEventi','viewMalattia','viewStats','viewSettings'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
-    var showEl = document.getElementById(map[view] || 'viewTurni');
+    var showEl = document.getElementById(map[view] || 'viewOggi');
     if (showEl) showEl.style.display = 'block';
+    try {
+      if (view === 'oggi' && typeof renderOperationalHome === 'function') renderOperationalHome();
+    } catch (eOg) {}
     if (view === 'malattia' && typeof renderMalattiaView === 'function') {
       try { renderMalattiaView(); } catch (e) {}
     }
@@ -5192,15 +5567,15 @@ function isUsableAppData(value) {
     }
 
     document.querySelectorAll('.nav-tabs button, .view-tabs button').forEach(function(b) { b.classList.remove('active-tab'); });
-    var tabIds = { turni:'tabTurni', ferie:'tabFerie', eventi:'tabEventi', malattia:'tabMalattia', settings:'tabSettings' };
-    var tab = document.getElementById(tabIds[view] || 'tabTurni');
+    var tabIds = { oggi:'tabOggi', turni:'tabTurni', ferie:'tabFerie', eventi:'tabEventi', malattia:'tabMalattia', settings:'tabSettings', altro:'tabAltro' };
+    var tab = document.getElementById(tabIds[view] || (view === 'eventi' || view === 'malattia' || view === 'settings' ? 'tabAltro' : 'tabOggi'));
     if (tab) tab.classList.add('active-tab');
 
     var tc = document.getElementById('turniControlCard');
     var fc = document.getElementById('ferieControlCard');
     var ec = document.getElementById('eventiControlCard');
     var mc = document.getElementById('malattiaControlCard');
-    if (tc) tc.style.display = (view === 'turni' || view === 'proposta') ? '' : 'none';
+    if (tc) tc.style.display = (view === 'turni' || view === 'proposta' || view === 'oggi') ? '' : 'none';
     if (fc) fc.style.display = view === 'ferie' ? '' : 'none';
     if (ec) ec.style.display = view === 'eventi' ? '' : 'none';
     if (mc) {
@@ -5593,6 +5968,7 @@ function renderWeek() {
     currentWeekKey = getWeekKey(currentDate);
     try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch (eMed) {}
     try { if (typeof updateWeekStatusUI === 'function') setTimeout(updateWeekStatusUI, 0); } catch (eUx) {}
+    try { if (typeof renderOperationalHome === 'function' && currentView === 'oggi') setTimeout(renderOperationalHome, 0); } catch (eOp) {}
     try { if (typeof repairPartialLeaveWorkHours === 'function') repairPartialLeaveWorkHours(currentWeekKey); } catch (eRep) {}
     try { if (typeof refreshCoverageBlocksForWeek === "function") refreshCoverageBlocksForWeek(currentWeekKey); } catch (e) {}
     document.getElementById('weekLabel').innerText = getWeekDisplayLabel(currentDate);
@@ -7529,7 +7905,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.38', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.39', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -16276,17 +16652,17 @@ function applyPendingProposal() {
     }
     html += '<div class="print-warning">Se i contenuti superano l’area A4, controllare l’anteprima di stampa: il browser potrebbe distribuirli su più pagine per non tagliare informazioni.</div>
 <nav class="bottom-nav" id="bottomNav" aria-label="Azioni rapide">
-  <button type="button" onclick="switchView('turni'); if(typeof generateAutoProposal==='function')generateAutoProposal();">
+  <button type="button" onclick="switchView('oggi')">
+    <span class="ic">🏠</span>Oggi
+  </button>
+  <button type="button" onclick="if(typeof generateAutoProposal==='function')generateAutoProposal();">
     <span class="ic">✨</span>Genera
   </button>
-  <button type="button" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal(); else if(typeof openLeaveModal==='function')openLeaveModal();">
-    <span class="ic">🏖️</span>Assenza
+  <button type="button" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">
+    <span class="ic">➕</span>Assenza
   </button>
-  <button type="button" onclick="switchView('eventi'); if(typeof openEventModal==='function')openEventModal();">
-    <span class="ic">📌</span>Impegno
-  </button>
-  <button type="button" onclick="switchView('turni'); if(typeof openExportMenu==='function')openExportMenu(); else if(typeof exportWeekPDF==='function')exportWeekPDF();">
-    <span class="ic">📤</span>Esporta
+  <button type="button" onclick="if(typeof publishWeekOperational==='function')publishWeekOperational();">
+    <span class="ic">📤</span>Pubblica
   </button>
 </nav>
 
