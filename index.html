@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.41 — Eccezione operativa: forzatura esplicita del minimo di copertura, con conferma e audit; restano bloccanti i vincoli di integrità',
     '9.11.40 — Correzione critica: rigenerazione protetta delle celle manuali; le coperture manuali non vengono cancellate prima dell'audit',
     '9.11.39 — Smart Brain: competenze dinamiche per apertura, copertura allineata ai profili reali; accessi rapidi a diagnosi, competenze e test',
     '9.11.38 — UX quotidiana: home settimana, semaforo, barra azioni mobile, celle più chiare, checklist pre-pubblicazione, header compatto',
@@ -15120,37 +15121,44 @@ function applyPendingProposal() {
 
     // Dopo OGNI mutazione post-generazione: rivalidazione completa.
     // Le scoperture di copertura sono VINCOLI, non avvisi facoltativi.
-    const blocking = validateProposalBeforeApply(p);
+    const validationBlocking = validateProposalBeforeApply(p);
     const coverage = (typeof analyzeCoverage === 'function') ? analyzeCoverage(p.week) : (p.coverage || []);
     p.coverage = coverage;
     const dayGaps = (coverage || []).filter(c => c && (c.magOk === false || c.impOk === false));
     let finalGaps = [];
     try { finalGaps = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; } catch (eCoverage) {}
     p.finalCoverageGaps = finalGaps;
-    p.meta = Object.assign({}, p.meta || {}, {
-      finalCoverageGapCount: finalGaps.length,
-      finalCoverageCheckedAt: new Date().toISOString()
-    });
+    p.meta = Object.assign({}, p.meta || {}, { finalCoverageGapCount: finalGaps.length, finalCoverageCheckedAt: new Date().toISOString() });
 
-    if (dayGaps.length) {
-      blocking.push('Copertura insufficiente (apertura/chiusura) nei giorni: ' + dayGaps.map(c => c.day || c.dayLabel || '?').join(', ') + '.');
-    }
+    const coverageBlocking = [];
+    if (dayGaps.length) coverageBlocking.push('Copertura insufficiente (apertura/chiusura) nei giorni: ' + dayGaps.map(c => c.day || c.dayLabel || '?').join(', ') + '.');
     if (finalGaps.length) {
-      const detail = finalGaps.slice(0, 12).map(g =>
-        (g.dayLabel || '?') + ' ' + (g.label || g.area || '') + ' ' + (g.start || '') + '-' + (g.end || '') +
-        ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')'
-      );
-      blocking.push('COPERTURA NON RISOLTA in ' + finalGaps.length + ' intervalli: ' + detail.join('; ') + (finalGaps.length > 12 ? '; …' : '') + '.');
+      const detail = finalGaps.slice(0, 12).map(g => (g.dayLabel || '?') + ' ' + (g.label || g.area || '') + ' ' + (g.start || '') + '-' + (g.end || '') + ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')');
+      coverageBlocking.push('COPERTURA NON RISOLTA in ' + finalGaps.length + ' intervalli: ' + detail.join('; ') + (finalGaps.length > 12 ? '; …' : '') + '.');
     }
 
-    if (blocking.length) {
-      alert('La proposta NON può essere applicata (vincoli non soddisfatti):\n\n• ' + blocking.join('\n• ') + '\n\nCorreggi le scelte o rigenera dopo aver sistemato assenze/impegni.');
-      showToast('Proposta bloccata: restano violazioni di copertura o vincoli', 'error', 5500);
-      // Aggiorna la modale se aperta, così l’utente vede i gap aggiornati
+    // Eccezione operativa esplicita: la conferma deroga SOLO al minimo di copertura.
+    // Errori di integrità, assenze, orari, scelte non confermate e conflitti restano bloccanti.
+    if (validationBlocking.length) {
+      alert('La proposta NON può essere applicata (vincoli non derogabili):\n\n• ' + validationBlocking.join('\n• ') + '\n\nCorreggi questi problemi e riprova. La forzatura riguarda esclusivamente il minimo di copertura.');
+      showToast('Proposta bloccata: ci sono vincoli non derogabili', 'error', 5500);
       try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi) {}
       return;
     }
-
+    if (coverageBlocking.length) {
+      const gapSummary = finalGaps.slice(0, 8).map(g => (g.dayLabel || '?') + ' · ' + (g.label || g.area || 'copertura') + ' ' + (g.start || '') + '-' + (g.end || '') + ' (' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?') + ')');
+      const prompt = 'ATTENZIONE — COPERTURA SOTTO IL MINIMO\n\n' + coverageBlocking.join('\n\n') +
+        (gapSummary.length ? '\n\nIntervalli principali:\n• ' + gapSummary.join('\n• ') : '') +
+        '\n\nVuoi applicare comunque questa proposta in via eccezionale?\n\nLa forzatura ignora SOLO il minimo di copertura; non aggira controlli su assenze, orari non validi, modifiche concorrenti o scelte non confermate.';
+      if (!confirm(prompt)) {
+        showToast('Applicazione annullata: proposta non modificata', 'info', 3500);
+        try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi) {}
+        return;
+      }
+      p.meta = Object.assign({}, p.meta || {}, { coverageOverride: true, coverageOverrideAt: new Date().toISOString(), coverageOverrideGapCount: finalGaps.length, coverageOverrideDays: [...new Set(finalGaps.map(g => g.dayLabel || g.day || '?'))] });
+      p.notes = (p.notes || []).concat(['⚠️ FORZATURA COPERTURA autorizzata manualmente: applicata sotto il minimo in via eccezionale. Intervalli scoperti: ' + finalGaps.length + '.']);
+      try { if (typeof appendAudit === 'function') appendAudit('forzatura_copertura_minima', p.weekKey + ' · ' + finalGaps.length + ' intervalli'); } catch (eAudit) {}
+    }
     // Solo avvisi non bloccanti (note motore / overtime): informativi, non di copertura
     let warnings = [];
     try {
