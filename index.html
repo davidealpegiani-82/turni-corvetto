@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.40</title>
+  <title>Turni Corvetto v9.11.41</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.40';
+    const APP_VERSION = '9.11.41';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.41 — Fix critico: ripristinata sintassi JS (home Oggi/dati); refresh dati su Oggi dopo sync',
     '9.11.40 — Modifica turni manuale: selettore collaboratore/giorno, accesso da Oggi e Turni, celle manuali evidenziate e protette',
     '9.11.39 — Assistente operativo: home Oggi, suggerimenti azionabili, nav semplificata, pubblica settimana',
     '9.11.38 — UX quotidiana: home settimana, semaforo, barra azioni mobile, celle più chiare, checklist pre-pubblicazione, header compatto',
@@ -2158,7 +2159,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.40</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.41</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2180,7 +2181,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.40</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.41</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4306,6 +4307,10 @@ function isUsableAppData(value) {
     renderQuickNotesButtons();
     if (typeof renderLeaveView === 'function' && currentView === 'ferie') renderLeaveView();
     if (typeof renderEventsView === 'function' && currentView === 'eventi') renderEventsView();
+    try {
+      if (typeof switchView === 'function' && (currentView === 'oggi' || !currentView)) switchView('oggi');
+      else if (typeof renderOperationalHome === 'function') renderOperationalHome();
+    } catch (eOg) { console.warn('oggi refresh', eOg); }
   }
 
   
@@ -7940,7 +7945,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.40', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.41', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -13485,7 +13490,7 @@ function minLunchBreakMinutes(wId) {
         }
       } catch (finErr) { console.warn('finalizeProposalWeek', finErr); }
 
-      // Aggiorna changes dopo la pipeline
+      // Ricalcolo changes / audit / ore dopo la pipeline
       try {
         if (proposal && proposal.week) {
           const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
@@ -13514,35 +13519,38 @@ function minLunchBreakMinutes(wId) {
             }
           });
           if (typeof analyzeCoverage === 'function') proposal.coverage = analyzeCoverage(w);
-        }
-      } catch (eCh) { console.warn(eCh); }
 
-        // Audit finale DOPO ogni bilanciamento: non fidarsi dei punteggi calcolati prima delle ultime modifiche.
-        try {
-          const finalGaps = collectSmartCoverageGaps(w);
-          proposal.finalCoverageGaps = finalGaps;
-          proposal.meta = Object.assign({}, proposal.meta || {}, {
-            finalCoverageGapCount: finalGaps.length,
-            finalCoverageCheckedAt: new Date().toISOString()
+          // Audit finale coperture
+          try {
+            const finalGaps = (typeof collectSmartCoverageGaps === 'function') ? collectSmartCoverageGaps(w) : [];
+            proposal.finalCoverageGaps = finalGaps;
+            proposal.meta = Object.assign({}, proposal.meta || {}, {
+              finalCoverageGapCount: finalGaps.length,
+              finalCoverageCheckedAt: new Date().toISOString()
+            });
+            if (finalGaps.length) {
+              const gapLines = finalGaps.slice(0, 10).map(function(g) {
+                return (g.dayLabel || '') + ' ' + (g.label || '') + ' ' + (g.start || '') + '-' + (g.end || '') + ': ' + (g.actual != null ? g.actual : '?') + '/' + (g.required != null ? g.required : '?');
+              });
+              proposal.notes = (proposal.notes || []).filter(function(n) { return !String(n).startsWith('⚠️ COPERTURA NON RISOLTA:'); });
+              proposal.notes.push('⚠️ COPERTURA NON RISOLTA: dopo tutti i bilanciamenti restano ' + finalGaps.length + ' intervalli scoperti. Non applicare senza revisione. ' + gapLines.join(' · ') + (finalGaps.length > 10 ? ' · …' : ''));
+            } else {
+              proposal.notes = (proposal.notes || []).filter(function(n) { return !String(n).startsWith('⚠️ COPERTURA NON RISOLTA:'); });
+            }
+          } catch (eCoverageAudit) { console.warn('Audit finale coperture:', eCoverageAudit); }
+
+          proposal.hoursSummary = [];
+          proposal.overtime = [];
+          (appData.workers || []).forEach(function(worker) {
+            if (worker.selected === false) return;
+            var h = hoursForWeekProposal(w, worker.id);
+            proposal.hoursSummary.push({ id: worker.id, name: worker.name, hours: h });
+            if (h > 40.01) proposal.overtime.push(worker.name + ': ' + h.toFixed(1) + 'h (+' + (h - 40).toFixed(1) + 'h)');
           });
-          if (finalGaps.length) {
-            const lines = finalGaps.slice(0, 10).map(g => `${g.dayLabel} ${g.label} ${g.start}-${g.end}: ${g.actual}/${g.required} presenti`);
-            proposal.notes = (proposal.notes || []).filter(n => !String(n).startsWith('⚠️ COPERTURA NON RISOLTA:'));
-            proposal.notes.push('⚠️ COPERTURA NON RISOLTA: dopo tutti i bilanciamenti restano ' + finalGaps.length + ' intervalli scoperti. Non applicare senza revisione. ' + lines.join(' · ') + (finalGaps.length > 10 ? ' · …' : ''));
-          } else {
-            proposal.notes = (proposal.notes || []).filter(n => !String(n).startsWith('⚠️ COPERTURA NON RISOLTA:'));
-          }
-        } catch (eCoverageAudit) { console.warn('Audit finale coperture:', eCoverageAudit); }
-        proposal.hoursSummary = []; proposal.overtime = [];
-        (appData.workers||[]).forEach(function(worker) {
-          if (worker.selected === false) return;
-          var h = hoursForWeekProposal(w, worker.id);
-          proposal.hoursSummary.push({ id: worker.id, name: worker.name, hours: h });
-          if (h > 40.01) proposal.overtime.push(worker.name + ': ' + h.toFixed(1) + 'h (+' + (h-40).toFixed(1) + 'h)');
-        });
-      } catch (eRecalc) { console.warn('recalc after rotation', eRecalc); }
+        }
+      } catch (eRecalc) { console.warn('recalc after pipeline', eRecalc); }
 
-      window.pendingTurnProposal=proposal;
+      window.pendingTurnProposal = proposal;
       try {
         const holG = typeof holidaysInCurrentWeek === 'function' ? holidaysInCurrentWeek() : [];
         if (holG.length) {
