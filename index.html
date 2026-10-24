@@ -11103,10 +11103,13 @@ function minLunchBreakMinutes(wId) {
     const wednesdayPool=officeCoverageIdsForDay(2).map(id=>workerObj(id)).filter(Boolean);
     const hasName=(arr,re)=>arr.some(w=>re.test(String(w.name||'')+' '+String(w.role||'')));
     const hasPoppa=(arr)=>arr.some(w=>/poppa/i.test(String(w.name||'')+' '+String(w.role||'')));
+    const poppaWorker=(appData.workers||[]).find(w=>/poppa/i.test(String(w.name||'')+' '+String(w.role||'')));
+    const poppaWedCandidates=poppaWorker?smartCandidateShifts(poppaWorker.id,2,R(),MAG_PAIR_A()):[];
     [
       {key:'DAY-TUE',title:'Pool ufficio martedì',ok:hasName(tuesdayPool,/alpegiani/i)&&hasName(tuesdayPool,/caregnato/i)&&hasName(tuesdayPool,/poppa/i)&&hasName(tuesdayPool,/severin/i),msg:'Martedì include il gruppo ufficio ordinario e Severin'},
       {key:'DAY-WED',title:'Pool ufficio mercoledì',ok:hasName(wednesdayPool,/alpegiani/i)&&hasName(wednesdayPool,/caregnato/i)&&hasName(wednesdayPool,/severin/i)&&!hasPoppa(wednesdayPool),msg:'Mercoledì include Alpegiani, Caregnato e Severin; esclude Poppa'},
-      {key:'DAY-WED-NO-FINITURE',title:'Esclusione Finiture mercoledì',ok:!hasName(wednesdayPool,/finitur|idalia|sandrini/i),msg:'Finiture/Idalia non conteggiate per il banco edile'}
+      {key:'DAY-WED-NO-FINITURE',title:'Esclusione Finiture mercoledì',ok:!hasName(wednesdayPool,/finitur|idalia|sandrini/i),msg:'Finiture/Idalia non conteggiate per il banco edile'},
+      {key:'DAY-WED-NO-POPPAMOVE',title:'Smart Brain non sposta Poppa per coprire il mercoledì',ok:!poppaWorker||poppaWedCandidates.length===0,msg:'Poppa non viene usato come candidato di ripiego nel pool vincolato del mercoledì'}
     ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
     [
       {key:'EXP1',title:'Esperienza apertura dinamica: mentor',worker:{profile:{experienceAreas:[{id:'opening',level:'mentor'}]}},area:'opening',expected:'mentor'},
@@ -12107,7 +12110,7 @@ function minLunchBreakMinutes(wId) {
 
   function resolveOfficeDay(week,day,nextUfficio,prevUfficio,rules,notes,choices){
     if(!choices) choices=[];
-    const ids=SABATO_UFFICIO_IDS().filter(id=>!!workerObj(id));
+    const ids=(typeof officeCoverageIdsForDay==='function'?officeCoverageIdsForDay(day):SABATO_UFFICIO_IDS()).filter(id=>!!workerObj(id));
     if(day===5) return;
     const dayNames=['Lun','Mar','Mer','Gio','Ven'];
     const openMin=rules.minAperturaImp??2;
@@ -12135,9 +12138,9 @@ function minLunchBreakMinutes(wId) {
     const t8open = rules.ufficio8h || { mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'15:30' };
     const t8close = rules.ufficio2t || { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
 
-    if (nextUfficio) forceRole(nextUfficio, t7, 'sabatista 7h');
-    if (prevUfficio && prevUfficio !== nextUfficio) forceRole(prevUfficio, t8open, 'ex-sab 8h apertura');
-    if (sabNext && sabNext !== nextUfficio && sabNext !== prevUfficio) forceRole(sabNext, t8close, 'prossimo sab 8h chiusura');
+    if (nextUfficio && ids.includes(nextUfficio)) forceRole(nextUfficio, t7, 'sabatista 7h');
+    if (prevUfficio && ids.includes(prevUfficio) && prevUfficio !== nextUfficio) forceRole(prevUfficio, t8open, 'ex-sab 8h apertura');
+    if (sabNext && ids.includes(sabNext) && sabNext !== nextUfficio && sabNext !== prevUfficio) forceRole(sabNext, t8close, 'prossimo sab 8h chiusura');
 
     // Altri in rotazione non assegnati: chiusura 8h
     ids.forEach(function(id) {
@@ -12583,13 +12586,13 @@ function minLunchBreakMinutes(wId) {
     if(!s) return '—';
     return [s.mIn&&s.mOut?`${s.mIn}-${s.mOut}`:'',s.pIn&&s.pOut?`${s.pIn}-${s.pOut}`:''].filter(Boolean).join(' · ') || s.status || '—';
   }
-  function smartIsOffice(id){ return SABATO_UFFICIO_IDS().includes(id); }
+  function smartIsOffice(id,day){ return (typeof officeCoverageIdsForDay==='function'?officeCoverageIdsForDay(day):SABATO_UFFICIO_IDS()).includes(id); }
   function smartCandidateShifts(id,day,rules,thisPair){
     const w=workerObj(id); if(!w || day>4) return [];
     if(id===SEVERIN_ID() || id===GIULIANO_ID()) return [];
     const out=[];
     const add=(s,label)=>{ if(s && !out.some(x=>smartShiftLabel(x.shift)===smartShiftLabel(s))) out.push({shift:{...s},label}); };
-    if(smartIsOffice(id)){
+    if(smartIsOffice(id,day)){
       const prevDate=new Date(currentDate); prevDate.setDate(prevDate.getDate()-7);
       const lastSat=getLastSaturdayInfo(getWeekKey(prevDate));
       const nextU=nextInRotation(SABATO_UFFICIO_IDS(),lastSat.ufficio);
@@ -12598,7 +12601,7 @@ function minLunchBreakMinutes(wId) {
       add(rules.ufficio2t,'turno centrale 8h');
       add({mIn:'08:30',mOut:'13:00',pIn:'14:00',pOut:'17:30'},'chiusura 8h');
       if(id===SABATO_UFFICIO_IDS()[0]) add({mIn:'06:30',mOut:'12:00',pIn:'13:00',pOut:'17:30'},'STRAORDINARIO — apertura+chiusura eccezionale (ultima spiaggia)');
-    } else {
+    } else if (smartWorkerBrainProfile(w).warehouse) {
       const sab=thisPair.includes(id);
       if(sab) add(rules.mag7h,'nastro sabatista 7h');
       add(rules.mag8h,'nastro 8h');
@@ -12606,6 +12609,8 @@ function minLunchBreakMinutes(wId) {
       add({mIn:'07:30',mOut:'12:30',pIn:'13:30',pOut:'16:30'},'turno intermedio 07:30–16:30');
       add({mIn:'08:30',mOut:'13:00',pIn:'14:00',pOut:'17:30'},'chiusura 8h');
     }
+    // Un collaboratore non appartenente al pool ufficio del giorno e non
+    // classificato come magazziniere non deve ricevere turni di magazzino di ripiego.
     return out;
   }
   function smartExperienceLevelFor(worker, areaKey){
