@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.47';
+    const APP_VERSION = '9.11.48';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.48 — Safety guard: se la verifica delle coperture fallisce o manca, la proposta viene bloccata (fail closed)',
     '9.11.47 — Smart Brain: esperienza dinamica in scoring, coperture basate sui profili attivi e pool ufficio corretto il mercoledì',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
@@ -2165,7 +2166,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.47</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.48</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2187,7 +2188,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.47</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.48</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -15642,8 +15643,19 @@ function showProposalReviewModal() {
     } catch (e) { out.push('Validazione fallita: ' + (e.message || e)); }
     let finalGaps = p.finalCoverageGaps;
     if (!finalGaps) {
-      try { finalGaps = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; }
-      catch (e2) { finalGaps = []; }
+      if (typeof collectSmartCoverageGaps !== 'function') {
+        // Fail closed: senza il verificatore non possiamo dichiarare la proposta sicura.
+        out.push('Verifica coperture non disponibile: proposta bloccata.');
+        finalGaps = null;
+      } else {
+        try {
+          finalGaps = collectSmartCoverageGaps(p.week);
+        } catch (e2) {
+          // Un errore di verifica non equivale a zero scoperture.
+          out.push('Verifica coperture fallita: ' + (e2 && e2.message ? e2.message : e2) + '. Proposta bloccata.');
+          finalGaps = null;
+        }
+      }
     }
     if (finalGaps && finalGaps.length) {
       finalGaps.slice(0, 12).forEach(g => {
