@@ -11112,8 +11112,18 @@ function minLunchBreakMinutes(wId) {
     };
     const regenSeed=buildRegenerationSeed(regenFixture,'all');
     const regenEmpty=buildRegenerationSeed(regenFixture,'empty');
-    const regenOk=!regenSeed.__test_generated&&!!regenSeed.__test_manual?.[0]?.manualEdit&&regenSeed.__test_leave?.[0]?.status==='FERIE'&&!regenSeed.__test_empty&&Object.keys(regenEmpty).length===Object.keys(regenFixture).length&&!!regenFixture.__test_generated[0].generated;
-    results.push({key:'SAFE-REGEN',status:regenOk?'pass':'fail',title:'Rigenerazione non distruttiva',checks:[{ok:regenOk,msg:'Turni generati ricalcolabili; celle manuali e assenze preservate; modalità celle vuote invariata'}]});
+    const tempWeeks={test:{original:{mIn:'08:30',generated:true}}};
+    const originalTemp=deepClone(tempWeeks.test);
+    const tempSuccess=withTemporaryGenerationWeek(tempWeeks,'test',{newCell:{mIn:'06:30'}},originalTemp,()=> 'ok')==='ok'&&JSON.stringify(tempWeeks.test)===JSON.stringify(originalTemp);
+    let tempErrorCaught=false;
+    try { withTemporaryGenerationWeek(tempWeeks,'test',{newCell:{mIn:'06:30'}},originalTemp,()=>{throw new Error('fixture');}); } catch(e) { tempErrorCaught=true; }
+    const tempErrorRestore=tempErrorCaught&&JSON.stringify(tempWeeks.test)===JSON.stringify(originalTemp);
+    const regenOk=!regenSeed.__test_generated&&!!regenSeed.__test_manual?.[0]?.manualEdit&&regenSeed.__test_leave?.[0]?.status==='FERIE'&&!regenSeed.__test_empty&&Object.keys(regenEmpty).length===Object.keys(regenFixture).length&&!!regenFixture.__test_generated[0].generated&&tempSuccess&&tempErrorRestore;
+    results.push({key:'SAFE-REGEN',status:regenOk?'pass':'fail',title:'Rigenerazione non distruttiva',checks:[
+      {ok:regenOk,msg:'Turni generati ricalcolabili; celle manuali e assenze preservate; modalità celle vuote invariata'},
+      {ok:tempSuccess,msg:'Settimana originale ripristinata dopo generazione riuscita'},
+      {ok:tempErrorRestore,msg:'Settimana originale ripristinata anche in caso di errore'}
+    ]});
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
@@ -13464,6 +13474,18 @@ function minLunchBreakMinutes(wId) {
   }
 
 
+  // Esegue il motore legacy su una copia temporanea e ripristina sempre i dati.
+  // Separato per consentire test espliciti sia sul percorso riuscito sia sugli errori.
+  function withTemporaryGenerationWeek(weeks, weekKey, seed, original, generate){
+    const target=weeks||{};
+    try {
+      target[weekKey]=deepClone(seed||{});
+      return generate();
+    } finally {
+      target[weekKey]=deepClone(original||{});
+    }
+  }
+
   // Crea la base di rigenerazione senza toccare la settimana salvata.
   // Le celle manuali, le assenze/ROL parziali, i turni fissi e le celle
   // non generate con contenuto restano protette; i turni generati si ricalcolano.
@@ -13525,15 +13547,12 @@ function minLunchBreakMinutes(wId) {
     const generationSeed=buildRegenerationSeed(originalWeekSnapshot,clearMode);
 
     try{
-      let base;
-      // Il motore storico legge la settimana dall'appData: gli passiamo una
-      // copia di lavoro e ripristiniamo subito i dati originali anche se fallisce.
-      try {
-        appData.weeks[currentWeekKey]=deepClone(generationSeed);
-        base=generateAutoProposalLegacy({silent:true});
-      } finally {
-        appData.weeks[currentWeekKey]=deepClone(originalWeekSnapshot);
-      }
+      // Il motore storico legge la settimana da appData: gli passiamo una copia
+      // temporanea e ripristiniamo sempre la settimana originale.
+      const base=withTemporaryGenerationWeek(
+        appData.weeks,currentWeekKey,generationSeed,originalWeekSnapshot,
+        ()=>generateAutoProposalLegacy({silent:true})
+      );
 
       if(!base || !base.week){
         throw new Error('Il motore base non ha restituito una proposta.');
