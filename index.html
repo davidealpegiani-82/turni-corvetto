@@ -6,7 +6,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v10.3.1</title>
+  <title>Turni Corvetto v10.3.2</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,7 +41,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '10.3.1';
+    const APP_VERSION = '10.3.2';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -57,6 +57,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '10.3.2 — Contrasto leggibile su tutte le pagine (ferie, malattia, impegni, settings, griglia)',
     '10.3.1 — Contrasto leggibile: testi e pulsanti scuri su fondi chiari (WCAG-oriented)',
     '10.3.0 — UI snella: meno tasti, contrasto leggibile, Pulse pulito; griglia esperto minimale',
     '10.2.0 — Taglio netto: Pulse a schermo intero; UI classica solo in modalità Esperto',
@@ -3515,6 +3516,251 @@
       -webkit-text-fill-color: #f4f6f5 !important;
     }
 
+
+
+    /* ===== 10.3.2 CONTRASTO GLOBALE TUTTE LE PAGINE ===== */
+    body.light-theme {
+      --text-main: #0a0c09;
+      --text-muted: #3f463c;
+      --border: rgba(15, 23, 42, 0.18);
+      --line: rgba(15, 23, 42, 0.14);
+    }
+
+    /* Tipografia base leggibile ovunque */
+    body.light-theme #viewFerie,
+    body.light-theme #viewMalattia,
+    body.light-theme #viewEventi,
+    body.light-theme #viewSettings,
+    body.light-theme #viewTurni,
+    body.light-theme #viewStats {
+      color: #0a0c09 !important;
+    }
+    body.light-theme #viewFerie *,
+    body.light-theme #viewMalattia *,
+    body.light-theme #viewEventi *,
+    body.light-theme #viewSettings *,
+    body.light-theme #viewTurni .rules-banner,
+    body.light-theme #viewTurni .week-home-card,
+    body.light-theme #tableContainer {
+      /* non forzare * color su tutto per non rompere badge colorati */
+    }
+
+    body.light-theme h1,
+    body.light-theme h2,
+    body.light-theme h3,
+    body.light-theme h4,
+    body.light-theme strong,
+    body.light-theme label,
+    body.light-theme .control-card,
+    body.light-theme .card {
+      color: #0a0c09;
+    }
+    body.light-theme .control-card,
+    body.light-theme .card,
+    body.light-theme .leave-req-card,
+    body.light-theme .week-home-card,
+    body.light-theme .op-card,
+    body.light-theme .archive-folder,
+    body.light-theme .settings-section {
+      background: #ffffff !important;
+      border: 1px solid #94a3b8 !important;
+      color: #0a0c09 !important;
+    }
+    body.light-theme .leave-req-card .meta,
+    body.light-theme .week-home-card h4,
+    body.light-theme .text-muted,
+    body.light-theme .hint,
+    body.light-theme .toolbar-hint,
+    body.light-theme .role,
+    body.light-theme .event-meta,
+    body.light-theme .header-subtitle,
+    body.light-theme small {
+      color: #3f463c !important;
+      opacity: 1 !important;
+    }
+
+    /* Toolbar / filtri su ferie-malattia-eventi */
+    body.light-theme .leave-toolbar button,
+    body.light-theme .filter-bar button,
+    body.light-theme .view-tabs button,
+    body.light-theme .leave-view-toggle button,
+    body.light-theme #ferieControlCard button,
+    body.light-theme #malattiaControlCard button,
+    body.light-theme #eventiControlCard button,
+    body.light-theme #turniControlCard button.alt,
+    body.light-theme #viewSettings button.alt {
+      background: #e8ecf0 !important;
+      color: #0f172a !important;
+      border: 1px solid #64748b !important;
+      -webkit-text-fill-color: #0f172a !important;
+      opacity: 1 !important;
+      font-weight: 700 !important;
+    }
+    body.light-theme .leave-toolbar button.success,
+    body.light-theme .leave-toolbar button.primary,
+    body.light-theme .leave-toolbar .btn-malattia,
+    body.light-theme #ferieControlCard button.success,
+    body.light-theme #eventiControlCard button.success {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border-color: #0f172a !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+    body.light-theme .leave-view-toggle button.active,
+    body.light-theme .view-tabs button.active {
+      background: #0f172a !important;
+      color: #fff !important;
+      -webkit-text-fill-color: #fff !important;
+    }
+
+    /* Select / input leggibili */
+    body.light-theme select,
+    body.light-theme input,
+    body.light-theme textarea {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border: 1px solid #64748b !important;
+    }
+    body.light-theme select option {
+      color: #0f172a !important;
+      background: #fff !important;
+    }
+
+    /* Calendario ferie */
+    body.light-theme .leave-days,
+    body.light-theme .leave-cal,
+    body.light-theme .leave-day,
+    body.light-theme .cal-day {
+      color: #0f172a !important;
+    }
+    body.light-theme .leave-days .dow {
+      color: #334155 !important;
+      font-weight: 800 !important;
+    }
+
+    /* Liste richieste / eventi / malattia */
+    body.light-theme .leave-requests-list,
+    body.light-theme .leave-req-card,
+    body.light-theme #malattiaActiveList,
+    body.light-theme #eventsList,
+    body.light-theme .event-card,
+    body.light-theme .op-list li {
+      color: #0f172a !important;
+    }
+    body.light-theme .leave-req-card strong,
+    body.light-theme .event-card strong {
+      color: #0a0c09 !important;
+    }
+
+    /* Tabella griglia */
+    body.light-theme #tableContainer,
+    body.light-theme #tableContainer td,
+    body.light-theme #tableContainer th {
+      color: #0f172a !important;
+    }
+    body.light-theme #tableContainer th {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      font-weight: 800 !important;
+    }
+    body.light-theme #tableContainer td:first-child {
+      background: #f1f5f9 !important;
+      color: #0f172a !important;
+      font-weight: 800 !important;
+    }
+    body.light-theme .cell-hours-v47,
+    body.light-theme .cell-status-v47,
+    body.light-theme .cell-rest-v47 {
+      color: #0f172a !important;
+      opacity: 1 !important;
+    }
+    body.light-theme .cell-note-v47,
+    body.light-theme .cell-event-v47 {
+      color: #1e3a8a !important;
+      opacity: 1 !important;
+    }
+
+    /* Settings */
+    body.light-theme #viewSettings,
+    body.light-theme #viewSettings .control-card,
+    body.light-theme #viewSettings p,
+    body.light-theme #viewSettings li {
+      color: #0f172a !important;
+    }
+    body.light-theme #viewSettings h3,
+    body.light-theme #viewSettings h4 {
+      color: #0a0c09 !important;
+    }
+
+    /* Header (mode expert) */
+    body.light-theme .header,
+    body.light-theme .header h1,
+    body.light-theme .header .brand h1 {
+      color: #0a0c09 !important;
+    }
+    body.light-theme .header-subtitle,
+    body.light-theme #appVersionLabel {
+      color: #3f463c !important;
+    }
+    body.light-theme .week-badge {
+      color: #0f172a !important;
+      border-color: #0f172a !important;
+      background: #fff !important;
+    }
+
+    /* Banner / empty states */
+    body.light-theme .rules-banner,
+    body.light-theme .op-empty,
+    body.light-theme .empty {
+      color: #0f172a !important;
+    }
+
+    /* Mobile cards */
+    body.light-theme .mobile-cards,
+    body.light-theme .worker-day-chip {
+      color: #0f172a !important;
+    }
+
+    /* Bottom dock leggibile in light */
+    body.light-theme .bottom-nav button {
+      color: #334155 !important;
+      -webkit-text-fill-color: #334155 !important;
+    }
+    body.light-theme .bottom-nav button.dock-main,
+    body.light-theme .bottom-nav button.active {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+
+    /* Checklist / problems modals */
+    body.light-theme .checklist-list li,
+    body.light-theme #checklistItems,
+    body.light-theme #weekIssuesList {
+      color: #0f172a !important;
+    }
+
+    /* Dark theme: keep secondary text bright enough on all pages */
+    body:not(.light-theme) #viewFerie,
+    body:not(.light-theme) #viewMalattia,
+    body:not(.light-theme) #viewEventi,
+    body:not(.light-theme) #viewSettings {
+      color: #f4f6f5;
+    }
+    body:not(.light-theme) .text-muted,
+    body:not(.light-theme) .leave-req-card .meta,
+    body:not(.light-theme) .hint {
+      color: #c5cdc8 !important;
+      opacity: 1 !important;
+    }
+    body:not(.light-theme) .leave-toolbar button.alt,
+    body:not(.light-theme) .filter-bar button {
+      background: #1c2430 !important;
+      color: #f4f6f5 !important;
+      border: 1px solid #64748b !important;
+      -webkit-text-fill-color: #f4f6f5 !important;
+    }
+
   </style>
 </head>
 <body>
@@ -3538,7 +3784,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">PULSE</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.1</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.2</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3560,7 +3806,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">PULSE</h1>
-          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.3.1</small>
+          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.3.2</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3651,7 +3897,7 @@
       <div class="pulse-mark-sm">P</div>
       <div>
         <div class="pulse-chrome-brand">PULSE</div>
-        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.1</div>
+        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.2</div>
       </div>
     </div>
     <div class="pulse-chrome-week">
