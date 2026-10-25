@@ -10999,8 +10999,10 @@ function minLunchBreakMinutes(wId) {
   }
 
   function runSmartRegressionScenario(key){
-    const spec=executableRuleTests[key];
     const doc=ruleTestScenarios[key];
+    // Allinea la suite Smart Brain al runner generale: anche le fixture
+    // definite direttamente in ruleTestScenarios (M46/M47 incluse) sono eseguibili.
+    const spec=executableRuleTests[key] || (doc && typeof doc.expect === 'function' ? doc : null);
     if(!spec) return {key,title:doc?.title||key,status:'skip',checks:[{ok:false,msg:'Fixture regressione mancante'}]};
     let baseResult;
     try{
