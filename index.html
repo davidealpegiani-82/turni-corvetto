@@ -103,7 +103,7 @@
       <div class="logo">P</div>
       <div>
         <h1>Pulse</h1>
-        <small>CORVETTO · v11.2.0</small>
+        <small>CORVETTO · v11.3.0</small>
       </div>
     </div>
     <div class="week-nav">
@@ -115,6 +115,7 @@
   <div class="sync" id="syncLabel">Sync…</div>
   <div class="tabs" id="tabs">
     <button type="button" class="active" data-tab="pulse">Pulse</button>
+    <button type="button" data-tab="turni">Turni</button>
     <button type="button" data-tab="assenze">Assenze</button>
     <button type="button" data-tab="motore">Motore</button>
   </div>
@@ -128,7 +129,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2 id="dayTitle">Giorno</h2>
-        <button type="button" class="ghost" id="btnLegacyGrid" style="min-height:36px;font-size:12px">Griglia legacy</button>
+        <button type="button" class="ghost" id="btnOpenTurni" style="min-height:36px;font-size:12px">Turno personalizzato</button>
       </div>
       <div class="lanes" id="lanes"></div>
     </div>
@@ -139,6 +140,83 @@
         <button type="button" id="btnReload">Ricarica cloud</button>
       </div>
     </div>
+  </section>
+
+  
+  <section id="tab-turni" class="hidden">
+    <div class="label">Assegna turno · settimana corrente</div>
+    <div class="card">
+      <label>Collaboratore</label>
+      <select id="shWorker"></select>
+      <label>Giorno</label>
+      <select id="shDay">
+        <option value="0">Lunedì</option>
+        <option value="1">Martedì</option>
+        <option value="2">Mercoledì</option>
+        <option value="3">Giovedì</option>
+        <option value="4">Venerdì</option>
+        <option value="5">Sabato</option>
+      </select>
+      <label>Preset</label>
+      <select id="shPreset"></select>
+      <div class="actions-row" style="margin-top:4px">
+        <div>
+          <label>Mattina da</label>
+          <input type="time" id="shMIn" value="08:30" />
+        </div>
+        <div>
+          <label>Mattina a</label>
+          <input type="time" id="shMOut" value="13:00" />
+        </div>
+      </div>
+      <div class="actions-row">
+        <div>
+          <label>Pomeriggio da</label>
+          <input type="time" id="shPIn" value="14:00" />
+        </div>
+        <div>
+          <label>Pomeriggio a</label>
+          <input type="time" id="shPOut" value="17:30" />
+        </div>
+      </div>
+      <label><input type="checkbox" id="shNoLunch" /> Senza pausa (solo mattina–sera continui)</label>
+      <div class="actions-row" style="margin-top:10px">
+        <button type="button" class="primary" id="btnApplyShift">Applica turno</button>
+        <button type="button" id="btnClearShift">Svuota giorno</button>
+      </div>
+      <p class="meta" style="margin-top:8px;font-size:12px;color:var(--muted)">Il turno viene scritto sui dati cloud (stesso formato della legacy) e non viene sovrascritto dal motore se marcato manuale.</p>
+    </div>
+
+    <div class="label">Preset personalizzati</div>
+    <div class="card">
+      <label>Nome preset</label>
+      <input type="text" id="psName" placeholder="es. Apertura magazzino" />
+      <div class="actions-row">
+        <div>
+          <label>mIn</label>
+          <input type="time" id="psMIn" value="06:30" />
+        </div>
+        <div>
+          <label>mOut</label>
+          <input type="time" id="psMOut" value="12:00" />
+        </div>
+      </div>
+      <div class="actions-row">
+        <div>
+          <label>pIn</label>
+          <input type="time" id="psPIn" value="13:00" />
+        </div>
+        <div>
+          <label>pOut</label>
+          <input type="time" id="psPOut" value="15:30" />
+        </div>
+      </div>
+      <button type="button" class="primary" id="btnSavePreset" style="width:100%;margin-top:8px">Salva preset</button>
+    </div>
+    <div class="list" id="presetList" style="margin-top:10px"></div>
+
+    <div class="label">Turni del giorno selezionato (tutti)</div>
+    <div class="list" id="dayShiftsList"></div>
   </section>
 
   <section id="tab-assenze" class="hidden">
@@ -185,7 +263,7 @@
 <nav class="dock">
   <button type="button" class="active" data-go="pulse">▣ Pulse</button>
   <button type="button" class="main" data-go="motore">⚡ Motore</button>
-  <button type="button" data-go="assenze">＋ Assenze</button>
+  <button type="button" data-go="turni">＋ Turni</button>
   <button type="button" data-go="pdf">▦ PDF</button>
 </nav>
 <div class="engine-frame-wrap" id="engineFrameWrap" aria-hidden="true">
@@ -195,7 +273,7 @@
 
 <script>
 (function(){
-  const VERSION='11.2.0';
+  const VERSION='11.3.0';
   const LOCAL_KEY='turni_corvetto_test_data';
   const RTDB_PATH='turni_data_v47_pdf';
   const DAY_NAMES=['Lun','Mar','Mer','Gio','Ven','Sab'];
@@ -325,9 +403,139 @@
     });
   }
 
+
+  const DEFAULT_PRESETS = [
+    { id: 'p_std', name: 'Standard 8:30–13 / 14–17:30', mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' },
+    { id: 'p_open', name: 'Apertura 6:30–12 / 13–14:30', mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' },
+    { id: 'p_sev', name: 'Severin 6:30–12:30 / 13:30–17:30', mIn:'06:30', mOut:'12:30', pIn:'13:30', pOut:'17:30' },
+    { id: 'p_sat', name: 'Sabato 7:00–12:00', mIn:'07:00', mOut:'12:00', pIn:'', pOut:'' },
+    { id: 'p_fin', name: 'Finiture 8:30–13 / 14–17:30', mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' },
+    { id: 'p_fin_wed', name: 'Finiture mer 8:30–12:30', mIn:'08:30', mOut:'12:30', pIn:'', pOut:'' },
+    { id: 'p_fin_sat', name: 'Finiture sab 8:00–12:00', mIn:'08:00', mOut:'12:00', pIn:'', pOut:'' }
+  ];
+
+  function ensureCustomShifts(){
+    if(!appData.customShiftPresets || !Array.isArray(appData.customShiftPresets)){
+      appData.customShiftPresets = [];
+    }
+    return appData.customShiftPresets;
+  }
+  function allPresets(){
+    return DEFAULT_PRESETS.concat(ensureCustomShifts());
+  }
+  function ensureWeekWorkerDay(week, wid, di){
+    if(!appData.weeks) appData.weeks = {};
+    if(!appData.weeks[week]) appData.weeks[week] = {};
+    if(!appData.weeks[week][wid]) appData.weeks[week][wid] = {};
+    const k = String(di);
+    if(!appData.weeks[week][wid][k] && !appData.weeks[week][wid][di]){
+      appData.weeks[week][wid][k] = {};
+    }
+    return appData.weeks[week][wid][k] || appData.weeks[week][wid][di];
+  }
+  function setWorkerDayShift(wid, di, times){
+    const week = currentWeekKey();
+    if(!appData.weeks) appData.weeks = {};
+    if(!appData.weeks[week]) appData.weeks[week] = {};
+    if(!appData.weeks[week][wid]) appData.weeks[week][wid] = {};
+    const cell = {
+      status: 'LAVORO',
+      mIn: times.mIn || '',
+      mOut: times.mOut || '',
+      pIn: times.pIn || '',
+      pOut: times.pOut || '',
+      manualEdit: true,
+      generated: false,
+      note: times.note || ''
+    };
+    // continuous morning-only if no lunch
+    if(times.noLunch && times.mIn && times.pOut){
+      cell.mIn = times.mIn;
+      cell.mOut = times.pOut;
+      cell.pIn = '';
+      cell.pOut = '';
+    }
+    appData.weeks[week][wid][String(di)] = cell;
+    appData.weeks[week][wid][di] = cell;
+  }
+  function clearWorkerDayShift(wid, di){
+    const week = currentWeekKey();
+    if(!appData.weeks || !appData.weeks[week] || !appData.weeks[week][wid]) return;
+    appData.weeks[week][wid][String(di)] = { status: 'LAVORO' };
+    appData.weeks[week][wid][di] = appData.weeks[week][wid][String(di)];
+  }
+  function fillShiftForm(){
+    const sel = document.getElementById('shWorker');
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = (appData.workers||[]).filter(w=>w.selected!==false)
+      .map(w=>'<option value="'+w.id+'">'+(w.name||w.id)+'</option>').join('');
+    if(cur) sel.value = cur;
+    const daySel = document.getElementById('shDay');
+    if(daySel) daySel.value = String(dayIdx);
+    const ps = document.getElementById('shPreset');
+    if(ps){
+      const list = allPresets();
+      ps.innerHTML = '<option value="">— personalizzato —</option>' +
+        list.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
+    }
+    renderPresetList();
+    renderDayShiftsList();
+  }
+  function applyPresetToFields(id){
+    const p = allPresets().find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('shMIn').value = p.mIn || '';
+    document.getElementById('shMOut').value = p.mOut || '';
+    document.getElementById('shPIn').value = p.pIn || '';
+    document.getElementById('shPOut').value = p.pOut || '';
+    document.getElementById('shNoLunch').checked = !p.pIn && !p.pOut;
+  }
+  function renderPresetList(){
+    const box = document.getElementById('presetList');
+    if(!box) return;
+    const custom = ensureCustomShifts();
+    if(!custom.length){
+      box.innerHTML = '<div class="card meta">Nessun preset utente — usa i predefiniti o creane uno</div>';
+      return;
+    }
+    box.innerHTML = custom.map(p=>
+      '<div class="card" style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+      '<div><strong>'+escapeHtml(p.name)+'</strong><div class="meta">' +
+      [p.mIn&&p.mOut?(p.mIn+'-'+p.mOut):'', p.pIn&&p.pOut?(p.pIn+'-'+p.pOut):''].filter(Boolean).join(' · ') +
+      '</div></div>' +
+      '<button type="button" data-del-preset="'+p.id+'" style="min-height:36px">Elimina</button></div>'
+    ).join('');
+  }
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function renderDayShiftsList(){
+    const box = document.getElementById('dayShiftsList');
+    if(!box) return;
+    const di = document.getElementById('shDay') ? +document.getElementById('shDay').value : dayIdx;
+    const week = currentWeekKey();
+    const rows = (appData.workers||[]).filter(w=>w.selected!==false).map(w=>{
+      const cell = cellAt(week, w.id, di);
+      if(!cell || (!cell.mIn && !cell.pIn && !isHardAway(cell))) return null;
+      let label = '';
+      if(isHardAway(cell)) label = String(cell.status||cell.leaveType||'ASSENTE');
+      else {
+        const parts=[];
+        if(cell.mIn) parts.push(cell.mIn+'-'+(cell.mOut||''));
+        if(cell.pIn) parts.push(cell.pIn+'-'+(cell.pOut||''));
+        label = parts.join(' · ') || '—';
+        if(cell.manualEdit) label += ' · manuale';
+      }
+      return '<div class="card"><strong>'+escapeHtml(w.name)+'</strong><div class="meta">'+escapeHtml(label)+'</div></div>';
+    }).filter(Boolean);
+    box.innerHTML = rows.length ? rows.join('') : '<div class="card meta">Nessun turno impostato in questo giorno</div>';
+  }
+
+
   function renderTabs(tab){
     document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.getAttribute('data-tab')===tab));
-    ['pulse','assenze','motore'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==tab));
+    ['pulse','turni','assenze','motore'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==tab);});
     document.querySelectorAll('.dock button').forEach(b=>{
       const g=b.getAttribute('data-go');
       b.classList.toggle('active',g===tab||(tab==='pulse'&&g==='pulse'));
@@ -380,6 +588,7 @@
     const cur=sel.value;
     sel.innerHTML=(appData.workers||[]).filter(w=>w.selected!==false).map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');
     if(cur)sel.value=cur;
+    try { if(document.getElementById('tab-turni') && !document.getElementById('tab-turni').classList.contains('hidden')) fillShiftForm(); } catch(e) {}
   }
 
   function openLegacy(pathHash){
@@ -499,13 +708,14 @@
     const g=b.getAttribute('data-go');
     if(g==='pdf')exportPdf();
     else if(g==='motore')renderTabs('motore');
+    else if(g==='turni'){renderTabs('turni');fillShiftForm();}
     else if(g==='assenze')renderTabs('assenze');
     else renderTabs('pulse');
   };
   document.getElementById('btnSystem').onclick=()=>openEngine();
   document.getElementById('btnOpenEngine').onclick=()=>openEngine();
   document.getElementById('btnOpenLegacyHome').onclick=()=>openLegacy('');
-  document.getElementById('btnLegacyGrid').onclick=()=>openLegacy('');
+  
   document.getElementById('btnPdf').onclick=exportPdf;
   document.getElementById('btnReload').onclick=pullCloud;
   document.getElementById('btnForcePull').onclick=pullCloud;
