@@ -1764,13 +1764,13 @@
 
   
     .btn-malattia {
-      background: #b91c1c !important;
+      background: #e11d48 !important;
       color: #ffffff !important;
-      border: 2px solid #7f1d1d !important;
+      border: 2px solid #9f1239 !important;
       font-weight: 800 !important;
     }
     body.light-theme .btn-malattia {
-      background: #dc2626 !important;
+      background: #e11d48 !important;
       color: #fff !important;
     }
     #pdfPreviewModal .modal {
@@ -4343,6 +4343,14 @@ function isUsableAppData(value) {
 
 
   function normalizeAppData() {
+
+    try {
+      (appData.statuses || []).forEach(function(s) {
+        const n = String(s.name || '').toUpperCase();
+        if (n === 'MALATTIA' && (!s.color || /#ef4444|#dc2626|#b91c1c/i.test(s.color))) s.color = '#ea580c';
+        if (n === 'RICOVERO' && (!s.color || /#ef4444|#dc2626|#b91c1c|#991b1b/i.test(s.color))) s.color = '#e11d48';
+      });
+    } catch (eMedCol) {}
     if (!appData || typeof appData !== 'object') appData = {};
     if (!Array.isArray(appData.workers) || !appData.workers.length) appData.workers = JSON.parse(JSON.stringify(initialWorkers));
     if (!appData.presets) appData.presets = [...defaultPresets];
