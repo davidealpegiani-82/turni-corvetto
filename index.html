@@ -6,7 +6,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v10.3.0</title>
+  <title>Turni Corvetto v10.3.1</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,7 +41,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '10.3.0';
+    const APP_VERSION = '10.3.1';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -57,6 +57,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '10.3.1 — Contrasto leggibile: testi e pulsanti scuri su fondi chiari (WCAG-oriented)',
     '10.3.0 — UI snella: meno tasti, contrasto leggibile, Pulse pulito; griglia esperto minimale',
     '10.2.0 — Taglio netto: Pulse a schermo intero; UI classica solo in modalità Esperto',
     '10.1.0 — Skin completa Night Ops: nuova identità, tipografia, shell e navigazione (non un ritocco)',
@@ -168,7 +169,7 @@
       --primary-hover: #b8e62e;
       --primary-2: #5ce1ff;
       --text-main: #f4f6f5;
-      --text-muted: #8b9590;
+      --text-muted: #b4bcb7;
       --border: rgba(208, 255, 58, 0.12);
       --danger: #ff5c7a;
       --success: #d0ff3a;
@@ -201,8 +202,8 @@
       --primary: #1a1f16;
       --primary-hover: #000;
       --primary-2: #0b6e7a;
-      --text-main: #141711;
-      --text-muted: #5c6358;
+      --text-main: #0a0c09;
+      --text-muted: #3f463c;
       --border: rgba(20, 23, 17, 0.12);
       --danger: #c41d45;
       --success: #3d6b1e;
@@ -877,7 +878,7 @@
     
     .quick-status-header, .quick-hours-header, .quick-notes-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .quick-status { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-    .quick-status button { font-size: 12px; padding: 8px 10px; border-radius: 8px; flex: 1 1 calc(33.333% - 6px); color: white; font-weight: 700; justify-content: center; }
+    .quick-status button { font-size: 12px; padding: 8px 10px; border-radius: 8px; flex: 1 1 calc(33.333% - 6px); color: var(--text-main); background: var(--card-bg-hover); border: 1px solid var(--border); font-weight: 700; justify-content: center; }
 
     .btn-manage-hours { font-size: 11px; padding: 4px 8px; min-height: auto; background: var(--card-bg-hover); color: var(--text-muted); border-radius: 6px; border: 1px solid var(--border); }
     .btn-manage-hours:hover { filter: brightness(1.1); color: var(--text-main); }
@@ -3356,6 +3357,164 @@
       display: block !important;
     }
 
+  
+
+    /* ===== 10.3.1 CONTRAST FIX (priorità massima) ===== */
+    body.light-theme {
+      color: #0a0c09 !important;
+    }
+    body.light-theme,
+    body.light-theme p,
+    body.light-theme span,
+    body.light-theme div,
+    body.light-theme li,
+    body.light-theme label,
+    body.light-theme strong,
+    body.light-theme h1,
+    body.light-theme h2,
+    body.light-theme h3,
+    body.light-theme h4 {
+      color: inherit;
+    }
+    body.light-theme .pulse-zone,
+    body.light-theme .pulse-zone-head,
+    body.light-theme .pulse-zone-head span,
+    body.light-theme .pulse-zone-metrics,
+    body.light-theme .pulse-zone-hint,
+    body.light-theme .pulse-title,
+    body.light-theme .pulse-sub,
+    body.light-theme .pulse-day-title,
+    body.light-theme .pulse-day-head h3,
+    body.light-theme .pulse-section-label,
+    body.light-theme .pulse-chrome-week-label,
+    body.light-theme .pulse-person,
+    body.light-theme .pulse-lane h4 {
+      color: #0a0c09 !important;
+      opacity: 1 !important;
+    }
+    body.light-theme .pulse-zone-hint,
+    body.light-theme .pulse-sub,
+    body.light-theme .pulse-section-label,
+    body.light-theme .pulse-lane h4,
+    body.light-theme .text-muted,
+    body.light-theme .role,
+    body.light-theme .hint,
+    body.light-theme .event-meta {
+      color: #3f463c !important;
+      opacity: 1 !important;
+    }
+    body.light-theme .pulse-zone {
+      background: #ffffff !important;
+      border: 1px solid #94a3b8 !important;
+    }
+    body.light-theme .pulse-zone-head {
+      font-weight: 800 !important;
+    }
+    body.light-theme .pulse-sem.ok {
+      background: #dcfce7 !important;
+      color: #14532d !important;
+    }
+    body.light-theme .pulse-sem.warn {
+      background: #fef3c7 !important;
+      color: #92400e !important;
+    }
+    body.light-theme .pulse-sem.bad {
+      background: #fee2e2 !important;
+      color: #991b1b !important;
+    }
+
+    /* Status / orari rapidi: MAI testo bianco su fondo chiaro */
+    body.light-theme .quick-status button,
+    body.light-theme .quick-hours button,
+    body.light-theme .quick-notes button,
+    body.light-theme .modal button.alt,
+    body.light-theme .modal .quick-status button,
+    body.light-theme #dayModal button,
+    body.light-theme #manualEditModal button,
+    body.light-theme button.alt {
+      background: #e8ecf0 !important;
+      color: #0f172a !important;
+      border: 1px solid #64748b !important;
+      font-weight: 700 !important;
+      opacity: 1 !important;
+      -webkit-text-fill-color: #0f172a !important;
+    }
+    body.light-theme .quick-status button:hover,
+    body.light-theme .quick-hours button:hover {
+      background: #d5dbe3 !important;
+      color: #0f172a !important;
+    }
+    /* Selected status: dark solid + white text */
+    body.light-theme .quick-status button.active,
+    body.light-theme .quick-status button[aria-pressed="true"],
+    body.light-theme .quick-hours button.active {
+      background: #0f172a !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      border-color: #0f172a !important;
+    }
+
+    body.light-theme .pulse-day-chip {
+      background: #fff !important;
+      border: 1px solid #94a3b8 !important;
+      color: #0f172a !important;
+    }
+    body.light-theme .pulse-day-chip .dname,
+    body.light-theme .pulse-day-chip .dnum {
+      color: #0f172a !important;
+      opacity: 1 !important;
+    }
+    body.light-theme .pulse-day-chip.is-active {
+      border-color: #0f172a !important;
+      box-shadow: 0 0 0 2px rgba(15,23,42,0.15) !important;
+    }
+    body.light-theme .op-pill,
+    body.light-theme .week-status-chip {
+      color: #14532d !important;
+      background: #dcfce7 !important;
+      border: 1px solid #86efac !important;
+    }
+    body.light-theme .op-pill.warn,
+    body.light-theme .week-status-chip.warn {
+      color: #92400e !important;
+      background: #fef3c7 !important;
+      border-color: #fcd34d !important;
+    }
+    body.light-theme .op-pill.bad,
+    body.light-theme .week-status-chip.bad {
+      color: #991b1b !important;
+      background: #fee2e2 !important;
+      border-color: #fca5a5 !important;
+    }
+
+    body.light-theme .modal,
+    body.light-theme .modal-content {
+      background: #ffffff !important;
+      color: #0f172a !important;
+    }
+    body.light-theme .modal h3,
+    body.light-theme .modal h2,
+    body.light-theme .modal p,
+    body.light-theme .modal label {
+      color: #0f172a !important;
+    }
+    body.light-theme .form-group label {
+      color: #334155 !important;
+    }
+
+    /* Dark theme: ensure muted not too dim on cards */
+    body:not(.light-theme) .pulse-zone-head span,
+    body:not(.light-theme) .pulse-zone-metrics {
+      color: #f4f6f5 !important;
+      opacity: 1 !important;
+    }
+    body:not(.light-theme) .quick-status button {
+      background: #1c2430 !important;
+      color: #f4f6f5 !important;
+      border: 1px solid #64748b !important;
+      -webkit-text-fill-color: #f4f6f5 !important;
+    }
+
   </style>
 </head>
 <body>
@@ -3379,7 +3538,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">PULSE</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.0</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.1</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3401,7 +3560,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">PULSE</h1>
-          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.3.0</small>
+          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.3.1</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3492,7 +3651,7 @@
       <div class="pulse-mark-sm">P</div>
       <div>
         <div class="pulse-chrome-brand">PULSE</div>
-        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.0</div>
+        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.1</div>
       </div>
     </div>
     <div class="pulse-chrome-week">
