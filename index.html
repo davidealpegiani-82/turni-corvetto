@@ -6,7 +6,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v10.1.0</title>
+  <title>Turni Corvetto v10.2.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,7 +41,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '10.1.0';
+    const APP_VERSION = '10.2.0';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -57,6 +57,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '10.2.0 — Taglio netto: Pulse a schermo intero; UI classica solo in modalità Esperto',
     '10.1.0 — Skin completa Night Ops: nuova identità, tipografia, shell e navigazione (non un ritocco)',
     '10.0.0 — Corvetto Pulse: radar zone negozio, timeline settimanale, giorno a carte (tabella e PDF restano)',
     '9.12.0 — Design 2.0: profondità 3D soft, superfici elevate, home e controlli più premium (tabella resta leggibile)',
@@ -2456,6 +2457,115 @@
 
 
 
+    
+
+    /* ===== PULSE FULL SHELL (taglio netto) ===== */
+    body.mode-pulse .header {
+      display: none !important;
+    }
+    body.mode-pulse #turniControlCard,
+    body.mode-pulse #ferieControlCard,
+    body.mode-pulse #eventiControlCard,
+    body.mode-pulse #malattiaControlCard,
+    body.mode-pulse #propostaQuickBar {
+      display: none !important;
+    }
+    body.mode-pulse {
+      padding: 0 !important;
+      max-width: 100% !important;
+    }
+    body.mode-pulse #viewOggi.pulse-shell {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 12px 14px 110px;
+      min-height: 100vh;
+    }
+    body.mode-expert .pulse-chrome { display: none !important; }
+
+    .pulse-chrome {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 16px;
+      padding: 10px 4px 12px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: color-mix(in srgb, var(--bg-deep) 92%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .pulse-chrome-left { display:flex; align-items:center; gap:10px; min-width: 0; }
+    .pulse-mark-sm {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: var(--primary); color: var(--ink);
+      font-family: var(--font-display); font-weight: 800;
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink: 0;
+    }
+    .pulse-chrome-brand {
+      font-family: var(--font-display);
+      font-weight: 800; font-size: 14px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      line-height: 1.1;
+    }
+    .pulse-chrome-ver {
+      font-family: var(--font-mono);
+      font-size: 9px; letter-spacing: 0.08em;
+      color: var(--text-muted); text-transform: uppercase;
+    }
+    .pulse-chrome-week {
+      display:flex; align-items:center; gap: 6px;
+      flex: 1; justify-content: center; min-width: 0;
+    }
+    .pulse-chrome-week-label {
+      font-family: var(--font-mono);
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      max-width: 46vw;
+    }
+    .pulse-chrome-nav {
+      width: 36px; height: 36px; min-height: 36px !important;
+      padding: 0 !important;
+      border-radius: 6px !important;
+      font-size: 20px !important;
+      line-height: 1;
+      background: transparent !important;
+      border: 1px solid var(--line) !important;
+      color: var(--text-main) !important;
+    }
+    .pulse-chrome-right {
+      display:flex; align-items:center; gap: 8px;
+    }
+    .pulse-chrome-expert {
+      font-family: var(--font-mono) !important;
+      font-size: 10px !important;
+      letter-spacing: 0.06em !important;
+      text-transform: uppercase !important;
+      min-height: 34px !important;
+      padding: 6px 10px !important;
+      background: transparent !important;
+      border: 1px solid var(--primary) !important;
+      color: var(--primary) !important;
+      border-radius: 4px !important;
+    }
+    body.light-theme .pulse-chrome-expert {
+      border-color: var(--ink) !important;
+      color: var(--ink) !important;
+    }
+    #pulseSyncDot {
+      font-size: 14px; cursor: pointer;
+      color: var(--primary);
+    }
+
+    /* In Pulse hide the old hero brand block redundancy a bit */
+    body.mode-pulse .pulse-top { margin-bottom: 10px; }
+    body.mode-pulse .pulse-brand .pulse-live-dot { display:none; }
+
     /* ============================================================
        NIGHT OPS SKIN 10.1 — override aggressivo shell / chrome
        ============================================================ */
@@ -3158,7 +3268,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">PULSE</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.1.0</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.2.0</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3180,7 +3290,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">PULSE</h1>
-          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.1.0</small>
+          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.2.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3271,6 +3381,24 @@
 
 
 <div id="viewOggi" class="op-shell pulse-shell">
+  <div class="pulse-chrome">
+    <div class="pulse-chrome-left">
+      <div class="pulse-mark-sm">P</div>
+      <div>
+        <div class="pulse-chrome-brand">PULSE</div>
+        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.2.0</div>
+      </div>
+    </div>
+    <div class="pulse-chrome-week">
+      <button type="button" class="pulse-chrome-nav" onclick="changeWeek(-1)" aria-label="Settimana precedente">‹</button>
+      <div class="pulse-chrome-week-label" id="pulseWeekLabel">—</div>
+      <button type="button" class="pulse-chrome-nav" onclick="changeWeek(1)" aria-label="Settimana successiva">›</button>
+    </div>
+    <div class="pulse-chrome-right">
+      <span class="sync-indicator sync-local" id="pulseSyncDot" onclick="forceReloadFromCloud()" title="Sync">●</span>
+      <button type="button" class="pulse-chrome-expert" onclick="switchView('turni')">Esperto</button>
+    </div>
+  </div>
   <div class="pulse-top">
     <div class="pulse-brand">
       <div class="pulse-live-dot" aria-hidden="true"></div>
@@ -3337,10 +3465,10 @@
   </div>
 
   <div class="pulse-footer-links">
-    <button type="button" class="alt" onclick="switchView('turni')">📊 Tabella classica</button>
-    <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist</button>
-    <button type="button" class="alt" onclick="switchView('eventi')">📌 Impegni</button>
-    <button type="button" class="alt" onclick="switchView('malattia')">🤒 Malattia</button>
+    <button type="button" class="alt" onclick="switchView('turni')">Modalità esperto (tabella)</button>
+    <button type="button" class="alt" onclick="switchView('malattia')">Malattia / ricovero</button>
+    <button type="button" class="alt" onclick="switchView('ferie')">Ferie e permessi</button>
+    <button type="button" class="alt" onclick="switchView('settings')">Impostazioni</button>
   </div>
 </div>
 
@@ -5334,6 +5462,10 @@ function isUsableAppData(value) {
   }
 
   function finishInitRender() {
+    try {
+      document.body.classList.add('mode-pulse');
+      document.body.classList.remove('mode-expert');
+    } catch (ePM) {}
     setTimeout(function(){ try { if (typeof updateRulesBanner==="function") updateRulesBanner(); } catch(e){} }, 120);
 
     try { if (typeof tryRecoverFromLocalBackups === 'function') tryRecoverFromLocalBackups(); } catch (e) {}
@@ -5919,6 +6051,16 @@ function isUsableAppData(value) {
           : ('Settimana ' + (weekKey || ''));
       } catch (e) { title.textContent = 'Questa settimana'; }
     }
+    try {
+      var pwl = document.getElementById('pulseWeekLabel');
+      if (pwl) {
+        pwl.textContent = (typeof getWeekDisplayLabel === 'function')
+          ? getWeekDisplayLabel(currentDate)
+          : (weekKey || '');
+      }
+      var pver = document.getElementById('pulseChromeVer');
+      if (pver && typeof APP_VERSION !== 'undefined') pver.textContent = 'v' + APP_VERSION;
+    } catch (eLab) {}
     if (sub) {
       const holes = cov.filter(function(r) { return !r.magOk || !r.impOk; }).length;
       sub.textContent = holes
@@ -6860,6 +7002,20 @@ function isUsableAppData(value) {
   function switchView(view) {
     currentView = view;
     closeMoreNav();
+    // Shell: Pulse full-screen vs classic expert chrome
+    try {
+      var pulseMode = (view === 'oggi');
+      document.body.classList.toggle('mode-pulse', pulseMode);
+      document.body.classList.toggle('mode-expert', !pulseMode);
+      document.querySelectorAll('#bottomNav button').forEach(function(b){ b.classList.remove('active'); });
+      if (pulseMode) {
+        var b0 = document.querySelector('#bottomNav button');
+        if (b0) b0.classList.add('active');
+      } else if (view === 'turni') {
+        var bs = document.querySelectorAll('#bottomNav button');
+        if (bs[2]) bs[2].classList.add('active');
+      }
+    } catch (eMode) {}
     const map = { oggi:'viewOggi', turni:'viewTurni', proposta:'viewTurni', ferie:'viewFerie', eventi:'viewEventi', malattia:'viewMalattia', settings:'viewSettings' };
     ['viewOggi','viewTurni','viewFerie','viewEventi','viewMalattia','viewStats','viewSettings'].forEach(function(id) {
       var el = document.getElementById(id);
@@ -6889,7 +7045,7 @@ function isUsableAppData(value) {
     var fc = document.getElementById('ferieControlCard');
     var ec = document.getElementById('eventiControlCard');
     var mc = document.getElementById('malattiaControlCard');
-    if (tc) tc.style.display = (view === 'turni' || view === 'proposta' || view === 'oggi') ? '' : 'none';
+    if (tc) tc.style.display = (view === 'turni' || view === 'proposta') ? '' : 'none';
     if (fc) fc.style.display = view === 'ferie' ? '' : 'none';
     if (ec) ec.style.display = view === 'eventi' ? '' : 'none';
     if (mc) {
