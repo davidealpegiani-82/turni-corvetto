@@ -6,7 +6,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v10.3.3</title>
+  <title>Turni Corvetto v10.3.4</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,7 +41,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '10.3.3';
+    const APP_VERSION = '10.3.4';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -57,6 +57,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '10.3.4 — Scroll giorni Ven/Sab + orari Finiture reali (8:30–17:30, mer 12:30, sab 8–12)',
     '10.3.3 — Riepilogo: apre stato settimana (non più scroll a blocco nascosto)',
     '10.3.2 — Contrasto leggibile su tutte le pagine (ferie, malattia, impegni, settings, griglia)',
     '10.3.1 — Contrasto leggibile: testi e pulsanti scuri su fondi chiari (WCAG-oriented)',
@@ -2356,8 +2357,17 @@
     .pulse-zone-hint { font-size: 11px; color: var(--text-muted); }
 
     .pulse-week {
-      display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x proximity;
+      padding: 2px 2px 10px;
+      margin: 0 -2px;
     }
+    .pulse-week::-webkit-scrollbar { height: 4px; }
+    .pulse-week::-webkit-scrollbar-thumb { background: rgba(208,255,58,0.25); border-radius: 4px; }
     .pulse-day-chip {
       border: 1px solid var(--border);
       background: var(--card-bg);
@@ -2368,6 +2378,10 @@
       box-shadow: var(--shadow-sm);
       color: var(--text-main);
       min-height: 64px;
+      flex: 0 0 auto;
+      width: 64px;
+      min-width: 64px;
+      scroll-snap-align: start;
     }
     .pulse-day-chip .dname { font-size: 11px; font-weight: 800; opacity: .85; }
     .pulse-day-chip .dnum { font-size: 16px; font-weight: 900; margin: 2px 0; }
@@ -2402,8 +2416,8 @@
     }
     @media (max-width: 640px) {
       .pulse-day-grid { grid-template-columns: 1fr; }
-      .pulse-week { gap: 4px; }
-      .pulse-day-chip { padding: 8px 4px; min-height: 58px; }
+      .pulse-week { gap: 6px; }
+      .pulse-day-chip { padding: 8px 4px; min-height: 58px; width: 58px; min-width: 58px; }
     }
     .pulse-lane {
       border-radius: 14px;
@@ -3785,7 +3799,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">PULSE</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.3</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.4</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3898,7 +3912,7 @@
       <div class="pulse-mark-sm">P</div>
       <div>
         <div class="pulse-chrome-brand">PULSE</div>
-        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.3</div>
+        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.4</div>
       </div>
     </div>
     <div class="pulse-chrome-week">
@@ -6521,6 +6535,21 @@ function isUsableAppData(value) {
     }).map(function(w) { return w.id; });
   }
 
+  /** Orari reali Finiture (Idalia): Lun-Ven apertura 08:30;
+   *  chiusura 17:30 tranne mercoledì 12:30; sabato 08:00-12:00. */
+  function pulseFinitureSampleTimes(day) {
+    const d = day | 0;
+    // sample pochi minuti dopo apertura / prima della chiusura
+    if (d === 5) {
+      return { openMin: timeToMin('08:15'), closeMin: timeToMin('11:45'), openLabel: '08:00', closeLabel: '12:00', halfDay: true };
+    }
+    if (d === 2) { // mercoledì
+      return { openMin: timeToMin('08:45'), closeMin: timeToMin('12:15'), openLabel: '08:30', closeLabel: '12:30', halfDay: true };
+    }
+    // lun, mar, gio, ven
+    return { openMin: timeToMin('08:45'), closeMin: timeToMin('17:15'), openLabel: '08:30', closeLabel: '17:30', halfDay: false };
+  }
+
   function pulseLevel(okOpen, okClose) {
     if (okOpen && okClose) return 'ok';
     if (!okOpen && !okClose) return 'bad';
@@ -6591,13 +6620,16 @@ function isUsableAppData(value) {
     const finIds = pulseFinitureIds();
     const openT = day === 5 ? timeToMin('07:30') : timeToMin('07:00');
     const closeT = day === 5 ? timeToMin('11:15') : timeToMin('17:15');
+    const finT = pulseFinitureSampleTimes(day);
 
     // Zone cards for selected day
     const uLv = pulseLevel(!!row.impOpenOk, !!row.impCloseOk);
     const mLv = pulseLevel(!!row.magOpenOk, !!row.magCloseOk);
-    const finOpen = (typeof countCovered === 'function') ? countCovered(week, finIds, day, openT) : 0;
-    const finClose = (typeof countCovered === 'function') ? countCovered(week, finIds, day, closeT) : 0;
-    const fLv = (finOpen + finClose) > 0 || finIds.length === 0 ? 'ok' : 'warn';
+    const finOpen = (typeof countCovered === 'function') ? countCovered(week, finIds, day, finT.openMin) : 0;
+    const finClose = (typeof countCovered === 'function') ? countCovered(week, finIds, day, finT.closeMin) : 0;
+    const finOpenOk = finIds.length === 0 || finOpen >= 1;
+    const finCloseOk = finIds.length === 0 || finClose >= 1;
+    const fLv = pulseLevel(finOpenOk, finCloseOk);
 
     function setSem(id, lv, label) {
       const el = document.getElementById(id);
@@ -6616,14 +6648,20 @@ function isUsableAppData(value) {
     if (mm) mm.textContent = 'Apertura ' + (row.magOpen != null ? row.magOpen : '—') + '/' + (row.minMag != null ? row.minMag : '2') +
       ' · Chiusura ' + (row.magClose != null ? row.magClose : '—') + '/' + (row.minCloseMag != null ? row.minCloseMag : '1');
     const mf = document.getElementById('pulseMetFin');
-    if (mf) mf.textContent = 'Presenti ~' + Math.max(finOpen, finClose) + ' · area autonoma';
+    if (mf) {
+      mf.textContent = 'Apertura ' + finOpen + '/1 · Chiusura ' + finClose + '/1 · ' + finT.openLabel + '–' + finT.closeLabel;
+    }
 
     const hu = document.getElementById('pulseHintUfficio');
     if (hu) hu.textContent = uLv === 'ok' ? 'Copertura ufficio ok' : 'Serve attenzione su questo giorno';
     const hm = document.getElementById('pulseHintMag');
     if (hm) hm.textContent = mLv === 'ok' ? 'Magazzino coperto' : 'Rischio copertura magazzino';
     const hf = document.getElementById('pulseHintFin');
-    if (hf) hf.textContent = 'Non entra nel pool edile';
+    if (hf) {
+      if (fLv === 'ok') hf.textContent = 'Orari finiture rispettati';
+      else if (!finOpenOk) hf.textContent = 'Manca copertura in apertura finiture';
+      else hf.textContent = 'Manca copertura in chiusura finiture';
+    }
 
     try {
       document.querySelectorAll('.pulse-zone').forEach(function(el) {
@@ -6684,11 +6722,13 @@ function isUsableAppData(value) {
         closeNeed = row.minCloseMag != null ? row.minCloseMag : 1;
         zoneLabel = 'Magazzino';
       } else if (zone === 'finiture') {
-        openPeople = pulseWhoAt(week, finIds, day, openT);
-        closePeople = pulseWhoAt(week, finIds, day, closeT);
-        openOk = openPeople.length > 0; closeOk = closePeople.length > 0;
+        const ft = pulseFinitureSampleTimes(day);
+        openPeople = pulseWhoAt(week, finIds, day, ft.openMin);
+        closePeople = pulseWhoAt(week, finIds, day, ft.closeMin);
+        openOk = openPeople.length >= 1;
+        closeOk = closePeople.length >= 1;
         openNeed = 1; closeNeed = 1;
-        zoneLabel = 'Finiture';
+        zoneLabel = 'Finiture (' + ft.openLabel + '–' + ft.closeLabel + ')';
       } else {
         openPeople = pulseWhoAt(week, impIds, day, openT);
         closePeople = pulseWhoAt(week, impIds, day, closeT);
