@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "0.1.0",
+  "name": "Corvetto One — regole operative iniziali",
+  "status": "bozza-da-validare",
+  "safety": {
+    "missingRequiredData": "block",
+    "unknownAvailability": "do-not-recommend",
+    "unknownSkill": "do-not-assign",
+    "proposalApplication": "manual-confirmation-only",
+    "officialDataConnection": false
+  },
+  "branch": {
+    "openingHours": {
+      "mondayToFriday": { "start": "06:30", "end": "17:30" },
+      "saturday": { "start": "07:00", "end": "12:00" }
+    },
+    "holidayAndSeasonalHours": "configurable-not-yet-modeled"
+  },
+  "warehouse": {
+    "teams": [
+      { "id": "pair-pino-massimo", "members": ["Pino Vartuca", "Massimo Caruso"], "keepTogetherByDefault": true },
+      { "id": "pair-vincenzo-mattia", "members": ["Vincenzo Rallo", "Mattia Drigo"], "keepTogetherByDefault": true }
+    ],
+    "flexibleWorker": {
+      "name": "Mario Ragone",
+      "role": "jolly",
+      "fixedPair": false,
+      "avoidRotationByDefault": true,
+      "preferredUse": ["support opening when Pino is on leave", "move Mario before splitting a fixed pair"]
+    },
+    "weekdayShifts": [
+      { "start": "06:30", "end": "15:30" },
+      { "start": "08:30", "end": "17:30" }
+    ],
+    "coveragePrinciples": [
+      "When at least three warehouse workers are available, plan two people for opening.",
+      "Closing may be covered by one person only where the applicable rule permits it.",
+      "Training, medical appointments and other unavailable periods must not count as coverage.",
+      "Saturday requires two workers; rotation and absence recovery need explicit validation."
+    ],
+    "requiredSkills": "must-be-configured-per-task-before-assigning"
+  },
+  "office": {
+    "knownPeople": ["Davide Alpegiani", "Poppa", "Marco Caregnato", "Severin"],
+    "separateWorker": { "name": "Sandrini", "movableBetweenRoles": false },
+    "wednesday": {
+      "eligiblePeople": ["Davide Alpegiani", "Marco Caregnato", "Severin"],
+      "minimumOpeningPeople": 2,
+      "minimumClosingPeople": 1
+    },
+    "friday": {
+      "caregnato": { "start": "08:30", "end": "17:30" },
+      "severinAvailability": "only-if-at-least-two-office-absences"
+    },
+    "severin": {
+      "monday": [{ "start": "07:30", "end": "12:30" }, { "start": "13:00", "end": "17:30" }],
+      "tuesday": [{ "start": "06:30", "end": "12:30" }, { "start": "13:00", "end": "17:30" }],
+      "wednesday": [{ "start": "06:30", "end": "12:30" }, { "start": "13:00", "end": "17:30" }],
+      "thursday": [{ "start": "06:30", "end": "12:30" }, { "start": "13:00", "end": "16:30" }],
+      "breakWindows": ["12:30–13:00", "13:00–13:30"]
+    },
+    "sandrini": {
+      "break": { "start": "13:00", "end": "14:00" },
+      "support": {
+        "mondayTuesdayThursdayFriday": { "start": "12:00", "end": "13:00" },
+        "wednesday": { "start": "12:00", "end": "12:30" }
+      }
+    },
+    "davide": {
+      "tuesdaySpecial": {
+        "branchShift": [{ "start": "06:30", "end": "12:00" }, { "start": "13:00", "end": "14:30" }],
+        "meeting": { "start": "18:00", "end": "19:30" },
+        "outsideDefinedHours": "flag-as-overtime"
+      }
+    },
+    "andrea": {
+      "branchAvailabilityEnds": "13:45",
+      "courseUntil": "17:30",
+      "countsAsBranchCoverageDuringCourse": false
+    },
+    "weeklyHours": {
+      "over40Hours": "allow-with-hr-warning",
+      "calculation": "not-yet-implemented"
+    },
+    "saturdayRotation": {
+      "rule": "one-office-worker; sabatista absence moves to next available and recovery must occur before rotation resumes",
+      "exactUpcomingSequence": "must-be-confirmed-against-current-calendar"
+    }
+  },
+  "knownGaps": [
+    "Detailed employee skill matrix and experience levels are not yet verified.",
+    "The exact active Saturday rotation must be confirmed against the current schedule.",
+    "Leave, ROL, permission, blood donation, training and split shifts need typed event semantics.",
+    "Break deductions, paid/unpaid rules and weekly-hour accounting are not yet implemented.",
+    "Holiday and seasonal opening hours need a configurable calendar.",
+    "Coverage windows need validation by role, task and skill, not only department."
+  ]
+}
