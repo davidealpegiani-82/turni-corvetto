@@ -1,3 +1,10 @@
+# Corvetto Pulse v11
+
+Nuova app turni da zero (UI snella).
+
+- App attuale:  (v11)
+- App precedente: [legacy.html](legacy.html)
+
 # Turni Corvetto v9.11.36 — sviluppo e deploy
 
 ## Pubblicazione in 2 minuti
