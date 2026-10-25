@@ -11096,13 +11096,19 @@ function minLunchBreakMinutes(wId) {
     const tue=officeCoverageIdsForDay(1).map(id=>workerObj(id)).filter(Boolean);
     const wed=officeCoverageIdsForDay(2).map(id=>workerObj(id)).filter(Boolean);
     const has=(arr,re)=>arr.some(w=>re.test(String(w.name||'')+' '+String(w.role||'')));
+    const activeHas=re=>(appData.workers||[]).some(w=>w&&w.selected!==false&&re.test(String(w.name||'')+' '+String(w.role||'')));
+    const roleOnly={id:'__test_role_only__',name:'Test magazziniere',role:'Magazziniere',group:'',selected:true,brain:{}};
+    const officeOverride={id:'__test_office_override__',name:'Test ufficio',role:'Magazziniere',group:'MAGAZZINO',selected:true,brain:{office:true}};
     [
-      {key:'POOL-TUE',title:'Pool ufficio martedì',ok:has(tue,/alpegiani/i)&&has(tue,/caregnato/i)&&has(tue,/poppa/i)&&has(tue,/severin/i),msg:'Martedì conserva il pool ordinario'},
-      {key:'POOL-WED',title:'Pool ufficio mercoledì',ok:has(wed,/alpegiani/i)&&has(wed,/caregnato/i)&&has(wed,/severin/i)&&!has(wed,/poppa/i),msg:'Mercoledì usa Alpegiani, Caregnato e Severin, senza Poppa'},
+      {key:'POOL-TUE',title:'Pool ufficio martedì',ok:(!activeHas(/alpegiani/i)||has(tue,/alpegiani/i))&&(!activeHas(/caregnato/i)||has(tue,/caregnato/i))&&(!activeHas(/poppa/i)||has(tue,/poppa/i))&&(!activeHas(/severin/i)||has(tue,/severin/i)),msg:'Martedì include i componenti attivi del pool ordinario'},
+      {key:'POOL-WED',title:'Pool ufficio mercoledì',ok:!has(wed,/poppa|sandrini|idalia|finitur/i)&&wed.every(w=>/alpegiani|caregnato|severin/i.test(String(w.name||'')+' '+String(w.role||''))),msg:'Mercoledì non include Poppa/Finiture e usa solo i profili ammessi'},
       {key:'EXP-OPEN',title:'Esperienza dinamica apertura',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'mentor'}]}},'opening')==='mentor',msg:'La matrice dinamica viene letta dal punteggio'},
+      {key:'EXP-LABEL',title:'Etichetta esperienza personalizzata',ok:smartExperienceLevelFor({profile:{experienceAreas:[{label:'Apertura piazzale',level:'autonomous'}]}},'opening')==='autonomous',msg:'Le etichette personalizzate restano riconosciute'},
       {key:'EXP-LEGACY',title:'Compatibilità esperienza storica',ok:smartExperienceLevelFor({profile:{openingExperience:'assisted'}},'opening')==='assisted',msg:'I profili storici restano compatibili'},
-      {key:'EXP-SAFE',title:'Livelli sconosciuti gestiti in sicurezza',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'guru'}]}},'opening')==='unknown',msg:'Valore non valido non influenza il punteggio'}
-    ].forEach((t,i)=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
+      {key:'EXP-SAFE',title:'Livelli sconosciuti gestiti in sicurezza',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'guru'}]}},'opening')==='unknown',msg:'Valore non valido non influenza il punteggio'},
+      {key:'CAP-ROLE',title:'Magazziniere riconosciuto dal ruolo',ok:smartWorkerBrainProfile(roleOnly).warehouse===true,msg:'Il ruolo basta anche se Gruppo è vuoto'},
+      {key:'CAP-OFFICE',title:'Override esplicito ufficio',ok:smartWorkerBrainProfile(officeOverride).office===true&&smartWorkerBrainProfile(officeOverride).warehouse===false,msg:'Un profilo ufficio non viene contato come magazzino'}
+    ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
@@ -11121,7 +11127,7 @@ function minLunchBreakMinutes(wId) {
     const overall=fail===0 && skip===0;
     document.getElementById('rulesTestResult').innerHTML=`
       <div class="test-block">
-        <strong>🧠 Smart Brain Regression M37–M47 + pool/competenze</strong><br>
+        <strong>🧠 Smart Brain Regression M37–M47 + pool/capacità/competenze</strong><br>
         <span class="test-pass">${pass} pass</span> ·
         <span class="test-fail">${fail} fail</span> ·
         <span class="test-skip">${skip} skip</span>
