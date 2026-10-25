@@ -11090,6 +11090,18 @@ function minLunchBreakMinutes(wId) {
   function runSmartBrainRegressionSuite(){
     const keys=['M37','M38','M39','M40','M41','M42','M43','M44','M45','M46','M47'];
     const results=keys.map(runSmartRegressionScenario);
+
+    // Controlli direttamente eseguibili sulle regole di pool e sulle competenze.
+    const poolForTest=(day)=>officeCoverageIdsForDay(day).map(id=>workerObj(id)).filter(Boolean);
+    const hasWorker=(list,re)=>list.some(w=>re.test(String(w.name||'')+' '+String(w.role||'')));
+    const tue=poolForTest(1), wed=poolForTest(2);
+    [
+      {key:'POOL-TUE',title:'Pool ufficio martedì',ok:hasWorker(tue,/alpegiani/i)&&hasWorker(tue,/caregnato/i)&&hasWorker(tue,/poppa/i)&&hasWorker(tue,/severin/i),msg:'Martedì include il pool ordinario e Severin'},
+      {key:'POOL-WED',title:'Pool ufficio mercoledì',ok:hasWorker(wed,/alpegiani/i)&&hasWorker(wed,/caregnato/i)&&hasWorker(wed,/severin/i)&&!hasWorker(wed,/poppa|finitur|idalia|sandrini/i),msg:'Mercoledì ammette solo Alpegiani, Caregnato e Severin'},
+      {key:'SKILL-OPENING',title:'Competenza apertura dinamica',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'mentor'}]}},'opening')==='mentor',msg:'La matrice dinamica delle competenze prevale sul fallback storico'},
+      {key:'SKILL-LEGACY',title:'Compatibilità competenze storiche',ok:smartExperienceLevelFor({profile:{openingExperience:'assisted'}},'opening')==='assisted',msg:'I profili già esistenti continuano a funzionare'},
+      {key:'SKILL-SAFE',title:'Livello sconosciuto sicuro',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'guru'}]}},'opening')==='unknown',msg:'Livelli non validi non ricevono bonus di esperienza'}
+    ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
@@ -11108,7 +11120,7 @@ function minLunchBreakMinutes(wId) {
     const overall=fail===0 && skip===0;
     document.getElementById('rulesTestResult').innerHTML=`
       <div class="test-block">
-        <strong>🧠 Smart Brain Regression M37–M47</strong><br>
+        <strong>🧠 Smart Brain Regression M37–M47 + pool/competenze</strong><br>
         <span class="test-pass">${pass} pass</span> ·
         <span class="test-fail">${fail} fail</span> ·
         <span class="test-skip">${skip} skip</span>
