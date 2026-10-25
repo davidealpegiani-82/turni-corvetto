@@ -3776,6 +3776,54 @@
       -webkit-text-fill-color: #f4f6f5 !important;
     }
 
+  
+    /* Embedded engine mode (hosted inside Pulse iframe) */
+    html.engine-embed body > *:not(.modal-backdrop):not(#proposalModal):not(#toast):not(.toast) {
+      /* keep modals visible; hide main chrome via body class rules below */
+    }
+    html.engine-embed .header,
+    html.engine-embed .bottom-nav,
+    html.engine-embed .dock-nav,
+    html.engine-embed #viewOggi,
+    html.engine-embed #viewTurni,
+    html.engine-embed #viewFerie,
+    html.engine-embed #viewEventi,
+    html.engine-embed #viewMalattia,
+    html.engine-embed #viewSettings,
+    html.engine-embed #turniControlCard,
+    html.engine-embed #ferieControlCard,
+    html.engine-embed #eventiControlCard,
+    html.engine-embed #malattiaControlCard,
+    html.engine-embed .local-file-banner,
+    html.engine-embed #pwaInstallBanner,
+    html.engine-embed .remote-update-bar {
+      display: none !important;
+    }
+    html.engine-embed body {
+      background: #0a0c0f !important;
+      min-height: 100dvh;
+    }
+    html.engine-embed body.engine-ui-open .header,
+    html.engine-embed body.engine-ui-open #viewTurni,
+    html.engine-embed body.engine-ui-open #turniControlCard {
+      display: block !important;
+    }
+    html.engine-host-bar {
+      display: none;
+    }
+    html.engine-embed .engine-host-bar {
+      display: flex !important;
+      position: sticky; top: 0; z-index: 200;
+      align-items: center; justify-content: space-between; gap: 10px;
+      padding: 12px 14px; background: #12151c; border-bottom: 1px solid #2a3140;
+      color: #f2f4f7; font-family: system-ui, sans-serif;
+    }
+    html.engine-embed .engine-host-bar strong { font-size: 14px; }
+    html.engine-embed .engine-host-bar button {
+      min-height: 40px; padding: 8px 12px; border-radius: 8px;
+      border: 1px solid #2a3140; background: #c8f135; color: #12140a;
+      font-weight: 800; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -18973,7 +19021,55 @@ function applyPendingProposal(options) {
     const note = appData.notes && appData.notes[currentWeekKey];
     const events = getEventsForWeek();
     let html = `<!doctype html><html><head><meta charset="utf-8"><title>Anteprima Turni</title>
-      <style>@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0}h1{font-size:16px;margin:0 0 3px}p{font-size:9px;margin:0 0 6px;color:#333}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:7px;margin:0 0 6px}th,td{border:1px solid #777;padding:2px 3px;text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:anywhere}th:first-child,td:first-child{width:18%;text-align:left;font-weight:bold;background:#f0f4f8}th{background:#e8edf3;font-weight:bold}.note{margin-top:5px;font-size:8px;white-space:pre-wrap;overflow-wrap:anywhere}.event-title{font-size:9px;margin:6px 0 3px}.events{font-size:7px}.events th:first-child,.events td:first-child{width:auto;text-align:left;background:inherit;font-weight:normal}.events th{background:#f5f0ff}.print-warning{font-size:7px;color:#555;margin-top:4px}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>`;
+      <style>@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0}h1{font-size:16px;margin:0 0 3px}p{font-size:9px;margin:0 0 6px;color:#333}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:7px;margin:0 0 6px}th,td{border:1px solid #777;padding:2px 3px;text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:anywhere}th:first-child,td:first-child{width:18%;text-align:left;font-weight:bold;background:#f0f4f8}th{background:#e8edf3;font-weight:bold}.note{margin-top:5px;font-size:8px;white-space:pre-wrap;overflow-wrap:anywhere}.event-title{font-size:9px;margin:6px 0 3px}.events{font-size:7px}.events th:first-child,.events td:first-child{width:auto;text-align:left;background:inherit;font-weight:normal}.events th{background:#f5f0ff}.print-warning{font-size:7px;color:#555;margin-top:4px}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+    /* Embedded engine mode (hosted inside Pulse iframe) */
+    html.engine-embed body > *:not(.modal-backdrop):not(#proposalModal):not(#toast):not(.toast) {
+      /* keep modals visible; hide main chrome via body class rules below */
+    }
+    html.engine-embed .header,
+    html.engine-embed .bottom-nav,
+    html.engine-embed .dock-nav,
+    html.engine-embed #viewOggi,
+    html.engine-embed #viewTurni,
+    html.engine-embed #viewFerie,
+    html.engine-embed #viewEventi,
+    html.engine-embed #viewMalattia,
+    html.engine-embed #viewSettings,
+    html.engine-embed #turniControlCard,
+    html.engine-embed #ferieControlCard,
+    html.engine-embed #eventiControlCard,
+    html.engine-embed #malattiaControlCard,
+    html.engine-embed .local-file-banner,
+    html.engine-embed #pwaInstallBanner,
+    html.engine-embed .remote-update-bar {
+      display: none !important;
+    }
+    html.engine-embed body {
+      background: #0a0c0f !important;
+      min-height: 100dvh;
+    }
+    html.engine-embed body.engine-ui-open .header,
+    html.engine-embed body.engine-ui-open #viewTurni,
+    html.engine-embed body.engine-ui-open #turniControlCard {
+      display: block !important;
+    }
+    html.engine-host-bar {
+      display: none;
+    }
+    html.engine-embed .engine-host-bar {
+      display: flex !important;
+      position: sticky; top: 0; z-index: 200;
+      align-items: center; justify-content: space-between; gap: 10px;
+      padding: 12px 14px; background: #12151c; border-bottom: 1px solid #2a3140;
+      color: #f2f4f7; font-family: system-ui, sans-serif;
+    }
+    html.engine-embed .engine-host-bar strong { font-size: 14px; }
+    html.engine-embed .engine-host-bar button {
+      min-height: 40px; padding: 8px 12px; border-radius: 8px;
+      border: 1px solid #2a3140; background: #c8f135; color: #12140a;
+      font-weight: 800; cursor: pointer;
+    }
+  </style></head><body>`;
     html += `<h1>${esc(appData.title)} - Programmazione Turni</h1><p>Settimana n.${esc(weekInfo.weekNo)}: dal ${esc(weekInfo.monStr)} al ${esc(weekInfo.satStr)}</p><table><thead><tr>`;
     html += matrix.headers.map(h=>`<th>${esc(h)}</th>`).join('') + '</tr></thead><tbody>';
     matrix.rows.forEach(row => { html += '<tr>' + row.map(c=>`<td>${esc(typeof c==='object'?c.text:c)}</td>`).join('') + '</tr>'; });
@@ -18984,7 +19080,95 @@ function applyPendingProposal(options) {
       html += events.map(e=>`<tr><td>${esc(formatEventDate(e.date))}</td><td>${esc(e.title)}</td><td>${esc(e.allDay?'Giornata intera':`${e.fromTime}-${e.toTime}`)}</td><td>${esc(e.location||'')}</td><td>${esc(eventParticipantsNames(e.participantIds).join(', '))}</td></tr>`).join('');
       html += '</tbody></table>';
     }
-    html += '<div class="print-warning">Se i contenuti superano l\'area A4, controllare l\'anteprima di stampa: il browser potrebbe distribuirli su piu pagine per non tagliare informazioni.</div></body></html>';
+    html += '<div class="print-warning">Se i contenuti superano l\'area A4, controllare l\'anteprima di stampa: il browser potrebbe distribuirli su piu pagine per non tagliare informazioni.</div>
+<script>
+(function(){
+  function isEngineEmbed(){
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.get('engine') === '1') return true;
+      if (window.self !== window.top) return true;
+    } catch (e) {}
+    return false;
+  }
+  function postParent(msg){
+    try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {}
+  }
+  function bootEngineEmbed(){
+    if (!isEngineEmbed()) return;
+    document.documentElement.classList.add('engine-embed');
+    const bar = document.getElementById('engineHostBar');
+    if (bar) bar.style.display = 'flex';
+    document.body.classList.add('engine-embed-body');
+
+    // Expose API for parent
+    window.CORVETTO_ENGINE = {
+      version: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'legacy'),
+      ready: true,
+      generate: function(){
+        try {
+          if (typeof generateAutoProposal === 'function') {
+            generateAutoProposal();
+            postParent({ type: 'corvetto-engine', event: 'generate-started' });
+            return true;
+          }
+        } catch (e) { console.warn(e); }
+        return false;
+      },
+      apply: function(force){
+        try {
+          if (typeof applyPendingProposal === 'function') {
+            applyPendingProposal(force ? { force: true } : {});
+            postParent({ type: 'corvetto-engine', event: 'apply-done' });
+            return true;
+          }
+        } catch (e) { console.warn(e); }
+        return false;
+      },
+      reloadFromStorage: function(){
+        try {
+          const raw = localStorage.getItem('turni_corvetto_test_data');
+          if (raw && typeof appData !== 'undefined') {
+            const data = JSON.parse(raw);
+            if (data && typeof data === 'object') {
+              appData = data;
+              if (typeof renderWeek === 'function') renderWeek();
+              return true;
+            }
+          }
+        } catch (e) { console.warn(e); }
+        return false;
+      }
+    };
+
+    const gen = document.getElementById('engineBtnGenerate');
+    if (gen) gen.onclick = function(){ window.CORVETTO_ENGINE.generate(); };
+    const cls = document.getElementById('engineBtnClose');
+    if (cls) cls.onclick = function(){ postParent({ type: 'corvetto-engine', event: 'close' }); };
+
+    // When proposal modal closes / applies, notify parent to refresh
+    const _origApply = typeof applyPendingProposal === 'function' ? applyPendingProposal : null;
+    if (_origApply) {
+      window.applyPendingProposal = function(options) {
+        const r = _origApply(options);
+        try { postParent({ type: 'corvetto-engine', event: 'proposal-applied' }); } catch (e) {}
+        return r;
+      };
+    }
+
+    postParent({ type: 'corvetto-engine', event: 'ready' });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(bootEngineEmbed, 50); });
+  } else {
+    setTimeout(bootEngineEmbed, 50);
+  }
+  window.addEventListener('load', function(){ setTimeout(bootEngineEmbed, 100); });
+})();
+</script>
+
+</body></html>';
     return html;
   }
 
@@ -21133,6 +21317,94 @@ async function downloadJpgFromPreview() {
   </div>
 </div>
 
+
+
+<script>
+(function(){
+  function isEngineEmbed(){
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.get('engine') === '1') return true;
+      if (window.self !== window.top) return true;
+    } catch (e) {}
+    return false;
+  }
+  function postParent(msg){
+    try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {}
+  }
+  function bootEngineEmbed(){
+    if (!isEngineEmbed()) return;
+    document.documentElement.classList.add('engine-embed');
+    const bar = document.getElementById('engineHostBar');
+    if (bar) bar.style.display = 'flex';
+    document.body.classList.add('engine-embed-body');
+
+    // Expose API for parent
+    window.CORVETTO_ENGINE = {
+      version: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'legacy'),
+      ready: true,
+      generate: function(){
+        try {
+          if (typeof generateAutoProposal === 'function') {
+            generateAutoProposal();
+            postParent({ type: 'corvetto-engine', event: 'generate-started' });
+            return true;
+          }
+        } catch (e) { console.warn(e); }
+        return false;
+      },
+      apply: function(force){
+        try {
+          if (typeof applyPendingProposal === 'function') {
+            applyPendingProposal(force ? { force: true } : {});
+            postParent({ type: 'corvetto-engine', event: 'apply-done' });
+            return true;
+          }
+        } catch (e) { console.warn(e); }
+        return false;
+      },
+      reloadFromStorage: function(){
+        try {
+          const raw = localStorage.getItem('turni_corvetto_test_data');
+          if (raw && typeof appData !== 'undefined') {
+            const data = JSON.parse(raw);
+            if (data && typeof data === 'object') {
+              appData = data;
+              if (typeof renderWeek === 'function') renderWeek();
+              return true;
+            }
+          }
+        } catch (e) { console.warn(e); }
+        return false;
+      }
+    };
+
+    const gen = document.getElementById('engineBtnGenerate');
+    if (gen) gen.onclick = function(){ window.CORVETTO_ENGINE.generate(); };
+    const cls = document.getElementById('engineBtnClose');
+    if (cls) cls.onclick = function(){ postParent({ type: 'corvetto-engine', event: 'close' }); };
+
+    // When proposal modal closes / applies, notify parent to refresh
+    const _origApply = typeof applyPendingProposal === 'function' ? applyPendingProposal : null;
+    if (_origApply) {
+      window.applyPendingProposal = function(options) {
+        const r = _origApply(options);
+        try { postParent({ type: 'corvetto-engine', event: 'proposal-applied' }); } catch (e) {}
+        return r;
+      };
+    }
+
+    postParent({ type: 'corvetto-engine', event: 'ready' });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(bootEngineEmbed, 50); });
+  } else {
+    setTimeout(bootEngineEmbed, 50);
+  }
+  window.addEventListener('load', function(){ setTimeout(bootEngineEmbed, 100); });
+})();
+</script>
 
 </body>
 </html>

@@ -85,6 +85,15 @@
     .foot a{color:var(--text)}
     input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font:inherit;margin:6px 0 10px}
     label{font-size:12px;color:var(--muted);font-weight:700}
+  
+    .engine-frame-wrap {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.72); padding: 0;
+    }
+    .engine-frame-wrap.open { display: block; }
+    .engine-frame-wrap iframe {
+      width: 100%; height: 100%; border: 0; background: #0a0c0f;
+    }
   </style>
 </head>
 <body>
@@ -94,7 +103,7 @@
       <div class="logo">P</div>
       <div>
         <h1>Pulse</h1>
-        <small>CORVETTO · v11.1.0</small>
+        <small>CORVETTO · v11.2.0</small>
       </div>
     </div>
     <div class="week-nav">
@@ -158,8 +167,8 @@
   <section id="tab-motore" class="hidden">
     <div class="card">
       <strong>Motore regole avanzato</strong>
-      <p class="meta">Generazione turni, bilanciamento aperture/chiusure, Severin, magazzino, vincoli e proposta guidata restano nel motore legacy, sugli <em>stessi dati cloud</em>.</p>
-      <button type="button" class="primary" id="btnOpenEngine" style="width:100%;margin-top:10px">Apri motore completo</button>
+      <p class="meta">Generazione turni, bilanciamento aperture/chiusure, Severin, magazzino e proposta guidata: integrati in Pulse sugli stessi dati cloud.</p>
+      <button type="button" class="primary" id="btnOpenEngine" style="width:100%;margin-top:10px">Avvia motore in Pulse</button>
       <button type="button" id="btnOpenLegacyHome" style="width:100%;margin-top:8px">Apri app legacy intera</button>
     </div>
     <div class="card" style="margin-top:10px">
@@ -179,11 +188,14 @@
   <button type="button" data-go="assenze">＋ Assenze</button>
   <button type="button" data-go="pdf">▦ PDF</button>
 </nav>
+<div class="engine-frame-wrap" id="engineFrameWrap" aria-hidden="true">
+  <iframe id="engineFrame" title="Motore regole Corvetto" src="about:blank"></iframe>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
 (function(){
-  const VERSION='11.1.0';
+  const VERSION='11.2.0';
   const LOCAL_KEY='turni_corvetto_test_data';
   const RTDB_PATH='turni_data_v47_pdf';
   const DAY_NAMES=['Lun','Mar','Mer','Gio','Ven','Sab'];
@@ -371,10 +383,59 @@
   }
 
   function openLegacy(pathHash){
-    // same folder legacy engine / full UI
     const url='legacy.html'+(pathHash||'');
     window.location.href=url;
   }
+
+  let _engineLoaded=false;
+  function openEngine(){
+    const wrap=document.getElementById('engineFrameWrap');
+    const frame=document.getElementById('engineFrame');
+    if(!wrap||!frame){openLegacy('?engine=1');return;}
+    // Persist latest local snapshot so engine reads same data
+    try{localStorage.setItem(LOCAL_KEY, JSON.stringify(appData));}catch(e){}
+    wrap.classList.add('open');
+    wrap.setAttribute('aria-hidden','false');
+    if(!_engineLoaded || !frame.src || frame.src==='about:blank' || frame.src.endsWith('about:blank')){
+      frame.src='legacy.html?engine=1';
+      _engineLoaded=true;
+      toast('Avvio motore regole…');
+    } else {
+      try {
+        const eng=frame.contentWindow && frame.contentWindow.CORVETTO_ENGINE;
+        if(eng && eng.reloadFromStorage) eng.reloadFromStorage();
+        if(eng && eng.generate) { eng.generate(); toast('Generazione avviata'); }
+        else toast('Motore pronto — usa Genera proposta');
+      } catch(e){ console.warn(e); toast('Motore in caricamento'); }
+    }
+  }
+  function closeEngine(){
+    const wrap=document.getElementById('engineFrameWrap');
+    if(wrap){ wrap.classList.remove('open'); wrap.setAttribute('aria-hidden','true'); }
+    // Refresh data after engine work
+    try{
+      const raw=localStorage.getItem(LOCAL_KEY);
+      if(raw){ const d=JSON.parse(raw); if(d&&typeof d==='object'){ appData=d; } }
+    }catch(e){}
+    if(typeof pullCloud==='function'){ try{pullCloud();}catch(e){} }
+    render();
+  }
+  window.addEventListener('message', function(ev){
+    const data=ev && ev.data;
+    if(!data || data.type!=='corvetto-engine') return;
+    if(data.event==='ready'){
+      toast('Motore collegato');
+      try{
+        const frame=document.getElementById('engineFrame');
+        const eng=frame && frame.contentWindow && frame.contentWindow.CORVETTO_ENGINE;
+        if(eng && eng.generate) eng.generate();
+      }catch(e){}
+    }
+    if(data.event==='close' || data.event==='proposal-applied'){
+      closeEngine();
+      if(data.event==='proposal-applied') toast('Proposta applicata · dati aggiornati');
+    }
+  });
 
   function exportPdf(){
     if(!window.jspdf||!window.jspdf.jsPDF){toast('PDF non pronto');return;}
@@ -441,8 +502,8 @@
     else if(g==='assenze')renderTabs('assenze');
     else renderTabs('pulse');
   };
-  document.getElementById('btnSystem').onclick=()=>openLegacy('');
-  document.getElementById('btnOpenEngine').onclick=()=>openLegacy('');
+  document.getElementById('btnSystem').onclick=()=>openEngine();
+  document.getElementById('btnOpenEngine').onclick=()=>openEngine();
   document.getElementById('btnOpenLegacyHome').onclick=()=>openLegacy('');
   document.getElementById('btnLegacyGrid').onclick=()=>openLegacy('');
   document.getElementById('btnPdf').onclick=exportPdf;
