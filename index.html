@@ -11134,11 +11134,14 @@ function minLunchBreakMinutes(wId) {
     let tempErrorCaught=false;
     try { withTemporaryGenerationWeek(tempWeeks,'test',{newCell:{mIn:'06:30'}},originalTemp,()=>{throw new Error('fixture');}); } catch(e) { tempErrorCaught=true; }
     const tempErrorRestore=tempErrorCaught&&JSON.stringify(tempWeeks.test)===JSON.stringify(originalTemp);
-    const regenOk=!regenSeed.__test_generated&&!!regenSeed.__test_manual?.[0]?.manualEdit&&regenSeed.__test_leave?.[0]?.status==='FERIE'&&!regenSeed.__test_empty&&Object.keys(regenEmpty).length===Object.keys(regenFixture).length&&!!regenFixture.__test_generated[0].generated&&tempSuccess&&tempErrorRestore;
+    const proposalSnapshotProbe=restoreProposalBaseSnapshot({baseWeekSnapshot:{temporary:true}},regenFixture);
+    const snapshotRestored=JSON.stringify(proposalSnapshotProbe.baseWeekSnapshot)===JSON.stringify(regenFixture)&&proposalSnapshotProbe.baseWeekSnapshot!==regenFixture;
+    const regenOk=!regenSeed.__test_generated&&!!regenSeed.__test_manual?.[0]?.manualEdit&&regenSeed.__test_leave?.[0]?.status==='FERIE'&&!regenSeed.__test_empty&&Object.keys(regenEmpty).length===Object.keys(regenFixture).length&&!!regenFixture.__test_generated[0].generated&&tempSuccess&&tempErrorRestore&&snapshotRestored;
     results.push({key:'SAFE-REGEN',status:regenOk?'pass':'fail',title:'Rigenerazione non distruttiva',checks:[
-      {ok:regenOk,msg:'Turni generati ricalcolabili; celle manuali e assenze preservate; modalità celle vuote invariata'},
+      {ok:regenOk,msg:'Turni generati ricalcolabili; celle manuali e assenze preservate; modalità solo celle vuote invariata'},
       {ok:tempSuccess,msg:'Settimana originale ripristinata dopo generazione riuscita'},
-      {ok:tempErrorRestore,msg:'Settimana originale ripristinata anche in caso di errore'}
+      {ok:tempErrorRestore,msg:'Settimana originale ripristinata anche in caso di errore'},
+      {ok:snapshotRestored,msg:'Guard anti-conflitto agganciato alla settimana originale, non alla copia temporanea'}
     ]});
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
@@ -13502,6 +13505,12 @@ function minLunchBreakMinutes(wId) {
     }
   }
 
+  function restoreProposalBaseSnapshot(proposal, originalWeek){
+    if(!proposal||typeof proposal!=='object') return proposal;
+    proposal.baseWeekSnapshot=deepClone(originalWeek||{});
+    return proposal;
+  }
+
   // Crea la base di rigenerazione senza toccare la settimana salvata.
   // Le celle manuali, le assenze/ROL parziali, i turni fissi e le celle
   // non generate con contenuto restano protette; i turni generati si ricalcolano.
@@ -13573,6 +13582,9 @@ function minLunchBreakMinutes(wId) {
       if(!base || !base.week){
         throw new Error('Il motore base non ha restituito una proposta.');
       }
+      // La base storica ha visto la copia temporanea: il guard anti-conflitto
+      // deve invece confrontarsi con la settimana realmente salvata all'inizio.
+      restoreProposalBaseSnapshot(base,originalWeekSnapshot);
       try {
         base.notes = enforceSeverinPolicy(base.week, base.notes || []);
       } catch (eSev) { console.warn(eSev); }
