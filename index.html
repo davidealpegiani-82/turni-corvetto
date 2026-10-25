@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.49';
+    const APP_VERSION = '9.11.50';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.50 — Test sicurezza proposta: copertura non verificabile deve bloccare l’applicazione',
     '9.11.49 — Fail closed anche in Applica proposta: un errore del verificatore non è forzabile come semplice scopertura',
     '9.11.48 — Safety guard: se la verifica delle coperture fallisce o manca, la proposta viene bloccata (fail closed)',
     '9.11.47 — Smart Brain: esperienza dinamica in scoring, coperture basate sui profili attivi e pool ufficio corretto il mercoledì',
@@ -2167,7 +2168,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.49</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.50</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2189,7 +2190,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.49</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.50</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -15585,6 +15586,19 @@ function showProposalReviewModal() {
       const hard = (typeof proposalHardViolations === 'function') ? proposalHardViolations(gapProposal) : [];
       push('Gap copertura → proposalHardViolations non vuoto', hard.length > 0);
       push('Gap copertura descritto con giorno/fascia', hard.some(x => /Lun|17:00|chiusura/i.test(String(x))));
+
+      // Il verificatore che va in errore non deve essere interpretato come zero scoperture.
+      const originalCoverageVerifier = collectSmartCoverageGaps;
+      try {
+        collectSmartCoverageGaps = function(){ throw new Error('errore test verificatore'); };
+        const verifierError = proposalHardViolations(make());
+        push('Errore verificatore coperture blocca proposta', verifierError.some(x => /Verifica coperture fallita/i.test(String(x))));
+        collectSmartCoverageGaps = undefined;
+        const verifierMissing = proposalHardViolations(make());
+        push('Verificatore coperture assente blocca proposta', verifierMissing.some(x => /Verifica coperture fallita/i.test(String(x))));
+      } finally {
+        collectSmartCoverageGaps = originalCoverageVerifier;
+      }
 
       // Competenze: canOpen/canClose
       if (typeof shiftAllowedForWorker === 'function' && typeof workerMayCoverOpen === 'function') {
