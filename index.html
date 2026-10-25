@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.46</title>
+  <title>Turni Corvetto v9.11.47</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.46';
+    const APP_VERSION = '9.11.47';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.47 — Copertura mercoledì vincolata al gruppo corretto; score e scoperture allineati alle competenze reali del magazzino',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
@@ -2164,7 +2165,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.46</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.47</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2186,7 +2187,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.46</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.47</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5214,17 +5215,25 @@ function isUsableAppData(value) {
   // per l'apertura e la copertura ufficio contano solo Alpegiani, Caregnato e Severin.
   // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
   function officeCoverageIdsForDay(day) {
-    // Pool copertura ufficio: rotazione (Alpegiani/Poppa/Caregnato) + Severin.
-    // Esclude Finiture/Idalia: non devono mascherare una scopertura del banco edile.
-    return [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
-      .filter(function(id) {
-        const w = workerObj(id);
-        if (!w || w.selected === false) return false;
-        if (String(w.group || '').toUpperCase() === 'FINITURE') return false;
-        const blob = (String(w.name || '') + ' ' + String(w.role || '')).toLowerCase();
-        if (/finitur|idalia|sandrini/.test(blob)) return false;
-        return true;
-      });
+    // Mercoledì: gruppo operativo ristretto e inderogabile.
+    // Non conteggiare Poppa o Finiture per mascherare una scopertura.
+    const selectedWorkers=(appData.workers||[]).filter(w=>w&&w.selected!==false);
+    let pool;
+    if (Number(day)===2) {
+      pool=selectedWorkers
+        .filter(w=>/alpegiani|caregnato|severin/i.test(String(w.name||'')+' '+String(w.role||'')))
+        .map(w=>w.id);
+    } else {
+      pool=[...new Set([...SABATO_UFFICIO_IDS(),SEVERIN_ID()])];
+    }
+    return [...new Set(pool)].filter(function(id) {
+      const w=workerObj(id);
+      if(!w||w.selected===false)return false;
+      if(String(w.group||'').toUpperCase()==='FINITURE')return false;
+      const blob=(String(w.name||'')+' '+String(w.role||'')).toLowerCase();
+      if(/finitur|idalia|sandrini/.test(blob))return false;
+      return true;
+    });
   }
 
   function analyzeCoverage(week) {
@@ -12554,9 +12563,31 @@ function minLunchBreakMinutes(wId) {
     }
     return out;
   }
+  function smartExperienceLevelFor(worker, areaKey){
+    const profile=(worker&&worker.profile)||{};
+    const aliases={
+      opening:{legacy:'openingExperience',re:/apertura|opening/i},
+      sand:{legacy:'sandExperience',re:/sabbia|sand/i},
+      loader:{legacy:'loaderExperience',re:/pala|caricatrice|ruspa|loader/i},
+      loading:{legacy:'loadingExperience',re:/camion|carico|preparazione ordini|loading/i}
+    };
+    const cfg=aliases[areaKey];
+    if(!cfg)return 'unknown';
+    const areas=Array.isArray(profile.experienceAreas)?profile.experienceAreas:[];
+    const hit=areas.find(a=>a&&(String(a.id||'').toLowerCase()===areaKey||cfg.re.test(String(a.label||''))));
+    const level=(hit&&hit.level)||profile[cfg.legacy]||'unknown';
+    return ['unknown','assisted','autonomous','mentor'].includes(level)?level:'unknown';
+  }
+
   function smartCoverageMetrics(week,day){
-    const mag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()].filter(id=>!!workerObj(id));
-    const imp=[...SABATO_UFFICIO_IDS(),SEVERIN_ID()].filter(id=>!!workerObj(id));
+    const configuredMag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()];
+    const mag=[...new Set([
+      ...configuredMag,
+      ...(appData.workers||[])
+        .filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true)
+        .map(w=>w.id)
+    ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
+    const imp=officeCoverageIdsForDay(day);
     return {
       magOpen:allIntervalsCovered(week,mag,day,'06:30','08:30',R().minAperturaMag??2,15),
       magClose:allIntervalsCovered(week,mag,day,'17:00','17:30',1,15),
@@ -12578,9 +12609,7 @@ function minLunchBreakMinutes(wId) {
     const mag = [...new Set([
       ...configuredMag,
       ...(appData.workers || [])
-        .filter(w => w && w.selected !== false &&
-          (String(w.group || '').toUpperCase() === 'MAGAZZINO' ||
-           workerBrain(w).warehouse === true))
+        .filter(w => w && w.selected !== false && smartWorkerBrainProfile(w).warehouse === true)
         .map(w => w.id)
     ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
 
@@ -12803,9 +12832,8 @@ function minLunchBreakMinutes(wId) {
       if(burden>0 && delta[f]>0){ score-=Math.min(180,wgt*burden*delta[f]); why.push(`${f} storico sopra media`); }
     });
     if(profile.jolly) { score+=15; why.push('Jolly disponibile'); }
-    const exp = (w && w.profile) || {};
     if (profile.warehouse && shift && shift.mIn === '06:30') {
-      const level = exp.openingExperience || 'unknown';
+      const level = smartExperienceLevelFor(w, 'opening');
       const openingBonus = level === 'mentor' ? 65 : level === 'autonomous' ? 35 : level === 'assisted' ? -20 : 0;
       if (openingBonus) { score += openingBonus; why.push('esperienza apertura: ' + level); }
     }
