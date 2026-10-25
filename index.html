@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.53</title>
+  <title>Turni Corvetto v9.12.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.53';
+    const APP_VERSION = '9.12.0';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.12.0 — Design 2.0: profondità 3D soft, superfici elevate, home e controlli più premium (tabella resta leggibile)',
     '9.11.53 — Contrasto UI (pulsanti leggibili) + colori PDF per eventi/malattia/ricovero',
     '9.11.52 — Colori malattia/ricovero allineati e contrastati (palette distinta, tema chiaro/scuro)',
     '9.11.51 — Fail closed verifica coperture: errore/assenza verificatore blocca proposta (non forzabile); test di sicurezza; Poppa resta nel pool',
@@ -151,47 +152,72 @@
 
   <style>
     :root {
-      /* v7.1.1 — moderno ma sobrio: blu, alto contrasto */
-      --bg-deep: #0f1419;
-      --card-bg: #1a222d;
-      --card-bg-hover: #243040;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-2: #0ea5e9;
+      /* Design 2.0 — operational clean + soft 3D depth */
+      --bg-deep: #0b1220;
+      --bg-accent: #12203a;
+      --card-bg: #152033;
+      --card-bg-hover: #1c2b44;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-2: #38bdf8;
       --text-main: #f8fafc;
-      --text-muted: #cbd5e1;
-      --border: rgba(255, 255, 255, 0.12);
-      --danger: #ef4444;
-      --success: #10b981;
-      --radius: 14px;
-      --radius-sm: 10px;
-      --shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45);
-      --header-grad: linear-gradient(135deg, #1a222d 0%, #1e293b 100%);
+      --text-muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.16);
+      --danger: #f87171;
+      --success: #34d399;
+      --radius: 18px;
+      --radius-sm: 12px;
+      --shadow:
+        0 1px 0 rgba(255,255,255,0.06) inset,
+        0 10px 28px -10px rgba(0, 0, 0, 0.55),
+        0 4px 10px -4px rgba(0, 0, 0, 0.35);
+      --shadow-sm:
+        0 1px 0 rgba(255,255,255,0.05) inset,
+        0 4px 12px -4px rgba(0,0,0,0.4);
+      --shadow-float:
+        0 1px 0 rgba(255,255,255,0.08) inset,
+        0 18px 40px -16px rgba(0,0,0,0.6),
+        0 8px 16px -8px rgba(37,99,235,0.25);
+      --header-grad: linear-gradient(145deg, #1a2740 0%, #152033 55%, #0f1a2e 100%);
       --header-text: #ffffff;
-      --th-bg: #1e293b;
-      --name-bg: #151b24;
-      --glow: none;
-      --font: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      --th-bg: #1a2740;
+      --name-bg: #111827;
+      --glow: 0 0 0 1px rgba(59,130,246,0.15);
+      --font: "Segoe UI", system-ui, -apple-system, "SF Pro Text", Roboto, sans-serif;
+      --elev-1: translateY(0);
+      --elev-2: translateY(-1px);
+      --elev-3: translateY(-2px);
     }
 
     body.light-theme {
-      --bg-deep: #f1f5f9;
+      --bg-deep: #e8eef7;
+      --bg-accent: #dbe7f6;
       --card-bg: #ffffff;
       --card-bg-hover: #f8fafc;
-      --primary: #1d4ed8;
-      --primary-hover: #1e40af;
-      --primary-2: #0369a1;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-2: #0284c7;
       --text-main: #0f172a;
       --text-muted: #475569;
-      --border: rgba(15, 23, 42, 0.14);
+      --border: rgba(15, 23, 42, 0.1);
       --danger: #dc2626;
-      --success: #047857;
-      --shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.12);
-      --header-grad: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+      --success: #059669;
+      --shadow:
+        0 1px 0 rgba(255,255,255,0.9) inset,
+        0 10px 28px -12px rgba(15, 23, 42, 0.18),
+        0 2px 6px -2px rgba(15, 23, 42, 0.08);
+      --shadow-sm:
+        0 1px 0 rgba(255,255,255,0.95) inset,
+        0 3px 10px -3px rgba(15,23,42,0.12);
+      --shadow-float:
+        0 1px 0 #fff inset,
+        0 16px 36px -14px rgba(37,99,235,0.22),
+        0 6px 14px -6px rgba(15,23,42,0.12);
+      --header-grad: linear-gradient(145deg, #ffffff 0%, #f1f6fc 100%);
       --header-text: #0f172a;
       --th-bg: #e2e8f0;
       --name-bg: #f8fafc;
-      --glow: none;
+      --glow: 0 0 0 1px rgba(37,99,235,0.12);
     }
 
     
@@ -2257,7 +2283,270 @@
     td.cell-shift.manual-edit { box-shadow: inset 0 0 0 1.5px rgba(37,99,235,.35); }
     .manual-hint { font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.35; }
 
-</style>
+
+
+    /* ========== DESIGN 2.0 — soft 3D / elevated operational UI ========== */
+    html { color-scheme: dark light; }
+    body {
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(59,130,246,0.18), transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, rgba(14,165,233,0.12), transparent 50%),
+        radial-gradient(800px 400px at 50% 100%, rgba(16,185,129,0.08), transparent 50%),
+        var(--bg-deep) !important;
+      background-attachment: fixed;
+    }
+    body.light-theme {
+      background:
+        radial-gradient(1000px 500px at 0% 0%, rgba(37,99,235,0.10), transparent 50%),
+        radial-gradient(800px 400px at 100% 0%, rgba(14,165,233,0.08), transparent 45%),
+        linear-gradient(180deg, #eef3fa 0%, #e8eef7 100%) !important;
+    }
+
+    /* Elevated surfaces */
+    .header,
+    .control-card,
+    .card,
+    .op-hero,
+    .op-card,
+    .modal .modal-content,
+    .modal-content,
+    #tableContainer {
+      border-radius: var(--radius) !important;
+      box-shadow: var(--shadow) !important;
+      border: 1px solid var(--border) !important;
+      background: var(--card-bg);
+      position: relative;
+    }
+    .header {
+      background: var(--header-grad) !important;
+      box-shadow: var(--shadow-float) !important;
+      padding: 12px 14px !important;
+    }
+    body.light-theme .header {
+      background: var(--header-grad) !important;
+    }
+
+    .control-card,
+    .card,
+    .op-card {
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .control-card:hover,
+    .card:hover,
+    .op-card:hover {
+      transform: var(--elev-2);
+      box-shadow: var(--shadow-float) !important;
+    }
+
+    /* Hero 3D */
+    .op-hero {
+      background:
+        linear-gradient(145deg, rgba(59,130,246,0.22), rgba(14,165,233,0.10) 45%, rgba(16,185,129,0.10)) !important;
+      border: 1px solid rgba(59,130,246,0.28) !important;
+      box-shadow: var(--shadow-float) !important;
+      overflow: hidden;
+    }
+    .op-hero::before {
+      content: "";
+      position: absolute; inset: 0 auto auto 0; width: 140px; height: 140px;
+      background: radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%);
+      pointer-events: none;
+    }
+    body.light-theme .op-hero {
+      background: linear-gradient(145deg, #eff6ff, #e0f2fe 50%, #ecfdf5) !important;
+      border-color: #93c5fd !important;
+    }
+    .op-hero h2 {
+      font-size: 1.35rem !important;
+      letter-spacing: -0.03em;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    /* 3D-ish buttons */
+    button, .btn {
+      border-radius: 14px !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.12) inset,
+        0 6px 14px -6px rgba(0,0,0,0.35) !important;
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease !important;
+    }
+    button:hover, .btn:hover {
+      transform: var(--elev-2);
+      filter: brightness(1.05);
+    }
+    button:active, .btn:active {
+      transform: translateY(1px) !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.08) inset,
+        0 2px 6px -2px rgba(0,0,0,0.3) !important;
+    }
+    button.primary,
+    .op-actions .primary,
+    .btn-proposal,
+    #btnGenerateProposal,
+    button[onclick*="generateAutoProposal"] {
+      background: linear-gradient(180deg, #60a5fa 0%, #2563eb 48%, #1d4ed8 100%) !important;
+      color: #fff !important;
+      border: 1px solid #1e40af !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.25) inset,
+        0 10px 22px -8px rgba(37,99,235,0.55),
+        0 3px 8px -3px rgba(0,0,0,0.25) !important;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+      font-weight: 800 !important;
+    }
+    body.light-theme button.primary,
+    body.light-theme .op-actions .primary,
+    body.light-theme .btn-proposal,
+    body.light-theme #btnGenerateProposal {
+      background: linear-gradient(180deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%) !important;
+    }
+    .op-actions .secondary {
+      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
+      color: #0f172a !important;
+      border: 1px solid #94a3b8 !important;
+      box-shadow:
+        0 1px 0 #fff inset,
+        0 6px 14px -8px rgba(15,23,42,0.25) !important;
+    }
+    body:not(.light-theme) .op-actions .secondary {
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
+      color: #f8fafc !important;
+      border: 1px solid #475569 !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.08) inset,
+        0 8px 16px -8px rgba(0,0,0,0.5) !important;
+    }
+    button.success {
+      background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
+      color: #fff !important;
+      border: 1px solid #047857 !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.2) inset,
+        0 8px 18px -8px rgba(16,185,129,0.45) !important;
+    }
+    button.alt {
+      background: linear-gradient(180deg, rgba(148,163,184,0.16), rgba(148,163,184,0.08)) !important;
+      color: var(--text-main) !important;
+      border: 1px solid var(--border) !important;
+    }
+    body.light-theme button.alt {
+      background: linear-gradient(180deg, #fff, #f1f5f9) !important;
+      color: #0f172a !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+
+    /* Nav pills 3D */
+    .nav-tabs button,
+    .view-toggle button,
+    .header .nav-tabs button {
+      border-radius: 999px !important;
+      box-shadow: var(--shadow-sm) !important;
+    }
+    .nav-tabs button.active,
+    .view-toggle button.active {
+      background: linear-gradient(180deg, #60a5fa, #2563eb) !important;
+      color: #fff !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.2) inset,
+        0 6px 14px -6px rgba(37,99,235,0.5) !important;
+    }
+
+    /* Table: solid & readable, light 3D frame only */
+    #tableContainer {
+      overflow: hidden;
+      background: var(--card-bg) !important;
+    }
+    #tableContainer table {
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
+    }
+    #tableContainer th {
+      background: linear-gradient(180deg, var(--th-bg), color-mix(in srgb, var(--th-bg) 85%, #000)) !important;
+      color: var(--text-main) !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.02em;
+      border-bottom: 2px solid rgba(59,130,246,0.35) !important;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.06);
+    }
+    body.light-theme #tableContainer th {
+      background: linear-gradient(180deg, #f8fafc, #e2e8f0) !important;
+      color: #0f172a !important;
+    }
+    #tableContainer td.cell-shift {
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    #tableContainer td.cell-shift:hover {
+      box-shadow: inset 0 0 0 2px rgba(59,130,246,0.35);
+      z-index: 1;
+    }
+    #tableContainer td:first-child {
+      background: var(--name-bg) !important;
+      font-weight: 800;
+      box-shadow: 2px 0 8px -4px rgba(0,0,0,0.2);
+    }
+
+    /* Status chips / pills with depth */
+    .op-pill,
+    .week-status-chip,
+    .cell-badge {
+      box-shadow: var(--shadow-sm) !important;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    body.light-theme .op-pill,
+    body.light-theme .week-status-chip,
+    body.light-theme .cell-badge {
+      border-color: rgba(15,23,42,0.08);
+    }
+
+    /* Bottom nav elevated bar */
+    .bottom-nav {
+      background: color-mix(in srgb, var(--card-bg) 92%, transparent) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border) !important;
+      box-shadow: 0 -8px 24px -12px rgba(0,0,0,0.35) !important;
+    }
+    body.light-theme .bottom-nav {
+      background: rgba(255,255,255,0.92) !important;
+      box-shadow: 0 -8px 24px -12px rgba(15,23,42,0.12) !important;
+    }
+    .bottom-nav button.active {
+      background: linear-gradient(180deg, rgba(59,130,246,0.2), rgba(59,130,246,0.08)) !important;
+      color: var(--primary) !important;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Modals float */
+    .modal .modal-content,
+    .modal-content {
+      box-shadow: var(--shadow-float) !important;
+      border: 1px solid var(--border) !important;
+    }
+
+    /* Inputs inset 3D */
+    input, select, textarea {
+      border-radius: 12px !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.04) inset,
+        inset 0 2px 4px rgba(0,0,0,0.12) !important;
+      border: 1px solid var(--border) !important;
+    }
+    body.light-theme input,
+    body.light-theme select,
+    body.light-theme textarea {
+      box-shadow:
+        0 1px 0 #fff inset,
+        inset 0 2px 4px rgba(15,23,42,0.04) !important;
+      background: #fff !important;
+    }
+
+    /* Soft reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+
+  </style>
 </head>
 <body>
 
@@ -2280,7 +2569,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.53</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.12.0</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2302,7 +2591,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.53</small>
+          <small id="appVersionLabel">CORVETTO · V9.12.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -8126,7 +8415,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.53', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.12.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
