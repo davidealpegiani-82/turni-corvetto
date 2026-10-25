@@ -2143,6 +2143,17 @@
     td.cell-shift.manual-edit { box-shadow: inset 0 0 0 1.5px rgba(37,99,235,.35); }
     .manual-hint { font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.35; }
 
+
+    /* v9.11.48 — azioni frequenti, dimensionate per telefono e desktop */
+    .op-quick-actions { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 8px; align-items:stretch; }
+    .op-quick-actions button { min-height:40px; }
+    .week-quick-actions { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; align-items:center; }
+    .week-quick-actions button { min-height:38px; }
+    @media(max-width:560px) {
+      .op-quick-actions button { flex:1 1 calc(50% - 8px); min-width:0; padding:9px 8px; font-size:12px; }
+      .week-quick-actions button { flex:1 1 calc(50% - 8px); min-width:0; padding:9px 8px; font-size:12px; }
+    }
+
 </style>
 </head>
 <body>
@@ -2301,11 +2312,13 @@
   <div class="op-section-title">Impegni</div>
   <div class="op-card"><ul class="op-list" id="opEventsList"></ul></div>
 
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;">
-    <button type="button" class="alt" onclick="switchView('turni')">Apri tabella turni</button>
+  <div class="op-quick-actions" aria-label="Azioni rapide">
+    <button type="button" class="alt" onclick="switchView('turni')">📅 Apri tabella turni</button>
     <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
-    <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
-    <button type="button" class="alt" onclick="switchView('eventi')">Tutti gli impegni</button>
+    <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist</button>
+    <button type="button" class="alt" onclick="switchView('eventi')">🗓️ Tutti gli impegni</button>
+    <button type="button" class="alt" onclick="runGlobalAiWeekProblems()">🧠 Analizza settimana</button>
+    <button type="button" class="alt" onclick="openTeamModal()">👥 Competenze</button>
   </div>
 </div>
 
@@ -2325,9 +2338,12 @@
       <div id="weekHomeEvents" class="empty">—</div>
     </div>
   </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist settimana</button>
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
+  <div class="week-quick-actions" aria-label="Azioni rapide settimana">
+    <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist settimana</button>
+    <button type="button" class="alt" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
+    <button type="button" class="alt" onclick="runGlobalAiWeekProblems()">🧠 Analizza settimana</button>
+    <button type="button" class="alt" onclick="openTeamModal()">👥 Competenze</button>
+    <button type="button" class="alt" onclick="runSmartBrainRegressionSuite()">🧪 Test motore</button>
   </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
