@@ -13548,10 +13548,10 @@ function minLunchBreakMinutes(wId) {
     if (!clearMode) {
       var ans = window.prompt(
         'Genera proposta — cosa fare della settimana corrente?\n\n' +
-        '1 = Svuota tutto e rigenera\n' +
-        '2 = Solo celle vuote\n' +
-        '3 = Solo celle non modificate a mano\n\n' +
-        'Scrivi 1, 2 o 3',
+        '1 = Rigenera i turni automatici (mantiene manuali, assenze e turni fissi)\n' +
+        '2 = Completa solo le celle vuote\n' +
+        '3 = Rigenera le celle automatiche non modificate a mano\n\n' +
+        'Le modifiche manuali e le indisponibilità restano protette.\nScrivi 1, 2 o 3',
         '1'
       );
       if (ans === null) { showToast('Generazione annullata', 'info', 2500); return; }
