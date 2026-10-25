@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.12.0</title>
+  <title>Turni Corvetto v10.0.0</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.12.0';
+    const APP_VERSION = '10.0.0';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '10.0.0 — Corvetto Pulse: radar zone negozio, timeline settimanale, giorno a carte (tabella e PDF restano)',
     '9.12.0 — Design 2.0: profondità 3D soft, superfici elevate, home e controlli più premium (tabella resta leggibile)',
     '9.11.53 — Contrasto UI (pulsanti leggibili) + colori PDF per eventi/malattia/ricovero',
     '9.11.52 — Colori malattia/ricovero allineati e contrastati (palette distinta, tema chiaro/scuro)',
@@ -2285,7 +2286,179 @@
 
 
 
-    /* ========== DESIGN 2.0 — soft 3D / elevated operational UI ========== */
+    
+    /* ========== CORVETTO PULSE 10.0 ========== */
+    .pulse-shell { max-width: 820px; margin: 0 auto; padding-bottom: 12px; }
+    .pulse-top {
+      display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start;
+      justify-content:space-between; margin-bottom: 14px;
+    }
+    .pulse-brand { display:flex; gap:12px; align-items:flex-start; }
+    .pulse-live-dot {
+      width:12px; height:12px; border-radius:50%; margin-top:8px; flex-shrink:0;
+      background: #22c55e;
+      box-shadow: 0 0 0 0 rgba(34,197,94,.55);
+      animation: pulseLive 2s infinite;
+    }
+    @keyframes pulseLive {
+      0% { box-shadow: 0 0 0 0 rgba(34,197,94,.45); }
+      70% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+    .pulse-kicker {
+      font-size: 10px; font-weight: 900; letter-spacing: .14em;
+      color: var(--primary); margin-bottom: 2px;
+    }
+    .pulse-title { margin: 0 0 4px; font-size: 1.45rem; font-weight: 900; letter-spacing: -0.03em; }
+    .pulse-sub { margin: 0; font-size: 13px; color: var(--text-muted); }
+    .pulse-section-label {
+      font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-muted); margin: 16px 0 8px;
+    }
+    .pulse-zones {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    @media (max-width: 720px) {
+      .pulse-zones { grid-template-columns: 1fr; }
+    }
+    .pulse-zone {
+      text-align: left; cursor: pointer;
+      border-radius: 18px !important;
+      padding: 14px 14px 12px !important;
+      background: var(--card-bg) !important;
+      border: 1px solid var(--border) !important;
+      box-shadow: var(--shadow) !important;
+      color: var(--text-main) !important;
+      min-height: 104px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .pulse-zone:hover { transform: translateY(-2px); }
+    .pulse-zone.is-focus {
+      border-color: rgba(59,130,246,.55) !important;
+      box-shadow: var(--shadow-float) !important;
+    }
+    .pulse-zone-head {
+      display:flex; justify-content:space-between; align-items:center;
+      font-weight: 800; font-size: 14px;
+    }
+    .pulse-sem {
+      font-size: 11px; font-weight: 900; padding: 3px 8px; border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .pulse-sem.ok { background: rgba(34,197,94,.16); color: #16a34a; }
+    .pulse-sem.warn { background: rgba(245,158,11,.18); color: #d97706; }
+    .pulse-sem.bad { background: rgba(239,68,68,.16); color: #dc2626; }
+    body:not(.light-theme) .pulse-sem.ok { color: #4ade80; }
+    body:not(.light-theme) .pulse-sem.warn { color: #fbbf24; }
+    body:not(.light-theme) .pulse-sem.bad { color: #f87171; }
+    .pulse-zone-metrics { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+    .pulse-zone-hint { font-size: 11px; color: var(--text-muted); }
+
+    .pulse-week {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+    }
+    .pulse-day-chip {
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 10px 6px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      color: var(--text-main);
+      min-height: 64px;
+    }
+    .pulse-day-chip .dname { font-size: 11px; font-weight: 800; opacity: .85; }
+    .pulse-day-chip .dnum { font-size: 16px; font-weight: 900; margin: 2px 0; }
+    .pulse-day-chip .dheat {
+      height: 6px; border-radius: 999px; margin-top: 6px;
+      background: #22c55e;
+    }
+    .pulse-day-chip.heat-warn .dheat { background: #f59e0b; }
+    .pulse-day-chip.heat-bad .dheat { background: #ef4444; }
+    .pulse-day-chip.is-active {
+      border-color: rgba(59,130,246,.6);
+      box-shadow: var(--shadow-float);
+      transform: translateY(-1px);
+    }
+
+    .pulse-day-panel {
+      margin-top: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .pulse-day-head {
+      display:flex; justify-content:space-between; align-items:center;
+      gap: 8px; margin-bottom: 10px;
+    }
+    .pulse-day-head h3 { margin: 0; font-size: 1.05rem; font-weight: 900; }
+    .pulse-mini { min-height: 34px !important; font-size: 12px !important; padding: 6px 10px !important; }
+    .pulse-day-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    @media (max-width: 640px) {
+      .pulse-day-grid { grid-template-columns: 1fr; }
+      .pulse-week { gap: 4px; }
+      .pulse-day-chip { padding: 8px 4px; min-height: 58px; }
+    }
+    .pulse-lane {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--card-bg) 90%, #000 4%);
+      padding: 10px;
+      min-height: 120px;
+    }
+    body.light-theme .pulse-lane { background: #f8fafc; }
+    .pulse-lane h4 {
+      margin: 0 0 8px; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text-muted); font-weight: 800;
+    }
+    .pulse-lane.gap {
+      border-color: rgba(239,68,68,.35);
+      background: rgba(239,68,68,.06);
+    }
+    .pulse-person {
+      display:flex; justify-content:space-between; gap:8px;
+      padding: 7px 8px; border-radius: 10px; margin-bottom: 6px;
+      background: rgba(59,130,246,.08);
+      border: 1px solid rgba(59,130,246,.12);
+      font-size: 12px; font-weight: 700;
+    }
+    body.light-theme .pulse-person { background: #eff6ff; }
+    .pulse-person .role { font-size: 10px; font-weight: 700; color: var(--text-muted); }
+    .pulse-empty-gap {
+      font-size: 12px; font-weight: 800; color: #dc2626;
+      padding: 10px 8px; border-radius: 10px;
+      background: rgba(239,68,68,.08);
+    }
+    body:not(.light-theme) .pulse-empty-gap { color: #f87171; }
+
+    .pulse-actions { margin: 16px 0 8px; }
+    .pulse-cta {
+      width: 100%; min-height: 52px !important; font-size: 15px !important;
+      border-radius: 16px !important; margin-bottom: 8px;
+    }
+    .pulse-actions-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    }
+    @media (max-width: 640px) {
+      .pulse-actions-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    .pulse-two-col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    @media (max-width: 720px) {
+      .pulse-two-col { grid-template-columns: 1fr; }
+    }
+    .pulse-list-card { margin: 0 !important; }
+    .pulse-footer-links {
+      display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 8px;
+    }
+
+/* ========== DESIGN 2.0 — soft 3D / elevated operational UI ========== */
     html { color-scheme: dark light; }
     body {
       background:
@@ -2569,7 +2742,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.12.0</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.0.0</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2591,7 +2764,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.12.0</small>
+          <small id="appVersionLabel">CORVETTO · V10.0.0</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2600,7 +2773,7 @@
       </div>
     </div>
     <div class="nav-tabs view-tabs">
-      <button type="button" id="tabOggi" class="active-tab" onclick="switchView('oggi')">🏠 Oggi</button>
+      <button type="button" id="tabOggi" class="active-tab" onclick="switchView('oggi')">📡 Pulse</button>
       <button type="button" id="tabTurni" onclick="switchView('turni')">📋 Turni</button>
       <button type="button" id="tabFerie" onclick="switchView('ferie')">🏖️ Assenze</button>
       <button type="button" id="tabAltro" onclick="toggleMoreNav()">⋯ Altro</button>
@@ -2681,34 +2854,77 @@
 </div>
 
 
-<div id="viewOggi" class="op-shell">
-  <div class="op-hero">
-    <h2 id="opHeroTitle">Questa settimana</h2>
-    <p id="opHeroSub">Stato operativo della filiale</p>
+<div id="viewOggi" class="op-shell pulse-shell">
+  <div class="pulse-top">
+    <div class="pulse-brand">
+      <div class="pulse-live-dot" aria-hidden="true"></div>
+      <div>
+        <div class="pulse-kicker">CORVETTO PULSE</div>
+        <h2 id="opHeroTitle" class="pulse-title">Questa settimana</h2>
+        <p id="opHeroSub" class="pulse-sub">Radar operativo della filiale</p>
+      </div>
+    </div>
     <div class="op-status-row" id="opStatusRow"></div>
   </div>
 
-  <div class="op-actions">
-    <button type="button" class="primary" onclick="generateAutoProposal()">✨ Genera turni</button>
-    <button type="button" class="secondary" onclick="openManualEditPicker()">✏️ Modifica turno</button>
-    <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
-    <button type="button" class="secondary" onclick="publishWeekOperational()">📤 Pubblica</button>
+  <div class="pulse-zones" id="pulseZones">
+    <button type="button" class="pulse-zone" data-zone="ufficio" onclick="pulseFocusZone('ufficio')">
+      <div class="pulse-zone-head"><span>Banco edile</span><span class="pulse-sem" id="pulseSemUfficio">—</span></div>
+      <div class="pulse-zone-metrics" id="pulseMetUfficio">Apertura — · Chiusura —</div>
+      <div class="pulse-zone-hint" id="pulseHintUfficio">Tocca un giorno sotto</div>
+    </button>
+    <button type="button" class="pulse-zone" data-zone="magazzino" onclick="pulseFocusZone('magazzino')">
+      <div class="pulse-zone-head"><span>Magazzino</span><span class="pulse-sem" id="pulseSemMag">—</span></div>
+      <div class="pulse-zone-metrics" id="pulseMetMag">Apertura — · Chiusura —</div>
+      <div class="pulse-zone-hint" id="pulseHintMag">Tocca un giorno sotto</div>
+    </button>
+    <button type="button" class="pulse-zone" data-zone="finiture" onclick="pulseFocusZone('finiture')">
+      <div class="pulse-zone-head"><span>Finiture</span><span class="pulse-sem" id="pulseSemFin">—</span></div>
+      <div class="pulse-zone-metrics" id="pulseMetFin">Presenze —</div>
+      <div class="pulse-zone-hint" id="pulseHintFin">Area autonoma</div>
+    </button>
   </div>
 
-  <div class="op-section-title">Cosa fare ora</div>
+  <div class="pulse-section-label">Settimana</div>
+  <div class="pulse-week" id="pulseWeekStrip" role="tablist" aria-label="Giorni settimana"></div>
+
+  <div class="pulse-day-panel" id="pulseDayPanel">
+    <div class="pulse-day-head">
+      <h3 id="pulseDayTitle">Giorno</h3>
+      <button type="button" class="alt pulse-mini" onclick="switchView('turni')">Vista tabella</button>
+    </div>
+    <div class="pulse-day-grid" id="pulseDayGrid"></div>
+  </div>
+
+  <div class="pulse-actions">
+    <button type="button" class="primary pulse-cta" onclick="generateAutoProposal()">✨ Sistema la settimana</button>
+    <div class="pulse-actions-row">
+      <button type="button" class="secondary" onclick="openManualEditPicker()">✏️ Modifica</button>
+      <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
+      <button type="button" class="secondary" onclick="if(typeof exportTableToJPG==='function')exportTableToJPG(); else if(typeof buildPDFDocument==='function'){var d=buildPDFDocument(); if(d)d.save('Turni.pdf');}">📄 PDF</button>
+      <button type="button" class="secondary" onclick="publishWeekOperational()">📤 Pubblica</button>
+    </div>
+  </div>
+
+  <div class="pulse-section-label">Interventi</div>
   <div id="opSuggestions"></div>
 
-  <div class="op-section-title">Assenze</div>
-  <div class="op-card"><ul class="op-list" id="opLeavesList"></ul></div>
+  <div class="pulse-two-col">
+    <div>
+      <div class="pulse-section-label">Assenze</div>
+      <div class="op-card pulse-list-card"><ul class="op-list" id="opLeavesList"></ul></div>
+    </div>
+    <div>
+      <div class="pulse-section-label">Impegni</div>
+      <div class="op-card pulse-list-card"><ul class="op-list" id="opEventsList"></ul></div>
+    </div>
+  </div>
 
-  <div class="op-section-title">Impegni</div>
-  <div class="op-card"><ul class="op-list" id="opEventsList"></ul></div>
-
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;">
-    <button type="button" class="alt" onclick="switchView('turni')">Apri tabella turni</button>
-    <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
-    <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
-    <button type="button" class="alt" onclick="switchView('eventi')">Tutti gli impegni</button>
+  <div class="pulse-footer-links">
+    <button type="button" class="alt" onclick="switchView('turni')">📊 Tabella classica</button>
+    <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist</button>
+    <button type="button" class="alt" onclick="switchView('eventi')">📌 Impegni</button>
+    <button type="button" class="alt" onclick="switchView('malattia')">🤒 Malattia</button>
   </div>
 </div>
 
@@ -5199,8 +5415,84 @@ function isUsableAppData(value) {
   }
   window.applyOperationalSuggestion = applyOperationalSuggestion;
 
+  var _pulseSelectedDay = null;
+  var _pulseFocusZone = 'ufficio';
+
+  function pulseFocusZone(z) {
+    _pulseFocusZone = z || 'ufficio';
+    try {
+      document.querySelectorAll('.pulse-zone').forEach(function(el) {
+        el.classList.toggle('is-focus', el.getAttribute('data-zone') === _pulseFocusZone);
+      });
+    } catch (e) {}
+    renderOperationalHome();
+  }
+  window.pulseFocusZone = pulseFocusZone;
+
+  function pulseSelectDay(dayIdx) {
+    _pulseSelectedDay = dayIdx;
+    renderOperationalHome();
+  }
+  window.pulseSelectDay = pulseSelectDay;
+
+  function pulseWhoAt(week, ids, day, tMin) {
+    const out = [];
+    const unique = [...new Set(ids || [])];
+    unique.forEach(function(id) {
+      const w = workerObj(id);
+      if (!w || w.selected === false) return;
+      if (typeof coveredAt === 'function' && coveredAt(cellAt(week, id, day), tMin)) {
+        const cell = cellAt(week, id, day) || {};
+        const times = (typeof formatWorkHoursOnly === 'function') ? formatWorkHoursOnly(cell) : '';
+        out.push({
+          id: id,
+          name: w.name || id,
+          short: (w.name || id).split(' ').slice(-1)[0],
+          times: times,
+          cell: cell
+        });
+      }
+    });
+    return out;
+  }
+
+  function pulseFinitureIds() {
+    return (appData.workers || []).filter(function(w) {
+      return w.selected !== false && String(w.group || '').toUpperCase() === 'FINITURE';
+    }).map(function(w) { return w.id; });
+  }
+
+  function pulseLevel(okOpen, okClose) {
+    if (okOpen && okClose) return 'ok';
+    if (!okOpen && !okClose) return 'bad';
+    return 'warn';
+  }
+
   function renderOperationalHome() {
     const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : { level:'ok', label:'', leaves:[], events:[] };
+    const weekKey = currentWeekKey;
+    const week = (appData.weeks && appData.weeks[weekKey]) || {};
+    const cov = (typeof analyzeCoverage === 'function') ? analyzeCoverage(week) : [];
+
+    // Default day: today if in week, else first problematic, else 0
+    if (_pulseSelectedDay == null || _pulseSelectedDay < 0 || _pulseSelectedDay > 5) {
+      try {
+        const today = new Date(); today.setHours(12,0,0,0);
+        const di = (typeof dateToDayIdx === 'function') ? dateToDayIdx(today) : -1;
+        let monday = null;
+        try { monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null; } catch (e0) {}
+        if (di >= 0 && di <= 5 && monday) {
+          const end = new Date(monday); end.setDate(monday.getDate() + 5);
+          if (today >= monday && today <= end) _pulseSelectedDay = di;
+        }
+        if (_pulseSelectedDay == null) {
+          const bad = cov.find(function(r) { return !r.magOk || !r.impOk; });
+          _pulseSelectedDay = bad ? bad.dayIdx : 0;
+        }
+      } catch (e) { _pulseSelectedDay = 0; }
+    }
+    const day = _pulseSelectedDay;
+
     const title = document.getElementById('opHeroTitle');
     const sub = document.getElementById('opHeroSub');
     const status = document.getElementById('opStatusRow');
@@ -5208,36 +5500,174 @@ function isUsableAppData(value) {
       try {
         title.textContent = (typeof getWeekDisplayLabel === 'function')
           ? getWeekDisplayLabel(currentDate)
-          : ('Settimana ' + (currentWeekKey || ''));
+          : ('Settimana ' + (weekKey || ''));
       } catch (e) { title.textContent = 'Questa settimana'; }
     }
     if (sub) {
-      sub.textContent = health.level === 'ok'
-        ? 'Nessun problema critico. Puoi pubblicare o generare i turni.'
-        : 'Ci sono punti da sistemare prima di pubblicare.';
+      const holes = cov.filter(function(r) { return !r.magOk || !r.impOk; }).length;
+      sub.textContent = holes
+        ? (holes + ' giorn' + (holes === 1 ? 'o' : 'i') + ' con pressione su aperture/chiusure')
+        : 'Filiale stabile — puoi pubblicare o esportare il PDF';
     }
     if (status) {
       const cls = health.level === 'bad' ? 'bad' : (health.level === 'warn' ? 'warn' : 'ok');
       status.innerHTML = '<span class="op-pill ' + cls + '">' + escapeHtmlV47(health.label || 'Stato') + '</span>';
     }
-    const box = document.getElementById('opSuggestions');
-    if (box) {
-      const sugs = buildOperationalSuggestions();
-      box.innerHTML = sugs.map(function(s) {
-        const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
-        return '<div class="op-card">' +
-          '<div class="op-card-head"><strong>' + escapeHtmlV47(s.title) + '</strong>' +
-          '<span class="meta ' + escapeHtmlV47(s.level || '') + '">' + escapeHtmlV47(s.level) + '</span></div>' +
-          '<p class="detail">' + escapeHtmlV47(s.detail || '') + '</p>' +
-          '<div class="op-card-actions">' +
-          '<button type="button" class="' + (s.level === 'ok' ? 'alt' : 'btn-proposal') +
-          '" data-op-action=\'' + act + '\' onclick="applyOperationalSuggestion(JSON.parse(this.getAttribute(\'data-op-action\')))">' +
-          escapeHtmlV47(s.actionLabel || 'Ok') + '</button>' +
-          (s.action && s.action.type === 'put_close'
-            ? '<button type="button" class="alt" onclick="switchView(\'turni\')">Apri tabella</button>' : '') +
-          '</div></div>';
+
+    const row = cov[day] || {};
+    const magIds = [...(typeof MAG_PAIR_A === 'function' ? MAG_PAIR_A() : []),
+      ...(typeof MAG_PAIR_B === 'function' ? MAG_PAIR_B() : []),
+      (typeof MARIO_ID === 'function' ? MARIO_ID() : null)].filter(Boolean);
+    const impIds = (typeof officeCoverageIdsForDay === 'function') ? officeCoverageIdsForDay(day) : [];
+    const finIds = pulseFinitureIds();
+    const openT = day === 5 ? timeToMin('07:30') : timeToMin('07:00');
+    const closeT = day === 5 ? timeToMin('11:15') : timeToMin('17:15');
+
+    // Zone cards for selected day
+    const uLv = pulseLevel(!!row.impOpenOk, !!row.impCloseOk);
+    const mLv = pulseLevel(!!row.magOpenOk, !!row.magCloseOk);
+    const finOpen = (typeof countCovered === 'function') ? countCovered(week, finIds, day, openT) : 0;
+    const finClose = (typeof countCovered === 'function') ? countCovered(week, finIds, day, closeT) : 0;
+    const fLv = (finOpen + finClose) > 0 || finIds.length === 0 ? 'ok' : 'warn';
+
+    function setSem(id, lv, label) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = 'pulse-sem ' + lv;
+      el.textContent = label;
+    }
+    setSem('pulseSemUfficio', uLv, uLv === 'ok' ? 'OK' : (uLv === 'bad' ? 'BUCO' : 'LIMITE'));
+    setSem('pulseSemMag', mLv, mLv === 'ok' ? 'OK' : (mLv === 'bad' ? 'BUCO' : 'LIMITE'));
+    setSem('pulseSemFin', fLv, fLv === 'ok' ? 'OK' : 'CHECK');
+
+    const mu = document.getElementById('pulseMetUfficio');
+    if (mu) mu.textContent = 'Apertura ' + (row.impOpen != null ? row.impOpen : '—') + '/' + (row.minImp != null ? row.minImp : '2') +
+      ' · Chiusura ' + (row.impClose != null ? row.impClose : '—') + '/' + (row.minCloseImp != null ? row.minCloseImp : '1');
+    const mm = document.getElementById('pulseMetMag');
+    if (mm) mm.textContent = 'Apertura ' + (row.magOpen != null ? row.magOpen : '—') + '/' + (row.minMag != null ? row.minMag : '2') +
+      ' · Chiusura ' + (row.magClose != null ? row.magClose : '—') + '/' + (row.minCloseMag != null ? row.minCloseMag : '1');
+    const mf = document.getElementById('pulseMetFin');
+    if (mf) mf.textContent = 'Presenti ~' + Math.max(finOpen, finClose) + ' · area autonoma';
+
+    const hu = document.getElementById('pulseHintUfficio');
+    if (hu) hu.textContent = uLv === 'ok' ? 'Copertura ufficio ok' : 'Serve attenzione su questo giorno';
+    const hm = document.getElementById('pulseHintMag');
+    if (hm) hm.textContent = mLv === 'ok' ? 'Magazzino coperto' : 'Rischio copertura magazzino';
+    const hf = document.getElementById('pulseHintFin');
+    if (hf) hf.textContent = 'Non entra nel pool edile';
+
+    try {
+      document.querySelectorAll('.pulse-zone').forEach(function(el) {
+        el.classList.toggle('is-focus', el.getAttribute('data-zone') === _pulseFocusZone);
+      });
+    } catch (eZ) {}
+
+    // Week strip
+    const strip = document.getElementById('pulseWeekStrip');
+    if (strip) {
+      const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
+      let dates = [];
+      try {
+        const monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null;
+        if (monday && typeof eventWeekDates === 'function') dates = eventWeekDates(monday) || [];
+      } catch (eD) {}
+      strip.innerHTML = dayNames.map(function(name, i) {
+        const r = cov[i] || {};
+        let heat = 'ok';
+        if (!r.magOk || !r.impOk) {
+          heat = (!r.magOpenOk && !r.impOpenOk) || (!r.magCloseOk && !r.impCloseOk) ? 'bad' : 'warn';
+        }
+        let num = '';
+        try { if (dates[i]) num = String(dates[i].getDate()); } catch (eN) {}
+        const active = i === day ? ' is-active' : '';
+        return '<button type="button" class="pulse-day-chip heat-' + heat + active +
+          '" onclick="pulseSelectDay(' + i + ')">' +
+          '<div class="dname">' + name + '</div>' +
+          '<div class="dnum">' + (num || (i + 1)) + '</div>' +
+          '<div class="dheat"></div></button>';
       }).join('');
     }
+
+    // Day panel title + lanes
+    const dayNamesLong = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    const dt = document.getElementById('pulseDayTitle');
+    if (dt) {
+      let extra = '';
+      try {
+        const monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null;
+        if (monday) {
+          const d = new Date(monday); d.setDate(monday.getDate() + day);
+          extra = ' · ' + d.getDate() + '/' + (d.getMonth() + 1);
+        }
+      } catch (eT) {}
+      dt.textContent = (dayNamesLong[day] || 'Giorno') + extra;
+    }
+
+    const grid = document.getElementById('pulseDayGrid');
+    if (grid) {
+      const zone = _pulseFocusZone || 'ufficio';
+      let openPeople = [], closePeople = [], openOk = true, closeOk = true, openNeed = 2, closeNeed = 1, zoneLabel = 'Zona';
+      if (zone === 'magazzino') {
+        openPeople = pulseWhoAt(week, magIds, day, openT);
+        closePeople = pulseWhoAt(week, magIds, day, closeT);
+        openOk = !!row.magOpenOk; closeOk = !!row.magCloseOk;
+        openNeed = row.minMag != null ? row.minMag : 2;
+        closeNeed = row.minCloseMag != null ? row.minCloseMag : 1;
+        zoneLabel = 'Magazzino';
+      } else if (zone === 'finiture') {
+        openPeople = pulseWhoAt(week, finIds, day, openT);
+        closePeople = pulseWhoAt(week, finIds, day, closeT);
+        openOk = openPeople.length > 0; closeOk = closePeople.length > 0;
+        openNeed = 1; closeNeed = 1;
+        zoneLabel = 'Finiture';
+      } else {
+        openPeople = pulseWhoAt(week, impIds, day, openT);
+        closePeople = pulseWhoAt(week, impIds, day, closeT);
+        openOk = !!row.impOpenOk; closeOk = !!row.impCloseOk;
+        openNeed = row.minImp != null ? row.minImp : 2;
+        closeNeed = row.minCloseImp != null ? row.minCloseImp : 1;
+        zoneLabel = 'Banco edile';
+      }
+
+      function laneHtml(title, people, ok, need) {
+        const gap = !ok;
+        let body = people.map(function(p) {
+          return '<div class="pulse-person"><span>' + escapeHtmlV47(p.short || p.name) +
+            '</span><span class="role">' + escapeHtmlV47(p.times || '') + '</span></div>';
+        }).join('');
+        if (!people.length) {
+          body = '<div class="pulse-empty-gap">Buco — serve almeno ' + need + '</div>';
+        } else if (gap) {
+          body += '<div class="pulse-empty-gap">Sotto minimo (' + people.length + '/' + need + ')</div>';
+        }
+        return '<div class="pulse-lane' + (gap ? ' gap' : '') + '"><h4>' + title + ' · ' + zoneLabel +
+          ' (' + people.length + '/' + need + ')</h4>' + body + '</div>';
+      }
+      grid.innerHTML = laneHtml('Apertura', openPeople, openOk, openNeed) +
+        laneHtml('Chiusura', closePeople, closeOk, closeNeed);
+    }
+
+    // Suggestions
+    const box = document.getElementById('opSuggestions');
+    if (box) {
+      const sugs = (typeof buildOperationalSuggestions === 'function') ? buildOperationalSuggestions() : [];
+      if (!sugs.length) {
+        box.innerHTML = '<div class="op-card"><p class="detail" style="margin:0;">Nessun intervento urgente. Usa «Sistema la settimana» se vuoi una nuova proposta.</p></div>';
+      } else {
+        box.innerHTML = sugs.map(function(s) {
+          const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
+          return '<div class="op-card">' +
+            '<div class="op-card-head"><strong>' + escapeHtmlV47(s.title) + '</strong>' +
+            '<span class="meta ' + escapeHtmlV47(s.level || '') + '">' + escapeHtmlV47(s.level) + '</span></div>' +
+            '<p class="detail">' + escapeHtmlV47(s.detail || '') + '</p>' +
+            '<div class="op-card-actions">' +
+            '<button type="button" class="' + (s.level === 'ok' ? 'alt' : 'btn-proposal') +
+            '" data-op-action=\'' + act + '\' onclick="applyOperationalSuggestion(JSON.parse(this.getAttribute(\'data-op-action\')))">' +
+            escapeHtmlV47(s.actionLabel || 'Ok') + '</button></div></div>';
+        }).join('');
+      }
+    }
+
     const leaves = document.getElementById('opLeavesList');
     if (leaves) {
       if (!health.leaves || !health.leaves.length) {
@@ -5265,6 +5695,8 @@ function isUsableAppData(value) {
     }
   }
   window.renderOperationalHome = renderOperationalHome;
+
+
 
   function publishWeekOperational() {
     try {
@@ -8415,7 +8847,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.12.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=10.0.0', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -19495,7 +19927,7 @@ async function downloadJpgFromPreview() {
 
 <nav class="bottom-nav" id="bottomNav" aria-label="Azioni rapide">
   <button type="button" onclick="switchView('oggi')">
-    <span class="ic">🏠</span>Oggi
+    <span class="ic">📡</span>Pulse
   </button>
   <button type="button" onclick="if(typeof generateAutoProposal==='function')generateAutoProposal();">
     <span class="ic">✨</span>Genera
