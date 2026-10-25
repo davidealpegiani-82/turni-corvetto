@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.47</title>
+  <title>Turni Corvetto v9.11.48</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.47';
+    const APP_VERSION = '9.11.48';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.48 — Generazione non distruttiva: copia di lavoro separata, turni manuali/assenze protetti e confronto con la settimana originale',
     '9.11.47 — Copertura mercoledì vincolata al gruppo corretto; score e scoperture allineati alle competenze reali del magazzino',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
@@ -2165,7 +2166,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.47</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.48</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2187,7 +2188,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.47</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.48</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -13452,6 +13453,32 @@ function minLunchBreakMinutes(wId) {
   }
 
 
+  // Crea la base di rigenerazione senza toccare la settimana salvata.
+  // Le celle manuali, le assenze/ROL parziali, i turni fissi e le celle
+  // non generate con contenuto restano protette; i turni generati si ricalcolano.
+  function buildRegenerationSeed(originalWeek, clearMode){
+    const original=deepClone(originalWeek||{});
+    if(clearMode==='empty') return original;
+    const seed={};
+    Object.keys(original).forEach(function(wid){
+      const days=original[wid]||{};
+      Object.keys(days).forEach(function(day){
+        const cell=days[day];
+        if(!cell) return;
+        const hasContent=!!(cell.mIn||cell.mOut||cell.pIn||cell.pOut||cell.status||cell.note||cell.leaveRequestId||cell.eventId);
+        let preserve=cell.manualEdit===true;
+        try { if(typeof isEngineLockedWorker==='function'&&isEngineLockedWorker(wid)) preserve=true; } catch(e){}
+        try { if(typeof isHardUnavailableCell==='function'&&isHardUnavailableCell(cell)) preserve=true; } catch(e){}
+        try { if(typeof isPartialRolCell==='function'&&isPartialRolCell(cell)) preserve=true; } catch(e){}
+        if(cell.generated!==true&&hasContent) preserve=true;
+        if(!preserve) return;
+        if(!seed[wid]) seed[wid]={};
+        seed[wid][day]=deepClone(cell);
+      });
+    });
+    return seed;
+  }
+
   function generateAutoProposal(){
     // exposed below
     // Percorso robusto: prima costruiamo sempre la proposta base M1-M45.
@@ -13482,27 +13509,20 @@ function minLunchBreakMinutes(wId) {
       dismissRemoteUpdate();
     } catch (eSup) {}
 
-    try {
-      if (!appData.weeks) appData.weeks = {};
-      if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
-      if (clearMode === 'all') {
-        appData.weeks[currentWeekKey] = {};
-      } else if (clearMode === 'empty') {
-        // lascia tutto com'è: il motore riempie i buchi
-      } else if (clearMode === 'nonmanual') {
-        const wk = appData.weeks[currentWeekKey];
-        Object.keys(wk).forEach(function(wid) {
-          const days = wk[wid] || {};
-          Object.keys(days).forEach(function(d) {
-            if (days[d] && days[d].manualEdit) return;
-            delete days[d];
-          });
-        });
-      }
-    } catch (eClr) {}
+    if (!appData.weeks) appData.weeks = {};
+    const originalWeekSnapshot=deepClone(appData.weeks[currentWeekKey]||{});
+    const generationSeed=buildRegenerationSeed(originalWeekSnapshot,clearMode);
 
     try{
-      const base=generateAutoProposalLegacy({silent:true});
+      let base;
+      // Il motore storico legge la settimana dall'appData: gli passiamo una
+      // copia di lavoro e ripristiniamo subito i dati originali anche se fallisce.
+      try {
+        appData.weeks[currentWeekKey]=deepClone(generationSeed);
+        base=generateAutoProposalLegacy({silent:true});
+      } finally {
+        appData.weeks[currentWeekKey]=deepClone(originalWeekSnapshot);
+      }
 
       if(!base || !base.week){
         throw new Error('Il motore base non ha restituito una proposta.');
