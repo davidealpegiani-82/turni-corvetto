@@ -11103,6 +11103,17 @@ function minLunchBreakMinutes(wId) {
       {key:'SKILL-LEGACY',title:'Compatibilità competenze storiche',ok:smartExperienceLevelFor({profile:{openingExperience:'assisted'}},'opening')==='assisted',msg:'I profili già esistenti continuano a funzionare'},
       {key:'SKILL-SAFE',title:'Livello sconosciuto sicuro',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'guru'}]}},'opening')==='unknown',msg:'Livelli non validi non ricevono bonus di esperienza'}
     ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
+
+    const regenFixture={
+      __test_generated:{0:{mIn:'08:30',mOut:'17:30',generated:true}},
+      __test_manual:{0:{mIn:'09:00',mOut:'17:00',manualEdit:true,generated:true}},
+      __test_leave:{0:{status:'FERIE',generated:true}},
+      __test_empty:{0:{}}
+    };
+    const regenSeed=buildRegenerationSeed(regenFixture,'all');
+    const regenEmpty=buildRegenerationSeed(regenFixture,'empty');
+    const regenOk=!regenSeed.__test_generated&&!!regenSeed.__test_manual?.[0]?.manualEdit&&regenSeed.__test_leave?.[0]?.status==='FERIE'&&!regenSeed.__test_empty&&Object.keys(regenEmpty).length===Object.keys(regenFixture).length&&!!regenFixture.__test_generated[0].generated;
+    results.push({key:'SAFE-REGEN',status:regenOk?'pass':'fail',title:'Rigenerazione non distruttiva',checks:[{ok:regenOk,msg:'Turni generati ricalcolabili; celle manuali e assenze preservate; modalità celle vuote invariata'}]});
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
