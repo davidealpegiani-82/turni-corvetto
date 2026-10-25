@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.46</title>
+  <title>Turni Corvetto v9.11.51</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.46';
+    const APP_VERSION = '9.11.51';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.51 — Fail closed verifica coperture: errore/assenza verificatore blocca proposta (non forzabile); test di sicurezza; Poppa resta nel pool',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
@@ -2164,7 +2165,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.46</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.51</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2186,7 +2187,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.46</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.51</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -5215,6 +5216,7 @@ function isUsableAppData(value) {
   // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
   function officeCoverageIdsForDay(day) {
     // Pool copertura ufficio: rotazione (Alpegiani/Poppa/Caregnato) + Severin.
+    // Poppa conta come gli altri tutti i giorni; l'indisponibilità arriva solo da impegni/assenze.
     // Esclude Finiture/Idalia: non devono mascherare una scopertura del banco edile.
     return [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
       .filter(function(id) {
@@ -7985,7 +7987,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.46', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.51', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -15308,12 +15310,24 @@ function showProposalReviewModal() {
     const violSec = document.getElementById('proposalViolationsSection');
     const violBox = document.getElementById('proposalViolations');
     let gapsUi = p.finalCoverageGaps;
-    if (!gapsUi || !gapsUi.length) {
-      try { gapsUi = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; } catch (eG) { gapsUi = []; }
-      p.finalCoverageGaps = gapsUi;
+    let coverageVerifyError = null;
+    if (!Array.isArray(gapsUi)) {
+      try {
+        gapsUi = getVerifiedCoverageGaps(p.week);
+        p.finalCoverageGaps = gapsUi;
+      } catch (eG) {
+        coverageVerifyError = eG && eG.message ? eG.message : String(eG || 'errore');
+        gapsUi = null;
+      }
     }
     if (violSec && violBox) {
-      if (gapsUi && gapsUi.length) {
+      if (coverageVerifyError) {
+        violSec.style.display = 'block';
+        violBox.innerHTML = '<div class="proposal-warn"><strong>Verifica coperture non riuscita</strong> — ' +
+          escapeHtmlV47(coverageVerifyError) + '. La proposta non è applicabile finché il controllo non completa.</div>';
+        const forceBtn = document.getElementById('btnForceApplyCoverage');
+        if (forceBtn) forceBtn.style.display = 'none';
+      } else if (gapsUi && gapsUi.length) {
         violSec.style.display = 'block';
         violBox.innerHTML = gapsUi.map(function(g) {
           return '<div class="proposal-warn"><strong>' + escapeHtmlV47(g.dayLabel || '') + '</strong> · ' +
@@ -15321,6 +15335,8 @@ function showProposalReviewModal() {
             '</strong> — presenti ' + escapeHtmlV47(String(g.actual != null ? g.actual : '?')) + '/' +
             escapeHtmlV47(String(g.required != null ? g.required : '?')) + '</div>';
         }).join('');
+        const forceBtn = document.getElementById('btnForceApplyCoverage');
+        if (forceBtn) forceBtn.style.display = '';
       } else {
         violSec.style.display = 'none';
         violBox.innerHTML = '';
@@ -15523,6 +15539,27 @@ function showProposalReviewModal() {
       push('Gap copertura → proposalHardViolations non vuoto', hard.length > 0);
       push('Gap copertura descritto con giorno/fascia', hard.some(x => /Lun|17:00|chiusura/i.test(String(x))));
 
+      // Fail closed: verificatore in errore o assente non equivale a zero scoperture
+      if (typeof getVerifiedCoverageGaps === 'function' && typeof proposalHardViolations === 'function') {
+        const originalCoverageVerifier = collectSmartCoverageGaps;
+        try {
+          collectSmartCoverageGaps = function(){ throw new Error('errore test verificatore'); };
+          const verifierError = proposalHardViolations(make());
+          push('Errore verificatore coperture blocca proposta', verifierError.some(function(x) {
+            return /Verifica coperture fallita/i.test(String(x));
+          }));
+          collectSmartCoverageGaps = undefined;
+          const verifierMissing = proposalHardViolations(make());
+          push('Verificatore coperture assente blocca proposta', verifierMissing.some(function(x) {
+            return /Verifica coperture fallita/i.test(String(x));
+          }));
+        } finally {
+          collectSmartCoverageGaps = originalCoverageVerifier;
+        }
+      } else {
+        push('getVerifiedCoverageGaps disponibile', false);
+      }
+
       // Competenze: canOpen/canClose
       if (typeof shiftAllowedForWorker === 'function' && typeof workerMayCoverOpen === 'function') {
         const finId = (typeof GIULIANO_ID === 'function') ? GIULIANO_ID() : 'w_5';
@@ -15572,6 +15609,22 @@ function showProposalReviewModal() {
 
   
   /** Violazioni dure di una proposta (dopo eventuali bilanciamenti). */
+  /**
+   * Restituisce le scoperture solo se il verificatore ha completato correttamente il controllo.
+   * Fail closed: errore o funzione assente → eccezione (non array vuoto).
+   */
+  function getVerifiedCoverageGaps(week) {
+    if (typeof collectSmartCoverageGaps !== 'function') {
+      throw new Error('Verificatore coperture non disponibile.');
+    }
+    const gaps = collectSmartCoverageGaps(week);
+    if (!Array.isArray(gaps)) {
+      throw new Error('Il verificatore coperture non ha restituito un risultato valido.');
+    }
+    return gaps;
+  }
+  window.getVerifiedCoverageGaps = getVerifiedCoverageGaps;
+
   function proposalHardViolations(p) {
     const out = [];
     if (!p || !p.week) return ['Proposta assente.'];
@@ -15580,9 +15633,13 @@ function showProposalReviewModal() {
       (b || []).forEach(x => out.push(x));
     } catch (e) { out.push('Validazione fallita: ' + (e.message || e)); }
     let finalGaps = p.finalCoverageGaps;
-    if (!finalGaps) {
-      try { finalGaps = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; }
-      catch (e2) { finalGaps = []; }
+    if (!Array.isArray(finalGaps)) {
+      try {
+        finalGaps = getVerifiedCoverageGaps(p.week);
+      } catch (e2) {
+        out.push('Verifica coperture fallita: ' + (e2 && e2.message ? e2.message : e2) + '. Proposta bloccata.');
+        finalGaps = null;
+      }
     }
     if (finalGaps && finalGaps.length) {
       finalGaps.slice(0, 12).forEach(g => {
@@ -15619,11 +15676,21 @@ function applyPendingProposal(options) {
     p.coverage = coverage;
     const dayGaps = (coverage || []).filter(c => c && (c.magOk === false || c.impOk === false));
     let finalGaps = [];
-    try { finalGaps = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; } catch (eCoverage) {}
+    try {
+      finalGaps = getVerifiedCoverageGaps(p.week);
+    } catch (eCoverage) {
+      const reason = eCoverage && eCoverage.message ? eCoverage.message : String(eCoverage || 'errore sconosciuto');
+      alert('La proposta NON può essere applicata: verifica delle coperture non riuscita.\n\n' + reason +
+        '\n\nNon è possibile forzare una verifica che non è stata completata. Riprova o ricarica l\'app.');
+      showToast('Proposta bloccata: verifica coperture non riuscita', 'error', 5500);
+      try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUiCoverage) {}
+      return;
+    }
     p.finalCoverageGaps = finalGaps;
     p.meta = Object.assign({}, p.meta || {}, {
       finalCoverageGapCount: finalGaps.length,
-      finalCoverageCheckedAt: new Date().toISOString()
+      finalCoverageCheckedAt: new Date().toISOString(),
+      coverageVerified: true
     });
 
     const coverageWarnings = [];
