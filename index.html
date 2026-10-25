@@ -2911,6 +2911,8 @@
         <option value="M42">M42 — Rallo apertura + Mario chiusura</option>
         <option value="M43">M43 — sabatista + jolly, copertura coordinata</option>
         <option value="M44">M44 — sabatista in chiusura + ROL Mario</option>
+        <option value="M46">M46 — scelta esplicita Pino / Caruso / lascia com’è</option>
+        <option value="M47">M47 — riconoscimento ruolo magazziniere e profilo competenze</option>
       </select>
     </div>
     <div id="rulesTestResult" style="margin-top:12px;"></div>
@@ -5233,7 +5235,7 @@ function isUsableAppData(value) {
         if(!w)return false;
         const blob=(String(w.name||'')+' '+String(w.role||'')).toLowerCase();
         return /alpegiani|caregnato|severin/.test(blob) ||
-          smartWorkerBrainProfile(w).officeProfile==='severin';
+          workerBrain(w).officeProfile==='severin';
       });
     }
     return base;
