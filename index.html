@@ -6,638 +6,453 @@
   <meta name="theme-color" content="#0a0c0f" />
   <title>Corvetto Pulse</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" defer></script>
   <style>
     :root {
-      --bg: #0a0c0f;
-      --surface: #12151c;
-      --surface2: #1a1f2a;
-      --line: #2a3140;
-      --text: #f2f4f7;
-      --muted: #9aa3b2;
-      --accent: #c8f135;
-      --accent-ink: #12140a;
-      --danger: #ff6b7a;
-      --ok: #7ddea0;
-      --warn: #f0c14a;
-      --radius: 12px;
-      --font: "DM Sans", system-ui, sans-serif;
-      --mono: "IBM Plex Mono", ui-monospace, monospace;
-      --pad: 16px;
-      --dock-h: 72px;
+      --bg:#0a0c0f; --surface:#12151c; --surface2:#1a1f2a; --line:#2a3140;
+      --text:#f2f4f7; --muted:#9aa3b2; --accent:#c8f135; --ink:#12140a;
+      --danger:#ff6b7a; --ok:#7ddea0; --warn:#f0c14a;
+      --font:"DM Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",monospace;
     }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
-    body { min-height: 100dvh; padding-bottom: calc(var(--dock-h) + 16px); }
-    button, input, select { font: inherit; color: inherit; }
-    button {
-      border: 1px solid var(--line);
-      background: var(--surface2);
-      color: var(--text);
-      border-radius: 10px;
-      min-height: 44px;
-      padding: 10px 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    button.primary {
-      background: var(--accent);
-      color: var(--accent-ink);
-      border-color: var(--accent);
-    }
-    button.ghost { background: transparent; }
-    button:active { transform: scale(0.98); }
-
-    .app { max-width: 480px; margin: 0 auto; padding: var(--pad); }
-
-    .top {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 10px; margin-bottom: 18px; position: sticky; top: 0; z-index: 20;
-      background: color-mix(in srgb, var(--bg) 92%, transparent);
-      backdrop-filter: blur(10px);
-      padding: 10px 0 12px;
-    }
-    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .logo {
-      width: 36px; height: 36px; border-radius: 8px;
-      background: var(--accent); color: var(--accent-ink);
-      display: grid; place-items: center;
-      font-weight: 800; font-size: 14px;
-    }
-    .brand h1 {
-      margin: 0; font-size: 15px; letter-spacing: 0.12em;
-      text-transform: uppercase; font-weight: 800;
-    }
-    .brand small {
-      display: block; color: var(--muted); font-family: var(--mono);
-      font-size: 10px; letter-spacing: 0.06em; margin-top: 2px;
-    }
-    .week-nav { display: flex; align-items: center; gap: 6px; }
-    .week-nav button { min-width: 40px; padding: 8px; }
-    .week-label {
-      font-family: var(--mono); font-size: 11px; font-weight: 600;
-      min-width: 92px; text-align: center; color: var(--text);
-    }
-
-    .status {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border-radius: 999px;
-      background: var(--surface); border: 1px solid var(--line);
-      font-size: 12px; font-weight: 700; margin-bottom: 14px;
-    }
-    .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
-    .status.warn .dot { background: var(--warn); }
-    .status.bad .dot { background: var(--danger); }
-
-    .section-label {
-      font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
-      text-transform: uppercase; color: var(--muted); margin: 16px 0 8px;
-      font-weight: 600;
-    }
-
-    .zones { display: grid; gap: 8px; }
-    .zone {
-      text-align: left; width: 100%;
-      background: var(--surface); border: 1px solid var(--line);
-      border-radius: var(--radius); padding: 14px;
-      border-left: 3px solid var(--line);
-    }
-    .zone.active { border-left-color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
-    .zone-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .zone-top strong { font-size: 15px; }
-    .pill {
-      font-family: var(--mono); font-size: 10px; font-weight: 700;
-      letter-spacing: 0.06em; padding: 4px 8px; border-radius: 6px;
-    }
-    .pill.ok { background: rgba(125,222,160,.15); color: var(--ok); }
-    .pill.warn { background: rgba(240,193,74,.15); color: var(--warn); }
-    .pill.bad { background: rgba(255,107,122,.15); color: var(--danger); }
-    .zone-metrics { margin-top: 8px; font-family: var(--mono); font-size: 12px; font-weight: 600; }
-    .zone-hint { margin-top: 4px; font-size: 12px; color: var(--muted); }
-
-    .days {
-      display: flex; gap: 8px; overflow-x: auto;
-      padding-bottom: 8px; -webkit-overflow-scrolling: touch;
-      scroll-snap-type: x proximity;
-    }
-    .day {
-      flex: 0 0 60px; scroll-snap-align: start;
-      background: var(--surface); border: 1px solid var(--line);
-      border-radius: 10px; padding: 10px 6px; text-align: center;
-      min-height: 64px;
-    }
-    .day.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-    .day .n { font-size: 11px; color: var(--muted); font-weight: 700; }
-    .day .d { font-family: var(--mono); font-size: 16px; font-weight: 700; margin-top: 2px; }
-    .day .heat { height: 3px; border-radius: 2px; background: var(--ok); margin-top: 8px; }
-    .day.heat-warn .heat { background: var(--warn); }
-    .day.heat-bad .heat { background: var(--danger); }
-
-    .panel {
-      background: var(--surface); border: 1px solid var(--line);
-      border-radius: var(--radius); padding: 14px; margin-top: 10px;
-    }
-    .panel-head {
-      display: flex; justify-content: space-between; align-items: center;
-      gap: 8px; margin-bottom: 12px;
-    }
-    .panel-head h2 { margin: 0; font-size: 18px; font-weight: 800; }
-    .lanes { display: grid; gap: 10px; }
-    @media (min-width: 520px) { .lanes { grid-template-columns: 1fr 1fr; } }
-    .lane {
-      background: var(--surface2); border: 1px solid var(--line);
-      border-radius: 10px; padding: 12px; min-height: 110px;
-    }
-    .lane.gap { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); background: rgba(255,107,122,.06); }
-    .lane h3 {
-      margin: 0 0 8px; font-family: var(--mono); font-size: 10px;
-      letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
-    }
-    .person {
-      display: flex; justify-content: space-between; gap: 8px;
-      padding: 8px 10px; border-radius: 8px; margin-bottom: 6px;
-      background: rgba(200,241,53,.06); border: 1px solid rgba(200,241,53,.12);
-      font-size: 13px; font-weight: 700;
-    }
-    .person span:last-child { color: var(--muted); font-family: var(--mono); font-size: 11px; font-weight: 600; }
-    .gap-msg {
-      color: var(--danger); font-family: var(--mono); font-size: 12px;
-      font-weight: 700; padding: 10px 8px;
-    }
-
-    .actions { display: grid; gap: 8px; margin-top: 16px; }
-    .actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-    .dock {
-      position: fixed; left: 50%; transform: translateX(-50%);
-      bottom: 12px; width: min(420px, calc(100% - 20px));
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
-      background: rgba(18,21,28,.94); border: 1px solid var(--line);
-      border-radius: 16px; padding: 8px; z-index: 50;
-      backdrop-filter: blur(12px);
-    }
-    .dock button {
-      min-height: 52px; border: none; background: transparent;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 3px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
-      color: var(--muted); border-radius: 10px; padding: 6px 4px;
-    }
-    .dock button.active, .dock button.main {
-      background: var(--accent); color: var(--accent-ink);
-    }
-    .dock .ic { font-size: 16px; line-height: 1; }
-
-    .sheet {
-      position: fixed; inset: 0; background: rgba(0,0,0,.55);
-      display: none; align-items: flex-end; justify-content: center; z-index: 80;
-    }
-    .sheet.open { display: flex; }
-    .sheet-card {
-      width: min(480px, 100%); max-height: 85dvh; overflow: auto;
-      background: var(--surface); border-radius: 16px 16px 0 0;
-      border: 1px solid var(--line); padding: 16px; padding-bottom: 28px;
-    }
-    .sheet-card h3 { margin: 0 0 8px; font-size: 18px; }
-    .sheet-card p { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.4; }
-    .people-pick { display: grid; gap: 6px; }
-    .people-pick button { text-align: left; display: flex; justify-content: space-between; }
-    .people-pick button.on { border-color: var(--accent); background: rgba(200,241,53,.1); }
-
-    .toast {
-      position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
-      background: var(--surface2); border: 1px solid var(--line);
-      color: var(--text); padding: 10px 14px; border-radius: 10px;
-      font-size: 13px; font-weight: 600; z-index: 90; display: none;
-      max-width: min(420px, calc(100% - 24px));
-    }
-    .toast.show { display: block; }
-
-    .legacy-link {
-      display: block; text-align: center; margin-top: 20px;
-      color: var(--muted); font-size: 12px;
-    }
-    .legacy-link a { color: var(--text); }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}
+    body{min-height:100dvh;padding-bottom:90px}
+    button{font:inherit;font-weight:700;border:1px solid var(--line);background:var(--surface2);color:var(--text);border-radius:10px;min-height:44px;padding:10px 14px;cursor:pointer}
+    button.primary{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+    button.ghost{background:transparent}
+    .app{max-width:480px;margin:0 auto;padding:16px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:0;z-index:20;background:rgba(10,12,15,.92);backdrop-filter:blur(10px);padding:10px 0 12px}
+    .brand{display:flex;gap:10px;align-items:center}
+    .logo{width:36px;height:36px;border-radius:8px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:800}
+    .brand h1{margin:0;font-size:15px;letter-spacing:.12em;text-transform:uppercase}
+    .brand small{display:block;color:var(--muted);font-family:var(--mono);font-size:10px;margin-top:2px}
+    .week-nav{display:flex;align-items:center;gap:6px}
+    .week-nav button{min-width:40px;padding:8px}
+    .week-label{font-family:var(--mono);font-size:11px;min-width:92px;text-align:center}
+    .sync{font-family:var(--mono);font-size:10px;color:var(--muted);margin:0 0 10px}
+    .sync.ok{color:var(--ok)} .sync.err{color:var(--danger)}
+    .tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
+    .tabs button{min-height:38px;font-size:12px;padding:8px 12px;white-space:nowrap}
+    .tabs button.active{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+    .status{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:12px;font-weight:700;margin-bottom:12px}
+    .status .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+    .status.warn .dot{background:var(--warn)} .status.bad .dot{background:var(--danger)}
+    .label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;font-weight:600}
+    .zones{display:grid;gap:8px}
+    .zone{text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:12px;padding:14px}
+    .zone.active{border-left-color:var(--accent)}
+    .zone-top{display:flex;justify-content:space-between;gap:8px}
+    .pill{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:6px;font-weight:700}
+    .pill.ok{background:rgba(125,222,160,.15);color:var(--ok)}
+    .pill.warn{background:rgba(240,193,74,.15);color:var(--warn)}
+    .pill.bad{background:rgba(255,107,122,.15);color:var(--danger)}
+    .zone-metrics{margin-top:8px;font-family:var(--mono);font-size:12px;font-weight:600}
+    .zone-hint{margin-top:4px;font-size:12px;color:var(--muted)}
+    .days{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+    .day{flex:0 0 60px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center}
+    .day.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+    .day .n{font-size:11px;color:var(--muted);font-weight:700}
+    .day .d{font-family:var(--mono);font-size:16px;font-weight:700}
+    .day .heat{height:3px;border-radius:2px;background:var(--ok);margin-top:8px}
+    .day.heat-warn .heat{background:var(--warn)} .day.heat-bad .heat{background:var(--danger)}
+    .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px}
+    .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .panel-head h2{margin:0;font-size:18px}
+    .lanes{display:grid;gap:10px}
+    .lane{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:100px}
+    .lane.gap{border-color:rgba(255,107,122,.5);background:rgba(255,107,122,.06)}
+    .lane h3{margin:0 0 8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .person{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:6px;background:rgba(200,241,53,.06);border:1px solid rgba(200,241,53,.12);font-size:13px;font-weight:700}
+    .person span:last-child{color:var(--muted);font-family:var(--mono);font-size:11px}
+    .gap-msg{color:var(--danger);font-family:var(--mono);font-size:12px;font-weight:700;padding:8px}
+    .actions{display:grid;gap:8px;margin-top:16px}
+    .actions-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .list{display:grid;gap:8px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .card strong{display:block;margin-bottom:4px}
+    .card .meta{font-size:12px;color:var(--muted)}
+    .dock{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;width:min(420px,calc(100% - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:rgba(18,21,28,.94);border:1px solid var(--line);border-radius:16px;padding:8px;z-index:50}
+    .dock button{min-height:52px;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;text-transform:uppercase;color:var(--muted);padding:6px 4px}
+    .dock button.active,.dock button.main{background:var(--accent);color:var(--ink)}
+    .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--line);padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;z-index:90;display:none;max-width:min(420px,calc(100% - 24px))}
+    .toast.show{display:block}
+    .hidden{display:none!important}
+    .foot{margin-top:18px;text-align:center;font-size:12px;color:var(--muted)}
+    .foot a{color:var(--text)}
+    input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font:inherit;margin:6px 0 10px}
+    label{font-size:12px;color:var(--muted);font-weight:700}
   </style>
 </head>
 <body>
-  <div class="app" id="app">
-    <header class="top">
-      <div class="brand">
-        <div class="logo">P</div>
-        <div>
-          <h1>Pulse</h1>
-          <small id="verLabel">CORVETTO · v11.0.0</small>
-        </div>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div>
+        <h1>Pulse</h1>
+        <small>CORVETTO · v11.1.0</small>
       </div>
-      <div class="week-nav">
-        <button type="button" class="ghost" id="btnPrev" aria-label="Settimana precedente">‹</button>
-        <div class="week-label" id="weekLabel">—</div>
-        <button type="button" class="ghost" id="btnNext" aria-label="Settimana successiva">›</button>
-      </div>
-    </header>
+    </div>
+    <div class="week-nav">
+      <button type="button" class="ghost" id="btnPrev">‹</button>
+      <div class="week-label" id="weekLabel">—</div>
+      <button type="button" class="ghost" id="btnNext">›</button>
+    </div>
+  </header>
+  <div class="sync" id="syncLabel">Sync…</div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="active" data-tab="pulse">Pulse</button>
+    <button type="button" data-tab="assenze">Assenze</button>
+    <button type="button" data-tab="motore">Motore</button>
+  </div>
 
-    <div class="status" id="statusPill"><span class="dot"></span><span id="statusText">Caricamento…</span></div>
-
-    <div class="section-label">Zone</div>
+  <section id="tab-pulse">
+    <div class="status" id="statusPill"><span class="dot"></span><span id="statusText">Caricamento dati…</span></div>
+    <div class="label">Zone</div>
     <div class="zones" id="zones"></div>
-
-    <div class="section-label">Settimana</div>
+    <div class="label">Settimana</div>
     <div class="days" id="days"></div>
-
     <div class="panel">
       <div class="panel-head">
         <h2 id="dayTitle">Giorno</h2>
-        <button type="button" class="ghost" id="btnAssign" style="min-height:36px;font-size:12px;">Assegna</button>
+        <button type="button" class="ghost" id="btnLegacyGrid" style="min-height:36px;font-size:12px">Griglia legacy</button>
       </div>
       <div class="lanes" id="lanes"></div>
     </div>
-
     <div class="actions">
-      <button type="button" class="primary" id="btnSystem">Sistema la settimana</button>
+      <button type="button" class="primary" id="btnSystem">Sistema (motore completo)</button>
       <div class="actions-row">
-        <button type="button" id="btnPdf">Esporta PDF</button>
-        <button type="button" id="btnClearDay">Pulisci giorno</button>
+        <button type="button" id="btnPdf">PDF</button>
+        <button type="button" id="btnReload">Ricarica cloud</button>
       </div>
     </div>
+  </section>
 
-    <p class="legacy-link">Serve la vecchia app? <a href="legacy.html">Apri versione legacy</a></p>
-  </div>
-
-  <nav class="dock" aria-label="Navigazione">
-    <button type="button" class="active" data-act="home"><span class="ic">▣</span>Pulse</button>
-    <button type="button" class="main" data-act="system"><span class="ic">⚡</span>Sistema</button>
-    <button type="button" data-act="assign"><span class="ic">＋</span>Assegna</button>
-    <button type="button" data-act="pdf"><span class="ic">▦</span>PDF</button>
-  </nav>
-
-  <div class="sheet" id="sheet">
-    <div class="sheet-card">
-      <h3 id="sheetTitle">Assegna</h3>
-      <p id="sheetSub">Scegli chi copre apertura o chiusura.</p>
-      <div class="people-pick" id="peoplePick"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">
-        <button type="button" class="ghost" id="sheetClose">Chiudi</button>
-        <button type="button" class="primary" id="sheetSave">Salva</button>
-      </div>
+  <section id="tab-assenze" class="hidden">
+    <div class="label">Malattia / ricovero / ferie (dati cloud)</div>
+    <div class="list" id="leaveList"></div>
+    <div class="label">Nuova assenza rapida</div>
+    <div class="card">
+      <label>Collaboratore</label>
+      <select id="leaveWorker"></select>
+      <label>Tipo</label>
+      <select id="leaveTipo">
+        <option>Ferie</option>
+        <option>Permesso retribuito</option>
+        <option>Malattia</option>
+        <option>Ricovero</option>
+      </select>
+      <label>Dal</label>
+      <input type="date" id="leaveFrom" />
+      <label>Al</label>
+      <input type="date" id="leaveTo" />
+      <button type="button" class="primary" id="btnSaveLeave" style="width:100%">Salva assenza</button>
+      <p class="meta" style="margin-top:8px;font-size:12px;color:var(--muted)">Le assenze si salvano su Firebase come nella app legacy. Per modifiche avanzate apri il motore completo.</p>
     </div>
-  </div>
-  <div class="toast" id="toast"></div>
+  </section>
+
+  <section id="tab-motore" class="hidden">
+    <div class="card">
+      <strong>Motore regole avanzato</strong>
+      <p class="meta">Generazione turni, bilanciamento aperture/chiusure, Severin, magazzino, vincoli e proposta guidata restano nel motore legacy, sugli <em>stessi dati cloud</em>.</p>
+      <button type="button" class="primary" id="btnOpenEngine" style="width:100%;margin-top:10px">Apri motore completo</button>
+      <button type="button" id="btnOpenLegacyHome" style="width:100%;margin-top:8px">Apri app legacy intera</button>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <strong>Sincronizzazione</strong>
+      <p class="meta" id="syncDetail">—</p>
+      <button type="button" id="btnForcePull" style="width:100%;margin-top:8px">Scarica da cloud</button>
+      <button type="button" id="btnForcePush" style="width:100%;margin-top:8px">Invia locale al cloud</button>
+    </div>
+  </section>
+
+  <p class="foot">Pulse v11.1 legge/scrive gli stessi dati della legacy (`turni_data_v47_pdf`).</p>
+</div>
+
+<nav class="dock">
+  <button type="button" class="active" data-go="pulse">▣ Pulse</button>
+  <button type="button" class="main" data-go="motore">⚡ Motore</button>
+  <button type="button" data-go="assenze">＋ Assenze</button>
+  <button type="button" data-go="pdf">▦ PDF</button>
+</nav>
+<div class="toast" id="toast"></div>
 
 <script>
-(function () {
-  const VERSION = '11.0.0';
-  const STORE_KEY = 'corvetto_pulse_v11';
-  const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-  const DAY_LONG = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+(function(){
+  const VERSION='11.1.0';
+  const LOCAL_KEY='turni_corvetto_test_data';
+  const RTDB_PATH='turni_data_v47_pdf';
+  const DAY_NAMES=['Lun','Mar','Mer','Gio','Ven','Sab'];
+  const DAY_LONG=['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const firebaseConfig={
+    apiKey:"AIzaSyBUDN4_ebBKWXQ8E79fqFfu7gBiRsm_Z5s",
+    authDomain:"turni-corvetto-fca14.firebaseapp.com",
+    databaseURL:"https://turni-corvetto-fca14-default-rtdb.firebaseio.com",
+    projectId:"turni-corvetto-fca14",
+    storageBucket:"turni-corvetto-fca14.firebasestorage.app",
+    messagingSenderId:"250593850505",
+    appId:"1:250593850505:web:61dd87ad366e1a2025fac8"
+  };
 
-  const WORKERS = [
-    { id: 'w_davide', name: 'Alpegiani Davide', zone: 'edile', short: 'Davide' },
-    { id: 'w_severin', name: 'Severin', zone: 'edile', short: 'Severin' },
-    { id: 'w_poppa', name: 'Poppa', zone: 'edile', short: 'Poppa' },
-    { id: 'w_caregnato', name: 'Caregnato', zone: 'edile', short: 'Caregnato' },
-    { id: 'w_pino', name: 'Vartuca Pino', zone: 'edile', short: 'Pino' },
-    { id: 'w_rallo', name: 'Rallo Vincenzo', zone: 'magazzino', short: 'Rallo' },
-    { id: 'w_ragone', name: 'Ragone Mario', zone: 'magazzino', short: 'Ragone' },
-    { id: 'w_mattia', name: 'Mattia', zone: 'magazzino', short: 'Mattia' },
-    { id: 'w_giuliano', name: 'Sandrini Giuliano', zone: 'finiture', short: 'Giuliano' }
-  ];
+  let db=null, appData={workers:[],weeks:{},leaveRequests:[],events:[],rules:{}}, syncState='local';
+  let monday=startOfWeek(new Date());
+  let dayIdx=Math.min(5,Math.max(0,(new Date().getDay()+6)%7));
+  let zoneId='edile';
+  let _syncTimer=null;
 
-  const ZONES = [
-    { id: 'edile', label: 'Banco edile', minOpen: 2, minClose: 1 },
-    { id: 'magazzino', label: 'Magazzino', minOpen: 2, minClose: 1 },
-    { id: 'finiture', label: 'Finiture', minOpen: 1, minClose: 1 }
-  ];
+  function startOfWeek(d){const x=new Date(d);x.setHours(12,0,0,0);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x;}
+  function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+  function fmtIT(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
+  function pad(n){return String(n).padStart(2,'0');}
+  function weekKeyFromDate(d){
+    // ISO-ish week key compatible enough: use legacy getWeekKey if present later
+    const mon=startOfWeek(d);
+    const tmp=new Date(Date.UTC(mon.getFullYear(),mon.getMonth(),mon.getDate()));
+    const dayNum=tmp.getUTCDay()||7;
+    tmp.setUTCDate(tmp.getUTCDate()+4-dayNum);
+    const yearStart=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
+    const weekNo=Math.ceil((((tmp-yearStart)/86400000)+1)/7);
+    return tmp.getUTCFullYear()+'-W'+pad(weekNo);
+  }
+  function currentWeekKey(){return weekKeyFromDate(monday);}
+  function timeToMin(t){if(!t)return null;const p=String(t).split(':');return (+p[0])*60+(+p[1]||0);}
+  function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2800);}
+  function setSync(state,text){syncState=state;const el=document.getElementById('syncLabel');el.className='sync '+(state==='ok'?'ok':(state==='err'?'err':''));el.textContent=text||state;document.getElementById('syncDetail').textContent=text||state;}
 
-  // --- date helpers ---
-  function startOfWeek(d) {
-    const x = new Date(d); x.setHours(12, 0, 0, 0);
-    const day = (x.getDay() + 6) % 7; // mon=0
-    x.setDate(x.getDate() - day);
-    return x;
+  function zoneOfWorker(w){
+    const g=String(w.group||'').toUpperCase();
+    if(g==='FINITURE')return 'finiture';
+    if(g==='MAGAZZINO')return 'magazzino';
+    return 'edile';
   }
-  function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-  function fmtIT(d) {
-    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+  function workersInZone(zid){return (appData.workers||[]).filter(w=>w&&w.selected!==false&&zoneOfWorker(w)===zid);}
+  function finitureHours(di){if(di===5)return{open:'08:00',close:'12:00'};if(di===2)return{open:'08:30',close:'12:30'};return{open:'08:30',close:'17:30'};}
+  function sampleTimes(zid,di){
+    if(zid==='finiture'){const h=finitureHours(di);return{open:timeToMin(h.open)+15,close:timeToMin(h.close)-15,label:h.open+'–'+h.close};}
+    if(di===5)return{open:timeToMin('07:30'),close:timeToMin('11:15'),label:'07:00–12:00'};
+    return{open:timeToMin('07:00'),close:timeToMin('17:15'),label:'06:30–17:30'};
   }
-  function weekKey(monday) {
-    const y = monday.getFullYear();
-    const onejan = new Date(y, 0, 1);
-    const week = Math.ceil((((monday - onejan) / 86400000) + onejan.getDay() + 1) / 7);
-    return y + '-W' + String(week).padStart(2, '0');
+  function cellAt(week,wid,di){const W=appData.weeks&&appData.weeks[week];if(!W||!W[wid])return{};return W[wid][di]||W[wid][String(di)]||{};}
+  function isHardAway(cell){
+    const st=String(cell.status||'').toUpperCase();
+    if(['FERIE','MALATTIA','RICOVERO','ASSENTE','CHIUSO','RIPOSO'].includes(st))return true;
+    if(cell.leaveFullDay)return true;
+    return false;
   }
-  function isoDate(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function coveredAt(cell,tMin){
+    if(!cell||isHardAway(cell))return false;
+    const blocks=[];
+    if(cell.mIn&&cell.mOut)blocks.push([timeToMin(cell.mIn),timeToMin(cell.mOut)]);
+    if(cell.pIn&&cell.pOut)blocks.push([timeToMin(cell.pIn),timeToMin(cell.pOut)]);
+    return blocks.some(b=>tMin>=b[0]&&tMin<b[1]);
   }
-
-  /** Finiture hours by weekday index 0=Mon .. 5=Sat */
-  function finitureHours(dayIdx) {
-    if (dayIdx === 5) return { open: '08:00', close: '12:00' };
-    if (dayIdx === 2) return { open: '08:30', close: '12:30' };
-    return { open: '08:30', close: '17:30' };
+  function whoCovered(zid,di,tMin){
+    const week=currentWeekKey();
+    return workersInZone(zid).filter(w=>coveredAt(cellAt(week,w.id,di),tMin));
   }
-  function zoneHours(zoneId, dayIdx) {
-    if (zoneId === 'finiture') return finitureHours(dayIdx);
-    if (dayIdx === 5) return { open: '07:00', close: '12:00' };
-    return { open: '06:30', close: '17:30' };
+  function coverage(zid,di){
+    const st=sampleTimes(zid,di);
+    const openP=whoCovered(zid,di,st.open);
+    const closeP=whoCovered(zid,di,st.close);
+    const minO=zid==='finiture'?1:2;
+    const minC=1;
+    const openOk=openP.length>=minO;
+    const closeOk=closeP.length>=minC;
+    let level='ok';
+    if(!openOk&&!closeOk)level='bad';
+    else if(!openOk||!closeOk)level='warn';
+    return{openP,closeP,openOk,closeOk,level,minO,minC,st};
   }
-
-  // --- state ---
-  let monday = startOfWeek(new Date());
-  let dayIdx = Math.min(5, Math.max(0, ((new Date().getDay() + 6) % 7)));
-  let zoneId = 'edile';
-  let data = load();
-  let assignSlot = 'open'; // open | close
-  let draftIds = [];
-
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {}
-    return { weeks: {} };
-  }
-  function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
-  }
-  function ensureWeek(key) {
-    if (!data.weeks[key]) data.weeks[key] = {};
-    return data.weeks[key];
-  }
-  function dayKey(di) { return String(di); }
-  function getCell(week, zid, di) {
-    const w = ensureWeek(week);
-    if (!w[zid]) w[zid] = {};
-    if (!w[zid][dayKey(di)]) w[zid][dayKey(di)] = { open: [], close: [] };
-    return w[zid][dayKey(di)];
-  }
-
-  function workersForZone(zid) {
-    return WORKERS.filter(w => w.zone === zid);
-  }
-
-  function coverageFor(zid, di) {
-    const key = weekKey(monday);
-    const cell = getCell(key, zid, di);
-    const z = ZONES.find(x => x.id === zid);
-    const openN = (cell.open || []).length;
-    const closeN = (cell.close || []).length;
-    const openOk = openN >= z.minOpen;
-    const closeOk = closeN >= z.minClose;
-    let level = 'ok';
-    if (!openOk && !closeOk) level = 'bad';
-    else if (!openOk || !closeOk) level = 'warn';
-    return { openN, closeN, openOk, closeOk, level, minOpen: z.minOpen, minClose: z.minClose };
+  function weekHealth(){
+    let bad=0,warn=0;
+    for(let d=0;d<6;d++)['edile','magazzino','finiture'].forEach(z=>{const c=coverage(z,d);if(c.level==='bad')bad++;else if(c.level==='warn')warn++;});
+    if(bad)return{level:'bad',text:bad+' buchi critici'};
+    if(warn)return{level:'warn',text:warn+' punti al limite'};
+    return{level:'ok',text:'Settimana ok'};
   }
 
-  function weekLevel() {
-    let bad = 0, warn = 0;
-    for (let d = 0; d < 6; d++) {
-      ZONES.forEach(z => {
-        const c = coverageFor(z.id, d);
-        if (c.level === 'bad') bad++;
-        else if (c.level === 'warn') warn++;
-      });
-    }
-    if (bad) return { level: 'bad', text: bad + ' buchi critici' };
-    if (warn) return { level: 'warn', text: warn + ' punti al limite' };
-    return { level: 'ok', text: 'Settimana ok' };
+  function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(appData));}catch(e){}}
+  function loadLocal(){
+    try{const raw=localStorage.getItem(LOCAL_KEY);if(raw){const d=JSON.parse(raw);if(d&&typeof d==='object'){appData=d;return true;}}}catch(e){}
+    return false;
   }
-
-  // --- render ---
-  function toast(msg) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.classList.add('show');
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => el.classList.remove('show'), 2800);
-  }
-
-  function render() {
-    document.getElementById('verLabel').textContent = 'CORVETTO · v' + VERSION;
-    const end = addDays(monday, 5);
-    document.getElementById('weekLabel').textContent = fmtIT(monday) + '–' + fmtIT(end);
-
-    const st = weekLevel();
-    const pill = document.getElementById('statusPill');
-    pill.className = 'status' + (st.level !== 'ok' ? ' ' + st.level : '');
-    document.getElementById('statusText').textContent = st.text;
-
-    // zones
-    const zonesEl = document.getElementById('zones');
-    zonesEl.innerHTML = ZONES.map(z => {
-      const c = coverageFor(z.id, dayIdx);
-      const h = zoneHours(z.id, dayIdx);
-      const active = z.id === zoneId ? ' active' : '';
-      return '<button type="button" class="zone' + active + '" data-zone="' + z.id + '">' +
-        '<div class="zone-top"><strong>' + z.label + '</strong><span class="pill ' + c.level + '">' +
-        (c.level === 'ok' ? 'OK' : (c.level === 'bad' ? 'BUCO' : 'LIMITE')) + '</span></div>' +
-        '<div class="zone-metrics">Apertura ' + c.openN + '/' + c.minOpen + ' · Chiusura ' + c.closeN + '/' + c.minClose + '</div>' +
-        '<div class="zone-hint">' + h.open + ' – ' + h.close + '</div></button>';
-    }).join('');
-
-    // days
-    const daysEl = document.getElementById('days');
-    daysEl.innerHTML = DAY_NAMES.map((n, i) => {
-      const d = addDays(monday, i);
-      let heat = 'ok';
-      ZONES.forEach(z => {
-        const c = coverageFor(z.id, i);
-        if (c.level === 'bad') heat = 'bad';
-        else if (c.level === 'warn' && heat !== 'bad') heat = 'warn';
-      });
-      return '<button type="button" class="day heat-' + heat + (i === dayIdx ? ' active' : '') + '" data-day="' + i + '">' +
-        '<div class="n">' + n + '</div><div class="d">' + d.getDate() + '</div><div class="heat"></div></button>';
-    }).join('');
-
-    // day panel
-    const dDate = addDays(monday, dayIdx);
-    document.getElementById('dayTitle').textContent = DAY_LONG[dayIdx] + ' · ' + fmtIT(dDate);
-    const key = weekKey(monday);
-    const cell = getCell(key, zoneId, dayIdx);
-    const cov = coverageFor(zoneId, dayIdx);
-    const hrs = zoneHours(zoneId, dayIdx);
-    const z = ZONES.find(x => x.id === zoneId);
-
-    function peopleHtml(ids) {
-      if (!ids || !ids.length) return '<div class="gap-msg">Buco — serve almeno 1</div>';
-      return ids.map(id => {
-        const w = WORKERS.find(x => x.id === id);
-        return '<div class="person"><span>' + (w ? w.short : id) + '</span><span>' + hrs.open + '–' + hrs.close + '</span></div>';
-      }).join('');
-    }
-
-    document.getElementById('lanes').innerHTML =
-      '<div class="lane' + (cov.openOk ? '' : ' gap') + '"><h3>Apertura · ' + z.label + ' (' + cov.openN + '/' + cov.minOpen + ')</h3>' +
-      peopleHtml(cell.open) + '</div>' +
-      '<div class="lane' + (cov.closeOk ? '' : ' gap') + '"><h3>Chiusura · ' + z.label + ' (' + cov.closeN + '/' + cov.minClose + ')</h3>' +
-      peopleHtml(cell.close) + '</div>';
-  }
-
-  function openSheet() {
-    assignSlot = 'open';
-    const key = weekKey(monday);
-    const cell = getCell(key, zoneId, dayIdx);
-    draftIds = (cell.open || []).slice();
-    const z = ZONES.find(x => x.id === zoneId);
-    document.getElementById('sheetTitle').textContent = 'Assegna · ' + z.label;
-    document.getElementById('sheetSub').textContent = DAY_LONG[dayIdx] + ' — tocca i nomi, poi salva. Usa i pulsanti sotto per apertura/chiusura.';
-    renderPick();
-    document.getElementById('sheet').classList.add('open');
-  }
-  function renderPick() {
-    const box = document.getElementById('peoplePick');
-    const list = workersForZone(zoneId);
-    box.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">' +
-      '<button type="button" class="' + (assignSlot === 'open' ? 'primary' : 'ghost') + '" id="slotOpen">Apertura</button>' +
-      '<button type="button" class="' + (assignSlot === 'close' ? 'primary' : 'ghost') + '" id="slotClose">Chiusura</button></div>' +
-      list.map(w => {
-        const on = draftIds.includes(w.id);
-        return '<button type="button" class="' + (on ? 'on' : '') + '" data-id="' + w.id + '"><span>' + w.name + '</span><span>' + (on ? '✓' : '') + '</span></button>';
-      }).join('');
-    document.getElementById('slotOpen').onclick = () => {
-      const key = weekKey(monday);
-      const cell = getCell(key, zoneId, dayIdx);
-      if (assignSlot === 'close') cell.close = draftIds.slice();
-      assignSlot = 'open';
-      draftIds = (cell.open || []).slice();
-      renderPick();
-    };
-    document.getElementById('slotClose').onclick = () => {
-      const key = weekKey(monday);
-      const cell = getCell(key, zoneId, dayIdx);
-      if (assignSlot === 'open') cell.open = draftIds.slice();
-      assignSlot = 'close';
-      draftIds = (cell.close || []).slice();
-      renderPick();
-    };
-    box.querySelectorAll('button[data-id]').forEach(btn => {
-      btn.onclick = () => {
-        const id = btn.getAttribute('data-id');
-        if (draftIds.includes(id)) draftIds = draftIds.filter(x => x !== id);
-        else draftIds.push(id);
-        renderPick();
-      };
-    });
-  }
-  function saveSheet() {
-    const key = weekKey(monday);
-    const cell = getCell(key, zoneId, dayIdx);
-    if (assignSlot === 'open') cell.open = draftIds.slice();
-    else cell.close = draftIds.slice();
-    save();
-    document.getElementById('sheet').classList.remove('open');
-    render();
-    toast('Turno salvato');
-  }
-
-  function autoFillWeek() {
-    const key = weekKey(monday);
-    ZONES.forEach(z => {
-      const pool = workersForZone(z.id).map(w => w.id);
-      for (let d = 0; d < 6; d++) {
-        const cell = getCell(key, z.id, d);
-        if (!cell.open.length) cell.open = pool.slice(0, z.minOpen);
-        if (!cell.close.length) {
-          // prefer different people on close when possible
-          const rest = pool.filter(id => !cell.open.includes(id));
-          cell.close = (rest.length ? rest : pool).slice(0, z.minClose);
+  function initFirebase(){
+    try{
+      if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+      db=firebase.database();
+      setSync('local','cloud in collegamento…');
+      db.ref(RTDB_PATH).on('value',snap=>{
+        const val=snap.val();
+        if(val&&typeof val==='object'){
+          appData=val;
+          saveLocal();
+          setSync('ok','cloud live · rev '+(val.updatedRevision||'—'));
+          render();
         }
-      }
+      },err=>{console.warn(err);setSync('err','errore cloud');});
+    }catch(e){console.warn(e);setSync('err','firebase non disponibile');}
+  }
+  function pushCloud(){
+    saveLocal();
+    if(!db){toast('Cloud non disponibile');return;}
+    const proposed=JSON.parse(JSON.stringify(appData));
+    proposed.updatedAt=Date.now();
+    proposed.updatedRevision=Number(proposed.updatedRevision||0)+1;
+    db.ref(RTDB_PATH).set(proposed).then(()=>{setSync('ok','inviato · rev '+proposed.updatedRevision);toast('Dati inviati al cloud');}).catch(e=>{setSync('err','push fallita');toast('Push fallita');console.warn(e);});
+  }
+  function pullCloud(){
+    if(!db){toast('Cloud non disponibile');return;}
+    db.ref(RTDB_PATH).once('value').then(snap=>{
+      const val=snap.val();
+      if(val&&typeof val==='object'){appData=val;saveLocal();setSync('ok','scaricato');render();toast('Dati scaricati');}
+      else toast('Cloud vuoto');
     });
-    save();
-    render();
-    toast('Proposta base applicata — regola a mano dove serve');
   }
 
-  function clearDay() {
-    const key = weekKey(monday);
-    const cell = getCell(key, zoneId, dayIdx);
-    cell.open = [];
-    cell.close = [];
-    save();
-    render();
-    toast('Giorno svuotato per ' + ZONES.find(z => z.id === zoneId).label);
+  function renderTabs(tab){
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.getAttribute('data-tab')===tab));
+    ['pulse','assenze','motore'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==tab));
+    document.querySelectorAll('.dock button').forEach(b=>{
+      const g=b.getAttribute('data-go');
+      b.classList.toggle('active',g===tab||(tab==='pulse'&&g==='pulse'));
+    });
   }
 
-  function exportPdf() {
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-      toast('Libreria PDF non caricata — riprova tra un attimo');
-      return;
+  function render(){
+    const end=addDays(monday,5);
+    document.getElementById('weekLabel').textContent=fmtIT(monday)+'–'+fmtIT(end);
+    const st=weekHealth();
+    const pill=document.getElementById('statusPill');
+    pill.className='status'+(st.level!=='ok'?' '+st.level:'');
+    document.getElementById('statusText').textContent=st.text;
+
+    const zones=[{id:'edile',label:'Banco edile'},{id:'magazzino',label:'Magazzino'},{id:'finiture',label:'Finiture'}];
+    document.getElementById('zones').innerHTML=zones.map(z=>{
+      const c=coverage(z.id,dayIdx);
+      return '<button type="button" class="zone'+(z.id===zoneId?' active':'')+'" data-zone="'+z.id+'"><div class="zone-top"><strong>'+z.label+'</strong><span class="pill '+c.level+'">'+(c.level==='ok'?'OK':(c.level==='bad'?'BUCO':'LIMITE'))+'</span></div><div class="zone-metrics">Apertura '+c.openP.length+'/'+c.minO+' · Chiusura '+c.closeP.length+'/'+c.minC+'</div><div class="zone-hint">'+c.st.label+'</div></button>';
+    }).join('');
+
+    document.getElementById('days').innerHTML=DAY_NAMES.map((n,i)=>{
+      const d=addDays(monday,i);
+      let heat='ok';
+      zones.forEach(z=>{const c=coverage(z.id,i);if(c.level==='bad')heat='bad';else if(c.level==='warn'&&heat!=='bad')heat='warn';});
+      return '<button type="button" class="day heat-'+heat+(i===dayIdx?' active':'')+'" data-day="'+i+'"><div class="n">'+n+'</div><div class="d">'+d.getDate()+'</div><div class="heat"></div></button>';
+    }).join('');
+
+    const c=coverage(zoneId,dayIdx);
+    document.getElementById('dayTitle').textContent=DAY_LONG[dayIdx]+' · '+fmtIT(addDays(monday,dayIdx));
+    function lane(title,people,ok,min){
+      let body=people.map(w=>'<div class="person"><span>'+((w.name||'').split(' ').slice(-1)[0]||w.name)+'</span><span>'+([w].map(()=>{const cell=cellAt(currentWeekKey(),w.id,dayIdx);const parts=[];if(cell.mIn)parts.push(cell.mIn+'-'+(cell.mOut||''));if(cell.pIn)parts.push(cell.pIn+'-'+(cell.pOut||''));return parts.join(' · ')||c.st.label;})[0])+'</span></div>').join('');
+      if(!people.length)body='<div class="gap-msg">Buco — serve almeno '+min+'</div>';
+      return '<div class="lane'+(ok?'':' gap')+'"><h3>'+title+' ('+people.length+'/'+min+')</h3>'+body+'</div>';
     }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('landscape', 'mm', 'a4');
-    const key = weekKey(monday);
-    doc.setFontSize(14);
-    doc.text('Corvetto Pulse — Turni ' + fmtIT(monday) + ' – ' + fmtIT(addDays(monday, 5)), 14, 14);
-    const head = ['Zona / Ruolo'].concat(DAY_NAMES.map((n, i) => n + ' ' + addDays(monday, i).getDate()));
-    const body = [];
-    ZONES.forEach(z => {
-      const row = [z.label];
-      for (let d = 0; d < 6; d++) {
-        const cell = getCell(key, z.id, d);
-        const hrs = zoneHours(z.id, d);
-        const names = function(ids) {
-          return (ids || []).map(id => {
-            const w = WORKERS.find(x => x.id === id);
-            return w ? w.short : id;
-          }).join(', ');
-        };
-        const t = 'A: ' + (names(cell.open) || '—') + '\nC: ' + (names(cell.close) || '—') + '\n' + hrs.open + '-' + hrs.close;
-        row.push(t);
+    document.getElementById('lanes').innerHTML=lane('Apertura',c.openP,c.openOk,c.minO)+lane('Chiusura',c.closeP,c.closeOk,c.minC);
+
+    // leaves
+    const reqs=(appData.leaveRequests||[]).slice().sort((a,b)=>String(b.fromDay||b.from||'').localeCompare(String(a.fromDay||a.from||'')));
+    const leaveList=document.getElementById('leaveList');
+    if(!reqs.length)leaveList.innerHTML='<div class="card meta">Nessuna assenza in archivio</div>';
+    else leaveList.innerHTML=reqs.slice(0,30).map(r=>{
+      const w=(appData.workers||[]).find(x=>x.id===r.workerId);
+      const name=w?w.name:(r.workerId||'—');
+      const from=r.fromDay||r.from||'';
+      const to=r.toDay||r.to||(r.openEnded?'in corso':'');
+      return '<div class="card"><strong>'+name+' · '+(r.tipo||r.type||'')+'</strong><div class="meta">'+from+(to?(' → '+to):'')+'</div></div>';
+    }).join('');
+
+    const sel=document.getElementById('leaveWorker');
+    const cur=sel.value;
+    sel.innerHTML=(appData.workers||[]).filter(w=>w.selected!==false).map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');
+    if(cur)sel.value=cur;
+  }
+
+  function openLegacy(pathHash){
+    // same folder legacy engine / full UI
+    const url='legacy.html'+(pathHash||'');
+    window.location.href=url;
+  }
+
+  function exportPdf(){
+    if(!window.jspdf||!window.jspdf.jsPDF){toast('PDF non pronto');return;}
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    const week=currentWeekKey();
+    doc.setFontSize(13);
+    doc.text('Corvetto — '+fmtIT(monday)+' – '+fmtIT(addDays(monday,5))+' · '+week,14,12);
+    const head=['Collaboratore'].concat(DAY_NAMES.map((n,i)=>n+' '+addDays(monday,i).getDate()));
+    const body=(appData.workers||[]).filter(w=>w.selected!==false).map(w=>{
+      const row=[w.name||w.id];
+      for(let d=0;d<6;d++){
+        const cell=cellAt(week,w.id,d);
+        if(isHardAway(cell)){row.push(String(cell.status||cell.leaveType||'ASSENTE'));continue;}
+        const parts=[];
+        if(cell.mIn)parts.push(cell.mIn+'-'+(cell.mOut||''));
+        if(cell.pIn)parts.push(cell.pIn+'-'+(cell.pOut||''));
+        row.push(parts.join('\n')||'—');
       }
-      body.push(row);
+      return row;
     });
-    doc.autoTable({
-      startY: 20,
-      head: [head],
-      body: body,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [18, 21, 28], textColor: [242, 244, 247] },
-      alternateRowStyles: { fillColor: [245, 246, 248] },
-      bodyStyles: { textColor: [15, 20, 25] }
-    });
-    doc.save('Turni_Corvetto_' + key + '.pdf');
+    doc.autoTable({startY:16,head:[head],body:body,styles:{fontSize:7,cellPadding:1.5},headStyles:{fillColor:[18,21,28],textColor:[242,244,247]}});
+    doc.save('Turni_Corvetto_'+week+'.pdf');
     toast('PDF scaricato');
   }
 
+  function saveLeave(){
+    const workerId=document.getElementById('leaveWorker').value;
+    const tipo=document.getElementById('leaveTipo').value;
+    const from=document.getElementById('leaveFrom').value;
+    const to=document.getElementById('leaveTo').value||from;
+    if(!workerId||!from){toast('Compila collaboratore e data');return;}
+    if(!appData.leaveRequests)appData.leaveRequests=[];
+    const isMed=/malattia|ricovero/i.test(tipo);
+    appData.leaveRequests.push({
+      id:'lr_'+Date.now(),
+      workerId:workerId,
+      tipo:tipo,
+      fromDay:from,
+      toDay:to,
+      fullDay:true,
+      mode:'range',
+      isMalattia:isMed,
+      openEnded:false,
+      createdAt:new Date().toISOString()
+    });
+    saveLocal();
+    pushCloud();
+    render();
+    toast('Assenza salvata su cloud');
+  }
+
   // events
-  document.getElementById('btnPrev').onclick = () => { monday = addDays(monday, -7); render(); };
-  document.getElementById('btnNext').onclick = () => { monday = addDays(monday, 7); render(); };
-  document.getElementById('zones').onclick = (e) => {
-    const b = e.target.closest('[data-zone]');
-    if (!b) return;
-    zoneId = b.getAttribute('data-zone');
-    render();
+  document.getElementById('btnPrev').onclick=()=>{monday=addDays(monday,-7);render();};
+  document.getElementById('btnNext').onclick=()=>{monday=addDays(monday,7);render();};
+  document.getElementById('zones').onclick=e=>{const b=e.target.closest('[data-zone]');if(!b)return;zoneId=b.getAttribute('data-zone');render();};
+  document.getElementById('days').onclick=e=>{const b=e.target.closest('[data-day]');if(!b)return;dayIdx=+b.getAttribute('data-day');render();};
+  document.getElementById('tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(!b)return;renderTabs(b.getAttribute('data-tab'));};
+  document.querySelector('.dock').onclick=e=>{
+    const b=e.target.closest('[data-go]');if(!b)return;
+    const g=b.getAttribute('data-go');
+    if(g==='pdf')exportPdf();
+    else if(g==='motore')renderTabs('motore');
+    else if(g==='assenze')renderTabs('assenze');
+    else renderTabs('pulse');
   };
-  document.getElementById('days').onclick = (e) => {
-    const b = e.target.closest('[data-day]');
-    if (!b) return;
-    dayIdx = parseInt(b.getAttribute('data-day'), 10);
-    render();
-  };
-  document.getElementById('btnAssign').onclick = openSheet;
-  document.getElementById('btnSystem').onclick = autoFillWeek;
-  document.getElementById('btnPdf').onclick = exportPdf;
-  document.getElementById('btnClearDay').onclick = clearDay;
-  document.getElementById('sheetClose').onclick = () => document.getElementById('sheet').classList.remove('open');
-  document.getElementById('sheetSave').onclick = saveSheet;
-  document.getElementById('sheet').onclick = (e) => { if (e.target.id === 'sheet') e.target.classList.remove('open'); };
+  document.getElementById('btnSystem').onclick=()=>openLegacy('');
+  document.getElementById('btnOpenEngine').onclick=()=>openLegacy('');
+  document.getElementById('btnOpenLegacyHome').onclick=()=>openLegacy('');
+  document.getElementById('btnLegacyGrid').onclick=()=>openLegacy('');
+  document.getElementById('btnPdf').onclick=exportPdf;
+  document.getElementById('btnReload').onclick=pullCloud;
+  document.getElementById('btnForcePull').onclick=pullCloud;
+  document.getElementById('btnForcePush').onclick=pushCloud;
+  document.getElementById('btnSaveLeave').onclick=saveLeave;
 
-  document.querySelector('.dock').onclick = (e) => {
-    const b = e.target.closest('button[data-act]');
-    if (!b) return;
-    const act = b.getAttribute('data-act');
-    if (act === 'system') autoFillWeek();
-    else if (act === 'assign') openSheet();
-    else if (act === 'pdf') exportPdf();
-    else render();
-  };
-
+  loadLocal();
+  initFirebase();
   render();
 })();
 </script>
