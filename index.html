@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.48';
+    const APP_VERSION = '9.11.49';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.49 — Fail closed anche in Applica proposta: un errore del verificatore non è forzabile come semplice scopertura',
     '9.11.48 — Safety guard: se la verifica delle coperture fallisce o manca, la proposta viene bloccata (fail closed)',
     '9.11.47 — Smart Brain: esperienza dinamica in scoring, coperture basate sui profili attivi e pool ufficio corretto il mercoledì',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
@@ -2166,7 +2167,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.48</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.49</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2188,7 +2189,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.48</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.49</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -15633,6 +15634,13 @@ function showProposalReviewModal() {
   }
 
   
+  /** Restituisce scoperture solo se il verificatore ha completato correttamente il controllo. */
+  function getVerifiedCoverageGaps(week) {
+    if (typeof collectSmartCoverageGaps !== 'function') throw new Error('Verificatore coperture non disponibile.');
+    const gaps = collectSmartCoverageGaps(week);
+    if (!Array.isArray(gaps)) throw new Error('Il verificatore coperture non ha restituito un risultato valido.');
+    return gaps;
+  }
   /** Violazioni dure di una proposta (dopo eventuali bilanciamenti). */
   function proposalHardViolations(p) {
     const out = [];
@@ -15643,19 +15651,8 @@ function showProposalReviewModal() {
     } catch (e) { out.push('Validazione fallita: ' + (e.message || e)); }
     let finalGaps = p.finalCoverageGaps;
     if (!finalGaps) {
-      if (typeof collectSmartCoverageGaps !== 'function') {
-        // Fail closed: senza il verificatore non possiamo dichiarare la proposta sicura.
-        out.push('Verifica coperture non disponibile: proposta bloccata.');
-        finalGaps = null;
-      } else {
-        try {
-          finalGaps = collectSmartCoverageGaps(p.week);
-        } catch (e2) {
-          // Un errore di verifica non equivale a zero scoperture.
-          out.push('Verifica coperture fallita: ' + (e2 && e2.message ? e2.message : e2) + '. Proposta bloccata.');
-          finalGaps = null;
-        }
-      }
+      try { finalGaps = getVerifiedCoverageGaps(p.week); }
+      catch (e2) { out.push('Verifica coperture fallita: ' + (e2 && e2.message ? e2.message : e2) + '. Proposta bloccata.'); finalGaps = null; }
     }
     if (finalGaps && finalGaps.length) {
       finalGaps.slice(0, 12).forEach(g => {
@@ -15692,7 +15689,15 @@ function applyPendingProposal(options) {
     p.coverage = coverage;
     const dayGaps = (coverage || []).filter(c => c && (c.magOk === false || c.impOk === false));
     let finalGaps = [];
-    try { finalGaps = typeof collectSmartCoverageGaps === 'function' ? collectSmartCoverageGaps(p.week) : []; } catch (eCoverage) {}
+    try {
+      finalGaps = getVerifiedCoverageGaps(p.week);
+    } catch (eCoverage) {
+      const reason = eCoverage && eCoverage.message ? eCoverage.message : String(eCoverage || 'errore sconosciuto');
+      alert('La proposta NON può essere applicata: verifica delle coperture non riuscita.\n\n' + reason + '\n\nNon è possibile forzare una verifica che non è stata completata.');
+      showToast('Proposta bloccata: verifica coperture non riuscita', 'error', 5500);
+      try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUiCoverage) {}
+      return;
+    }
     p.finalCoverageGaps = finalGaps;
     p.meta = Object.assign({}, p.meta || {}, {
       finalCoverageGapCount: finalGaps.length,
