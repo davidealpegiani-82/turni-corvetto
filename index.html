@@ -15612,6 +15612,18 @@ function showProposalReviewModal() {
       const valid = make();
       push('Proposta valida accettata', validateProposalBeforeApply(valid).length === 0);
 
+      // La rigenerazione elimina le celle generate solo dalla copia temporanea:
+      // il guard deve restare ancorato alla settimana originale salvata.
+      const regenOriginal = {[wid]: {[0]: {mIn:'08:30',mOut:'17:30',generated:true}}};
+      appData.weeks[key] = deepClone(regenOriginal);
+      const regenSeed = buildRegenerationSeed(regenOriginal,'all');
+      const regenProbe = restoreProposalBaseSnapshot({
+        weekKey:key, week:{[wid]:{0:{mIn:'08:30',mOut:'17:30',generated:true}}},
+        baseWeekSnapshot:deepClone(regenSeed), choices:[]
+      },regenOriginal);
+      push('Rigenerazione non crea conflitto falso', !validateProposalBeforeApply(regenProbe).some(x => /cambiata dopo la generazione/i.test(x)));
+      appData.weeks[key] = deepClone({[wid]:{0:{mIn:'08:30',mOut:'17:30'}}});
+
       const stale = make();
       appData.weeks[key][wid][0].mOut = '16:30';
       push('Modifica concorrente rilevata', validateProposalBeforeApply(stale).some(x => /cambiata dopo la generazione/i.test(x)));
