@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.46';
+    const APP_VERSION = '9.11.47';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.47 — Copertura e competenze: pool ufficio mercoledì vincolato, score allineato alle capacità reali e test regressione dedicati',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
     '9.11.44 — Ricovero/malattia in corso: non proiettati nel futuro oltre oggi; pulizia celle oltre data fine; chiusura esplicita del periodo',
@@ -2164,7 +2165,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.46</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.47</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2186,7 +2187,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.46</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.47</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -2326,6 +2327,9 @@
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
     <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist settimana</button>
     <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="runGlobalAiWeekProblems()">🧠 Analizza settimana</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openTeamModal()">👥 Competenze</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openRulesTestModal()">🧪 Test motore</button>
   </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
@@ -5214,17 +5218,24 @@ function isUsableAppData(value) {
   // per l'apertura e la copertura ufficio contano solo Alpegiani, Caregnato e Severin.
   // Non includere automaticamente Finiture o altri profili, perché falserebbe l'audit.
   function officeCoverageIdsForDay(day) {
-    // Pool copertura ufficio: rotazione (Alpegiani/Poppa/Caregnato) + Severin.
-    // Esclude Finiture/Idalia: non devono mascherare una scopertura del banco edile.
-    return [...new Set([...SABATO_UFFICIO_IDS(), SEVERIN_ID()])]
-      .filter(function(id) {
-        const w = workerObj(id);
-        if (!w || w.selected === false) return false;
-        if (String(w.group || '').toUpperCase() === 'FINITURE') return false;
-        const blob = (String(w.name || '') + ' ' + String(w.role || '')).toLowerCase();
-        if (/finitur|idalia|sandrini/.test(blob)) return false;
-        return true;
+    // Pool base: rotazione ufficio + Severin; Finiture/Sandrini non coprono il banco.
+    const base=[...new Set([...SABATO_UFFICIO_IDS(),SEVERIN_ID()])].filter(function(id){
+      const w=workerObj(id);
+      if(!w||w.selected===false)return false;
+      if(String(w.group||'').toUpperCase()==='FINITURE')return false;
+      const blob=(String(w.name||'')+' '+String(w.role||'')).toLowerCase();
+      if(/finitur|idalia|sandrini/.test(blob))return false;
+      return true;
+    });
+    // Il mercoledì il pool ammesso è ristretto: Alpegiani, Caregnato e Severin.
+    if(Number(day)===2){
+      return base.filter(function(id){
+        const w=workerObj(id);
+        const blob=(String(w&&w.name||'')+' '+String(w&&w.role||'')).toLowerCase();
+        return /alpegiani|caregnato|severin/.test(blob);
       });
+    }
+    return base;
   }
 
   function analyzeCoverage(week) {
@@ -11081,6 +11092,23 @@ function minLunchBreakMinutes(wId) {
   function runSmartBrainRegressionSuite(){
     const keys=['M37','M38','M39','M40','M41','M42','M43','M44','M45','M46','M47'];
     const results=keys.map(runSmartRegressionScenario);
+    // Regressioni sui pool giornalieri e sulla matrice esperienza.
+    const tue=officeCoverageIdsForDay(1).map(id=>workerObj(id)).filter(Boolean);
+    const wed=officeCoverageIdsForDay(2).map(id=>workerObj(id)).filter(Boolean);
+    const has=(arr,re)=>arr.some(w=>re.test(String(w.name||'')+' '+String(w.role||'')));
+    const activeHas=re=>(appData.workers||[]).some(w=>w&&w.selected!==false&&re.test(String(w.name||'')+' '+String(w.role||'')));
+    const roleOnly={id:'__test_role_only__',name:'Test magazziniere',role:'Magazziniere',group:'',selected:true,brain:{}};
+    const officeOverride={id:'__test_office_override__',name:'Test ufficio',role:'Magazziniere',group:'MAGAZZINO',selected:true,brain:{office:true}};
+    [
+      {key:'POOL-TUE',title:'Pool ufficio martedì',ok:(!activeHas(/alpegiani/i)||has(tue,/alpegiani/i))&&(!activeHas(/caregnato/i)||has(tue,/caregnato/i))&&(!activeHas(/poppa/i)||has(tue,/poppa/i))&&(!activeHas(/severin/i)||has(tue,/severin/i)),msg:'Martedì include i componenti attivi del pool ordinario'},
+      {key:'POOL-WED',title:'Pool ufficio mercoledì',ok:!has(wed,/poppa|sandrini|idalia|finitur/i)&&wed.every(w=>/alpegiani|caregnato|severin/i.test(String(w.name||'')+' '+String(w.role||''))),msg:'Mercoledì non include Poppa/Finiture e usa solo i profili ammessi'},
+      {key:'EXP-OPEN',title:'Esperienza dinamica apertura',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'mentor'}]}},'opening')==='mentor',msg:'La matrice dinamica viene letta dal punteggio'},
+      {key:'EXP-LABEL',title:'Etichetta esperienza personalizzata',ok:smartExperienceLevelFor({profile:{experienceAreas:[{label:'Apertura piazzale',level:'autonomous'}]}},'opening')==='autonomous',msg:'Le etichette personalizzate restano riconosciute'},
+      {key:'EXP-LEGACY',title:'Compatibilità esperienza storica',ok:smartExperienceLevelFor({profile:{openingExperience:'assisted'}},'opening')==='assisted',msg:'I profili storici restano compatibili'},
+      {key:'EXP-SAFE',title:'Livelli sconosciuti gestiti in sicurezza',ok:smartExperienceLevelFor({profile:{experienceAreas:[{id:'opening',level:'guru'}]}},'opening')==='unknown',msg:'Valore non valido non influenza il punteggio'},
+      {key:'CAP-ROLE',title:'Magazziniere riconosciuto dal ruolo',ok:smartWorkerBrainProfile(roleOnly).warehouse===true,msg:'Il ruolo basta anche se Gruppo è vuoto'},
+      {key:'CAP-OFFICE',title:'Override esplicito ufficio',ok:smartWorkerBrainProfile(officeOverride).office===true&&smartWorkerBrainProfile(officeOverride).warehouse===false,msg:'Un profilo ufficio non viene contato come magazzino'}
+    ].forEach(t=>results.push({key:t.key,status:t.ok?'pass':'fail',title:t.title,checks:[{ok:t.ok,msg:t.msg}]}));
     const pass=results.filter(r=>r.status==='pass').length;
     const fail=results.filter(r=>r.status==='fail').length;
     const skip=results.filter(r=>r.status==='skip').length;
@@ -11099,7 +11127,7 @@ function minLunchBreakMinutes(wId) {
     const overall=fail===0 && skip===0;
     document.getElementById('rulesTestResult').innerHTML=`
       <div class="test-block">
-        <strong>🧠 Smart Brain Regression M37–M47</strong><br>
+        <strong>🧠 Smart Brain Regression M37–M47 + pool/capacità/competenze</strong><br>
         <span class="test-pass">${pass} pass</span> ·
         <span class="test-fail">${fail} fail</span> ·
         <span class="test-skip">${skip} skip</span>
@@ -11107,7 +11135,7 @@ function minLunchBreakMinutes(wId) {
           La suite confronta score e coperture prima/dopo Smart Brain e controlla i vincoli duri degli scenari.
         </div>
       </div>${rows}`;
-    showToast(`Smart Brain M37–M47: ${pass} ok, ${fail} fail, ${skip} skip`,overall?'success':'warn',5000);
+    showToast(`Smart Brain: ${pass} ok, ${fail} fail, ${skip} skip`,overall?'success':'warn',5000);
     return {pass,fail,skip,results};
   }
 
@@ -12554,9 +12582,32 @@ function minLunchBreakMinutes(wId) {
     }
     return out;
   }
+  function smartExperienceLevelFor(worker, areaKey){
+    // Le schede recenti possono usare experienceAreas; manteniamo compatibilità
+    // con i campi storici per non perdere il valore dei profili già compilati.
+    const p=(worker&&worker.profile)||{};
+    const aliases={
+      opening:{legacy:'openingExperience',re:/apertura|opening/i},
+      sand:{legacy:'sandExperience',re:/sabbia|sand/i},
+      loader:{legacy:'loaderExperience',re:/pala|caricatrice|ruspa|loader/i},
+      loading:{legacy:'loadingExperience',re:/camion|carico|preparazione ordini|loading/i}
+    };
+    const cfg=aliases[areaKey];
+    if(!cfg)return 'unknown';
+    const areas=Array.isArray(p.experienceAreas)?p.experienceAreas:[];
+    const hit=areas.find(a=>a&&(String(a.id||'').toLowerCase()===areaKey||cfg.re.test(String(a.label||''))));
+    const level=(hit&&hit.level)||p[cfg.legacy]||'unknown';
+    return ['unknown','assisted','autonomous','mentor'].includes(level)?level:'unknown';
+  }
+
   function smartCoverageMetrics(week,day){
-    const mag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()].filter(id=>!!workerObj(id));
-    const imp=[...SABATO_UFFICIO_IDS(),SEVERIN_ID()].filter(id=>!!workerObj(id));
+    // Score e diagnosi devono valutare lo stesso personale realmente disponibile.
+    const configuredMag=[...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()];
+    const mag=[...new Set([
+      ...configuredMag,
+      ...(appData.workers||[]).filter(w=>w&&w.selected!==false&&smartWorkerBrainProfile(w).warehouse===true).map(w=>w.id)
+    ])].filter(id=>{const w=workerObj(id);return !!w&&w.selected!==false;});
+    const imp=officeCoverageIdsForDay(day);
     return {
       magOpen:allIntervalsCovered(week,mag,day,'06:30','08:30',R().minAperturaMag??2,15),
       magClose:allIntervalsCovered(week,mag,day,'17:00','17:30',1,15),
@@ -12578,9 +12629,7 @@ function minLunchBreakMinutes(wId) {
     const mag = [...new Set([
       ...configuredMag,
       ...(appData.workers || [])
-        .filter(w => w && w.selected !== false &&
-          (String(w.group || '').toUpperCase() === 'MAGAZZINO' ||
-           workerBrain(w).warehouse === true))
+        .filter(w => w && w.selected !== false && smartWorkerBrainProfile(w).warehouse === true)
         .map(w => w.id)
     ])].filter(id => { const w=workerObj(id); return !!w && w.selected !== false; });
 
@@ -12803,9 +12852,8 @@ function minLunchBreakMinutes(wId) {
       if(burden>0 && delta[f]>0){ score-=Math.min(180,wgt*burden*delta[f]); why.push(`${f} storico sopra media`); }
     });
     if(profile.jolly) { score+=15; why.push('Jolly disponibile'); }
-    const exp = (w && w.profile) || {};
     if (profile.warehouse && shift && shift.mIn === '06:30') {
-      const level = exp.openingExperience || 'unknown';
+      const level = smartExperienceLevelFor(w, 'opening');
       const openingBonus = level === 'mentor' ? 65 : level === 'autonomous' ? 35 : level === 'assisted' ? -20 : 0;
       if (openingBonus) { score += openingBonus; why.push('esperienza apertura: ' + level); }
     }
