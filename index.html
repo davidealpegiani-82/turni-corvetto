@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.52</title>
+  <title>Turni Corvetto v9.11.53</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.52';
+    const APP_VERSION = '9.11.53';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.53 — Contrasto UI (pulsanti leggibili) + colori PDF per eventi/malattia/ricovero',
     '9.11.52 — Colori malattia/ricovero allineati e contrastati (palette distinta, tema chiaro/scuro)',
     '9.11.51 — Fail closed verifica coperture: errore/assenza verificatore blocca proposta (non forzabile); test di sicurezza; Poppa resta nel pool',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
@@ -2150,17 +2151,30 @@
       border: none; cursor: pointer;
     }
     .op-actions .primary {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
     }
     .op-actions .secondary {
-      background: rgba(15,23,42,.06); color: inherit;
-      border: 1px solid rgba(127,127,127,.18);
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      border: 1px solid #94a3b8 !important;
+      text-shadow: none !important;
     }
-    body.light-theme .op-actions .secondary { background: #fff; }
+    body.light-theme .op-actions .secondary {
+      background: #f1f5f9 !important;
+      color: #0f172a !important;
+      border: 1px solid #94a3b8 !important;
+    }
+    body:not(.light-theme) .op-actions .secondary {
+      background: rgba(148,163,184,.22) !important;
+      color: #f8fafc !important;
+      border: 1px solid rgba(148,163,184,.45) !important;
+    }
     .op-section-title {
       font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
-      color: var(--text-muted); font-weight: 800; margin: 18px 0 8px;
+      color: #64748b; font-weight: 800; margin: 18px 0 8px;
     }
+    body:not(.light-theme) .op-section-title { color: #94a3b8; }
     .op-card {
       background: var(--card-bg, rgba(255,255,255,.04));
       border: 1px solid rgba(127,127,127,.14);
@@ -2170,9 +2184,39 @@
     .op-card .op-card-head {
       display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
     }
-    .op-card .op-card-head strong { font-size: 14px; }
-    .op-card .op-card-head span.meta { font-size: 11px; color: var(--text-muted); }
-    .op-card p.detail { margin: 6px 0 10px; font-size: 13px; color: var(--text-muted); line-height: 1.35; }
+    .op-card .op-card-head strong { font-size: 14px; color: inherit; }
+    .op-card .op-card-head span.meta {
+      font-size: 11px; font-weight: 800; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 999px;
+    }
+    .op-card .op-card-head span.meta.warn {
+      background: rgba(245,158,11,.18); color: #b45309;
+    }
+    .op-card .op-card-head span.meta.bad {
+      background: rgba(239,68,68,.16); color: #b91c1c;
+    }
+    .op-card .op-card-head span.meta.ok {
+      background: rgba(34,197,94,.16); color: #15803d;
+    }
+    body:not(.light-theme) .op-card .op-card-head span.meta.warn { color: #fbbf24; }
+    body:not(.light-theme) .op-card .op-card-head span.meta.bad { color: #f87171; }
+    body:not(.light-theme) .op-card .op-card-head span.meta.ok { color: #4ade80; }
+    .op-card p.detail { margin: 6px 0 10px; font-size: 13px; color: #475569; line-height: 1.35; }
+    body:not(.light-theme) .op-card p.detail { color: #cbd5e1; }
+    .op-list li { color: inherit; }
+    body.light-theme .op-list li { color: #0f172a; }
+    body:not(.light-theme) .op-list li { color: #e2e8f0; }
+    /* Pulsante azione nelle card: testo sempre leggibile */
+    .op-card .op-card-actions button.alt {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+      border: 1px solid #94a3b8 !important;
+    }
+    body:not(.light-theme) .op-card .op-card-actions button.alt {
+      background: rgba(148,163,184,.2) !important;
+      color: #f8fafc !important;
+    }
+
     .op-card .op-card-actions { display:flex; flex-wrap:wrap; gap:6px; }
     .op-card .op-card-actions button { min-height: 36px; font-size: 12px; border-radius: 10px; padding: 6px 12px; }
     .op-empty {
@@ -2236,7 +2280,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.52</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.53</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2258,7 +2302,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.52</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.53</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -4894,7 +4938,7 @@ function isUsableAppData(value) {
         const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
         return '<div class="op-card">' +
           '<div class="op-card-head"><strong>' + escapeHtmlV47(s.title) + '</strong>' +
-          '<span class="meta">' + escapeHtmlV47(s.level) + '</span></div>' +
+          '<span class="meta ' + escapeHtmlV47(s.level || '') + '">' + escapeHtmlV47(s.level) + '</span></div>' +
           '<p class="detail">' + escapeHtmlV47(s.detail || '') + '</p>' +
           '<div class="op-card-actions">' +
           '<button type="button" class="' + (s.level === 'ok' ? 'alt' : 'btn-proposal') +
@@ -8082,7 +8126,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.52', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.53', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -16778,28 +16822,61 @@ function applyPendingProposal(options) {
             if (hookData.column.index > 0) {
               const rowObj = matrixData.rows[hookData.row.index];
               const cellObj = rowObj && rowObj[hookData.column.index];
+              const raw = cellObj && cellObj.rawData ? cellObj.rawData : null;
+              const stUpper = raw ? String(raw.status || '').toUpperCase() : '';
+              const leaveTipo = raw ? String(raw.leaveType || '').toLowerCase() : '';
+              const hasEvents = !!(cellObj && cellObj.eventLines && cellObj.eventLines.length);
+
               // Celle con impegni: testo gestito da didDrawCell (centrato + blu)
-              if (cellObj && cellObj.eventLines && cellObj.eventLines.length) {
+              if (hasEvents) {
                 hookData.cell.text = [''];
                 hookData.cell.styles.minCellHeight = Math.max(hookData.cell.styles.minCellHeight || 0, 14);
+                // Sfondo azzurro leggero: rende visibile la presenza di eventi anche in stampa
+                hookData.cell.styles.fillColor = [219, 234, 254]; // blue-100
+                hookData.cell.styles.textColor = [30, 64, 175];
               }
 
-              if (cellObj && cellObj.rawData && cellObj.rawData.status && cellObj.rawData.status !== "LAVORO") {
-                const stUpper = String(cellObj.rawData.status).toUpperCase();
+              if (raw && raw.status && raw.status !== "LAVORO") {
                 // Il RIPOSO nel PDF è volutamente neutro: niente riquadro colorato, solo "-".
-                if (isRestStatus(cellObj.rawData.status)) {
+                if (isRestStatus(raw.status)) {
                   hookData.cell.styles.fillColor = [255,255,255];
                   hookData.cell.styles.textColor = [15,23,42];
                   hookData.cell.styles.fontStyle = 'normal';
+                } else if (stUpper === 'RICOVERO' || leaveTipo.indexOf('ricovero') >= 0) {
+                  // Allineato alla UI: rosa/cremisi, testo scuro leggibile
+                  hookData.cell.styles.fillColor = [255, 228, 230]; // rose-100
+                  hookData.cell.styles.textColor = [159, 18, 57];   // rose-800
+                  hookData.cell.styles.fontStyle = 'bold';
+                } else if (stUpper === 'MALATTIA' || leaveTipo.indexOf('malattia') >= 0) {
+                  hookData.cell.styles.fillColor = [255, 237, 213]; // orange-100
+                  hookData.cell.styles.textColor = [154, 52, 18];   // orange-800
+                  hookData.cell.styles.fontStyle = 'bold';
+                } else if (stUpper === 'FERIE' || /ferie/.test(leaveTipo)) {
+                  hookData.cell.styles.fillColor = [220, 252, 231]; // green-100
+                  hookData.cell.styles.textColor = [22, 101, 52];
+                  hookData.cell.styles.fontStyle = 'bold';
                 } else {
                   const stObj = appData.statuses.find(st => st.name.toUpperCase() === stUpper);
                   if (stObj && stObj.color) {
                     const rgbSt = hexToRgb(stObj.color);
-                    if (rgbSt) hookData.cell.styles.fillColor = rgbSt;
-                    hookData.cell.styles.textColor = [255,255,255];
+                    // Tinta chiara + testo scuro (evita bianco su colore tenue)
+                    if (rgbSt) {
+                      hookData.cell.styles.fillColor = [
+                        Math.round(rgbSt[0] * 0.25 + 255 * 0.75),
+                        Math.round(rgbSt[1] * 0.25 + 255 * 0.75),
+                        Math.round(rgbSt[2] * 0.25 + 255 * 0.75)
+                      ];
+                      hookData.cell.styles.textColor = [
+                        Math.max(20, Math.round(rgbSt[0] * 0.45)),
+                        Math.max(20, Math.round(rgbSt[1] * 0.4)),
+                        Math.max(20, Math.round(rgbSt[2] * 0.4))
+                      ];
+                    }
                     hookData.cell.styles.fontStyle = 'bold';
                   }
                 }
+              } else if (hasEvents && !raw) {
+                hookData.cell.styles.fillColor = [219, 234, 254];
               }
             }
           }
@@ -16820,15 +16897,15 @@ function applyPendingProposal(options) {
           const blockH = nLines * lineH;
           let y = data.cell.y + (data.cell.height - blockH) / 2 + 2.4;
 
-          // sfondo
+          // sfondo: evidenzia sempre le celle con eventi (azzurro leggero)
           if (Array.isArray(data.cell.styles.fillColor)) {
             doc.setFillColor.apply(doc, data.cell.styles.fillColor);
           } else {
-            doc.setFillColor(255, 255, 255);
+            doc.setFillColor(219, 234, 254);
           }
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-          doc.setDrawColor(200);
-          doc.setLineWidth(0.12);
+          doc.setDrawColor(147, 197, 253);
+          doc.setLineWidth(0.2);
           doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'S');
 
           if (workLine) {
@@ -16838,9 +16915,10 @@ function applyPendingProposal(options) {
             doc.text(workLine, cx, y, { align: 'center', maxWidth: maxW });
             y += lineH;
           }
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(Math.max(5, (cfg.cellNote || 6) - 0.2));
-          doc.setTextColor(37, 99, 235);
+          doc.setFont(undefined, 'bold');
+          doc.setFontSize(Math.max(5.2, (cfg.cellNote || 6) - 0.1));
+          // Blu più scuro per stampa leggibile
+          doc.setTextColor(29, 78, 216);
           evs.forEach(function(line) {
             doc.text('* ' + line, cx, y, { align: 'center', maxWidth: maxW });
             y += lineH;
@@ -16881,7 +16959,7 @@ function applyPendingProposal(options) {
           theme:'grid',
           margin:{left:10,right:10,top:3,bottom:4},
           styles:{fontSize:cfg.eventFont,cellPadding:cfg.eventPad,textColor:[0,0,0],valign:'middle',lineWidth:0.15},
-          headStyles:{fillColor:[245,240,255],textColor:[15,23,42],fontStyle:'bold',fontSize:cfg.eventFont,cellPadding:cfg.eventPad},
+          headStyles:{fillColor:[37,99,235],textColor:[255,255,255],fontStyle:'bold',fontSize:cfg.eventFont,cellPadding:cfg.eventPad},
           columnStyles:{0:{cellWidth:18},1:{cellWidth:55},2:{cellWidth:28},3:{cellWidth:48},4:{cellWidth:90}}
         });
       }
