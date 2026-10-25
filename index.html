@@ -6,7 +6,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v10.3.2</title>
+  <title>Turni Corvetto v10.3.3</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,7 +41,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '10.3.2';
+    const APP_VERSION = '10.3.3';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -57,6 +57,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '10.3.3 — Riepilogo: apre stato settimana (non più scroll a blocco nascosto)',
     '10.3.2 — Contrasto leggibile su tutte le pagine (ferie, malattia, impegni, settings, griglia)',
     '10.3.1 — Contrasto leggibile: testi e pulsanti scuri su fondi chiari (WCAG-oriented)',
     '10.3.0 — UI snella: meno tasti, contrasto leggibile, Pulse pulito; griglia esperto minimale',
@@ -3784,7 +3785,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">PULSE</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.2</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.3</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3897,7 +3898,7 @@
       <div class="pulse-mark-sm">P</div>
       <div>
         <div class="pulse-chrome-brand">PULSE</div>
-        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.2</div>
+        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.3</div>
       </div>
     </div>
     <div class="pulse-chrome-week">
@@ -3999,7 +4000,7 @@
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
     <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist settimana</button>
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="showWeekSummary()">🏠 Riepilogo</button>
   </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
@@ -6948,6 +6949,61 @@ function isUsableAppData(value) {
     return health;
   }
   window.updateWeekStatusUI = updateWeekStatusUI;
+
+  
+  function showWeekSummary() {
+    try {
+      if (typeof updateWeekStatusUI === 'function') updateWeekStatusUI();
+      const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : null;
+      if (!health) {
+        showToast('Riepilogo non disponibile', 'warn');
+        return;
+      }
+      const lines = [];
+      lines.push(health.label || 'Stato settimana');
+      const badCov = (health.coverage || []).filter(function(x) { return x.bad; });
+      if (badCov.length) {
+        lines.push('Coperture: ' + badCov.slice(0, 4).map(function(x) {
+          return (x.day || '') + ' ' + (x.text || '');
+        }).join(' · '));
+      } else {
+        lines.push('Coperture: ok');
+      }
+      lines.push('Assenze: ' + ((health.leaves && health.leaves.length) || 0));
+      lines.push('Impegni: ' + ((health.events && health.events.length) || 0));
+      if (health.issues && health.issues.length) {
+        lines.push('Avvisi: ' + health.issues.slice(0, 3).join(' · '));
+      }
+      // Modal se disponibile, altrimenti toast lungo + dettagli
+      const list = document.getElementById('weekIssuesList');
+      const modal = document.getElementById('weekIssuesModal');
+      if (list && modal && typeof openModal === 'function') {
+        const items = [];
+        items.push('<li><span class="ck ' + (health.level === 'ok' ? 'ok' : (health.level === 'bad' ? 'bad' : 'warn')) + '">●</span><div><strong>' +
+          escapeHtmlV47(health.label || 'Stato') + '</strong><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' +
+          escapeHtmlV47(lines.slice(1).join(' — ')) + '</div></div></li>');
+        (health.issues || []).slice(0, 8).forEach(function(iss) {
+          items.push('<li><span class="ck warn">!</span><div>' + escapeHtmlV47(String(iss)) + '</div></li>');
+        });
+        badCov.slice(0, 6).forEach(function(x) {
+          items.push('<li><span class="ck bad">!</span><div>' + escapeHtmlV47((x.day || '') + ' · ' + (x.text || '')) + '</div></li>');
+        });
+        if (items.length === 1 && health.level === 'ok') {
+          items.push('<li><span class="ck ok">✓</span><div>Nessun problema critico su coperture, assenze o impegni.</div></li>');
+        }
+        list.innerHTML = items.join('');
+        const title = modal.querySelector('h3');
+        if (title) title.textContent = 'Riepilogo settimana';
+        openModal('weekIssuesModal');
+      } else {
+        showToast(lines.join(' · '), health.level === 'bad' ? 'error' : (health.level === 'warn' ? 'warn' : 'success'), 5000);
+      }
+    } catch (e) {
+      console.warn(e);
+      showToast('Impossibile aprire il riepilogo', 'error');
+    }
+  }
+  window.showWeekSummary = showWeekSummary;
 
   function openWeekIssues() {
     const health = computeWeekHealth();

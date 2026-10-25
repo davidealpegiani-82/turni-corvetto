@@ -1,7 +1,7 @@
-/* Turni Corvetto PWA SW v10.3.2 */
-const CACHE_CORE = 'corvetto-core-v10.3.2-r2';
-const CACHE_CDN = 'corvetto-cdn-v10.3.2-r2';
-const APP_SW_VERSION = '10.3.2';
+/* Turni Corvetto PWA SW v10.3.3 */
+const CACHE_CORE = 'corvetto-core-v10.3.3-r2';
+const CACHE_CDN = 'corvetto-cdn-v10.3.3-r2';
+const APP_SW_VERSION = '10.3.3';
 
 const CORE_ASSETS = [
   './manifest.webmanifest',
@@ -13,9 +13,9 @@ const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-  'https://www.gstatic.com/firebasejs/10.3.2/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.3.2/firebase-auth-compat.js',
-  'https://www.gstatic.com/firebasejs/10.3.2/firebase-database-compat.js'
+  'https://www.gstatic.com/firebasejs/10.3.3/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.3.3/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/10.3.3/firebase-database-compat.js'
 ];
 
 self.addEventListener('install', (event) => {
