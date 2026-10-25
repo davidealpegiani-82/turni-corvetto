@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.51</title>
+  <title>Turni Corvetto v9.11.52</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.51';
+    const APP_VERSION = '9.11.52';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.52 — Colori malattia/ricovero allineati e contrastati (palette distinta, tema chiaro/scuro)',
     '9.11.51 — Fail closed verifica coperture: errore/assenza verificatore blocca proposta (non forzabile); test di sicurezza; Poppa resta nel pool',
     '9.11.46 — Ore giornaliere: corso/impegno dentro turno non si somma più (niente 13h su Severin)',
     '9.11.45 — Fix freeze salvataggio malattia/ricovero: prune leggero, niente finalize pesante su tutte le settimane',
@@ -1996,11 +1997,81 @@
     }
     body.light-theme .cell-badge { background:#eff6ff; color:#2563eb; }
     .cell-badge.leave { background:rgba(34,197,94,.14); color:#16a34a; }
-    .cell-badge.medical { background:rgba(239,68,68,.12); color:#dc2626; }
+    /* --- Malattia / Ricovero: palette distinta + contrasto leggibile --- */
+    :root, body {
+      --malattia-fg: #ea580c;
+      --malattia-bg: rgba(251, 146, 60, 0.16);
+      --malattia-border: rgba(234, 88, 12, 0.42);
+      --ricovero-fg: #e11d48;
+      --ricovero-bg: rgba(244, 63, 94, 0.14);
+      --ricovero-border: rgba(225, 29, 72, 0.45);
+    }
+    body.light-theme {
+      --malattia-fg: #9a3412;
+      --malattia-bg: #ffedd5;
+      --malattia-border: rgba(194, 65, 12, 0.4);
+      --ricovero-fg: #9f1239;
+      --ricovero-bg: #ffe4e6;
+      --ricovero-border: rgba(190, 18, 60, 0.4);
+    }
+    body:not(.light-theme) {
+      --malattia-fg: #fdba74;
+      --malattia-bg: rgba(251, 146, 60, 0.18);
+      --malattia-border: rgba(251, 146, 60, 0.45);
+      --ricovero-fg: #fda4af;
+      --ricovero-bg: rgba(244, 63, 94, 0.18);
+      --ricovero-border: rgba(251, 113, 133, 0.45);
+    }
+    .cell-badge.medical,
+    .cell-badge.medical-malattia {
+      background: var(--malattia-bg);
+      color: var(--malattia-fg);
+      border: 1px solid var(--malattia-border);
+    }
+    .cell-badge.medical-ricovero {
+      background: var(--ricovero-bg);
+      color: var(--ricovero-fg);
+      border: 1px solid var(--ricovero-border);
+    }
     .cell-badge.event { background:rgba(168,85,247,.12); color:#9333ea; }
     .cell-badge.hrs { background:rgba(100,116,139,.12); color:#64748b; }
-    td.cell-shift.medical-leave, .cell-medical-v47 { background:rgba(239,68,68,.06) !important; }
+
+    td.cell-shift.medical-leave,
+    td.cell-shift.malattia-leave,
+    .cell-medical-v47,
+    .cell-malattia-v47 {
+      background: var(--malattia-bg) !important;
+      box-shadow: inset 0 0 0 1px var(--malattia-border);
+    }
+    td.cell-shift.ricovero-leave,
+    .cell-ricovero-v47 {
+      background: var(--ricovero-bg) !important;
+      box-shadow: inset 0 0 0 1px var(--ricovero-border);
+    }
+    .cell-malattia-v47 .cell-status-v47,
+    .cell-malattia-v47 .cell-hours-v47 {
+      color: var(--malattia-fg) !important;
+      font-weight: 800;
+    }
+    .cell-ricovero-v47 .cell-status-v47,
+    .cell-ricovero-v47 .cell-hours-v47 {
+      color: var(--ricovero-fg) !important;
+      font-weight: 800;
+    }
     td.cell-shift.full-leave { background:rgba(34,197,94,.07) !important; }
+
+    /* Lista malattie: card colorate in modo coerente */
+    .malattia-card-malattia {
+      border-left: 4px solid var(--malattia-fg) !important;
+      background: var(--malattia-bg);
+    }
+    .malattia-card-ricovero {
+      border-left: 4px solid var(--ricovero-fg) !important;
+      background: var(--ricovero-bg);
+    }
+    .malattia-card-malattia strong,
+    .malattia-card-ricovero strong { color: inherit; }
+
 
     .rules-banner {
       border-radius:12px; padding:10px 12px; font-size:13px; cursor:pointer;
@@ -2165,7 +2236,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.51</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.52</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2187,7 +2258,7 @@
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
           <h1 onclick="editTitle()">Turni Manager</h1>
-          <small id="appVersionLabel">CORVETTO · V9.11.51</small>
+          <small id="appVersionLabel">CORVETTO · V9.11.52</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3267,8 +3338,8 @@
 
   const defaultStatuses = [
     { name: "LAVORO", color: "#10b981", hours: 0 },
-    { name: "MALATTIA", color: "#ef4444", hours: 8 },
-    { name: "RICOVERO", color: "#b91c1c", hours: 8 },
+    { name: "MALATTIA", color: "#ea580c", hours: 8 },
+    { name: "RICOVERO", color: "#e11d48", hours: 8 },
     { name: "FERIE", color: "#10b981", hours: 8 },
     { name: "RIPOSO", color: "#3b82f6", hours: 0 },
     { name: "CHIUSO", color: "#dc2626", hours: 0 },
@@ -5887,7 +5958,7 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     const parts=[];
     if (isRest) {
       parts.push(`<div class="cell-content-v47"><div class="cell-rest-v47">—</div></div>`);
-      return {html:parts.join(''), leaveReq, events, conflict:false, hours:0, isRest:true, label};
+      return {html:parts.join(''), leaveReq, events, conflict:false, hours:0, isRest:true, medical:false, label};
     }
 
     // Una ferie/malattia a giornata intera deve essere una singola informazione:
@@ -5899,7 +5970,10 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
     let cls='cell-content-v47';
     if (isFullLeave && status && status!=='LAVORO') cls+=' cell-fullleave-v47';
     if (isPartialLeave) cls+=' cell-partial-leave-v47';
-    if (medical) cls+=' cell-medical-v47';
+    if (medical) {
+      const isRic = status === 'RICOVERO' || /ricovero/i.test(String(label||'')) || /ricovero/i.test(String((leaveReq&&leaveReq.tipo)||d.leaveType||''));
+      cls += isRic ? ' cell-medical-v47 cell-ricovero-v47' : ' cell-medical-v47 cell-malattia-v47';
+    }
     if (status==='EVENTO' && !times) cls+=' cell-event-only-v47';
 
     let mainLabel='';
@@ -6148,8 +6222,21 @@ function renderWeek() {
           const stObjV47 = appData.statuses.find(s => s.name.toUpperCase() === String(dayData.status||'').toUpperCase());
           // Sfondo colorato SOLO per assenza giornata intera (ferie/malattia/permesso full-day)
           // Permesso parziale = come impegno: cella normale + riga 📌
-          if (stObjV47 && !dayModelV47.isRest && dayModelV47.isFullLeave) {
-            td.style.backgroundColor = stObjV47.color + '1F';
+          // Malattia / Ricovero: classi CSS dedicate (contrasto tema chiaro/scuro)
+          const stUp = String(dayData.status || '').toUpperCase();
+          const leaveTipo = String(dayData.leaveType || dayModelV47.label || '').toLowerCase();
+          const isRicovero = stUp === 'RICOVERO' || leaveTipo.includes('ricovero');
+          const isMalattia = stUp === 'MALATTIA' || leaveTipo.includes('malattia') || (dayModelV47.medical && !isRicovero);
+          if (isRicovero && dayModelV47.isFullLeave) {
+            td.classList.add('ricovero-leave', 'medical-leave');
+            td.style.backgroundColor = '';
+            td.style.color = '';
+          } else if (isMalattia && dayModelV47.isFullLeave) {
+            td.classList.add('malattia-leave', 'medical-leave');
+            td.style.backgroundColor = '';
+            td.style.color = '';
+          } else if (stObjV47 && !dayModelV47.isRest && dayModelV47.isFullLeave) {
+            td.style.backgroundColor = stObjV47.color + '22';
             td.style.color = stObjV47.color;
           }
           weeklyTotalHours += dayModelV47.hours;
@@ -7987,7 +8074,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.51', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.52', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
