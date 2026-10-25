@@ -1,0 +1,35 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Corvetto One · test engine</title><style>body{font:15px system-ui;max-width:900px;margin:32px auto;padding:0 18px;color:#14243a;background:#f4f6f8}h1{letter-spacing:-1px}.meta{color:#66758a}.summary{padding:14px;border-radius:12px;background:#fff;margin:16px 0;font-weight:750}.ok{color:#147a50}.fail{color:#b93434}.test{background:white;padding:13px 15px;border-radius:10px;margin:8px 0;border:1px solid #e2e7ed}.test b{display:block}.test small{display:block;color:#68778b;margin-top:5px}code{font-size:12px}</style></head><body><h1>Corvetto One · test del motore</h1><p class="meta">Test isolati e ripetibili. Non leggono dati ufficiali e non applicano turni.</p><div id="summary" class="summary">Esecuzione test…</div><div id="results"></div><script src="./engine.js"></script><script>
+const base=()=>({
+ people:[
+  {id:"davide",name:"Davide Alpegiani",skills:["apertura","ufficio"],unavailable:[]},
+  {id:"caregnato",name:"Marco Caregnato",skills:["ufficio","chiusura"],unavailable:[]},
+  {id:"severin",name:"Severin",skills:["ufficio"],unavailable:[]},
+  {id:"pino",name:"Pino Vartuca",skills:["apertura","banco"],unavailable:[]},
+  {id:"massimo",name:"Massimo Caruso",skills:["banco"],unavailable:[]},
+  {id:"mario",name:"Mario Ragone",skills:["jolly"],unavailable:[]}
+ ],
+ assignments:[
+  {id:"a1",personId:"davide",day:"mercoledi",department:"ufficio",start:"06:30",end:"12:00"},
+  {id:"a2",personId:"caregnato",day:"mercoledi",department:"ufficio",start:"08:30",end:"17:30"},
+  {id:"a3",personId:"severin",day:"mercoledi",department:"ufficio",start:"06:30",end:"17:30"},
+  {id:"a4",personId:"pino",day:"lunedi",department:"magazzino",start:"06:30",end:"15:30"},
+  {id:"a5",personId:"massimo",day:"lunedi",department:"magazzino",start:"06:30",end:"15:30"}
+ ],
+ requiredPairs:[{day:"lunedi",start:"06:30",end:"15:30",personIds:["pino","massimo"]}],
+ coverageWindows:[
+  {day:"mercoledi",department:"ufficio",start:"06:30",end:"17:30",minPeople:1},
+  {day:"lunedi",department:"magazzino",start:"06:30",end:"15:30",minPeople:2}
+ ]
+});
+const tests=[];
+function test(name,fn){try{const detail=fn();tests.push({name,ok:detail===true,detail:detail===true?"Superato":String(detail)});}catch(e){tests.push({name,ok:false,detail:e.message});}}
+test("Piano completo e copertura sufficiente",()=>CorvettoEngine.validatePlan(base()).status==="VALID");
+test("Indisponibilità sovrapposta blocca il piano",()=>{const p=base();p.people[0].unavailable=[{day:"mercoledi",start:"07:00",end:"09:00",reason:"visita"}];return CorvettoEngine.validatePlan(p).status==="BLOCKED";});
+test("Skill mancante blocca l'assegnazione",()=>{const p=base();p.assignments[0].requiredSkill="gestione-resi";return CorvettoEngine.validatePlan(p).status==="BLOCKED";});
+test("Persona fuori dal gruppo ufficio del mercoledì bloccata",()=>{const p=base();p.people.push({id:"sand",name:"Sandrini",skills:["ufficio"],unavailable:[]});p.assignments.push({id:"a6",personId:"sand",day:"mercoledi",department:"ufficio",start:"12:00",end:"13:00"});return CorvettoEngine.validatePlan(p).status==="BLOCKED";});
+test("Coppia magazzino incompleta bloccata",()=>{const p=base();p.assignments=p.assignments.filter(a=>a.personId!=="massimo");return CorvettoEngine.validatePlan(p).status==="BLOCKED";});
+test("Assegnazioni sovrapposte alla stessa persona bloccate",()=>{const p=base();p.assignments.push({id:"overlap",personId:"davide",day:"mercoledi",department:"ufficio",start:"10:00",end:"12:30"});return CorvettoEngine.validatePlan(p).status==="BLOCKED";});
+test("Candidato con disponibilità ignota non viene proposto",()=>{const people=[{id:"x",name:"Persona X",skills:["banco"]}];return CorvettoEngine.rankReplacements({people,day:"lunedi",start:"08:30",end:"17:30",department:"magazzino",requiredSkill:"banco"}).candidates.length===0;});
+test("Candidato compatibile è proposto solo per revisione",()=>{const people=[{id:"x",name:"Persona X",skills:["banco"],unavailable:[]}];const r=CorvettoEngine.rankReplacements({people,day:"lunedi",start:"08:30",end:"17:30",department:"magazzino",requiredSkill:"banco"});return r.status==="CANDIDATES_FOR_REVIEW"&&r.candidates.length===1;});
+const passed=tests.filter(t=>t.ok).length;document.querySelector("#summary").className="summary "+(passed===tests.length?"ok":"fail");document.querySelector("#summary").textContent=passed+" / "+tests.length+" test superati";document.querySelector("#results").innerHTML=tests.map(t=>'<div class="test"><b class="'+(t.ok?"ok":"fail")+'">'+(t.ok?"✓":"✗")+" "+t.name+'</b><small>'+t.detail.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+'</small></div>').join("");
+</script></body></html>
