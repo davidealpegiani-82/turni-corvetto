@@ -1,4 +1,4 @@
-/* Turni Corvetto PWA SW v9.11.46 */
+/* Turni Corvetto PWA SW v9.11.47 */
 const CACHE_CORE = 'corvetto-core-v9.11.47-r1';
 const CACHE_CDN = 'corvetto-cdn-v9.11.47-r1';
 const APP_SW_VERSION = '9.11.47';
