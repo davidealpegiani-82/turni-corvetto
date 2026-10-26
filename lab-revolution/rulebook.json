@@ -11,26 +11,55 @@
   },
   "branch": {
     "openingHours": {
-      "mondayToFriday": { "start": "06:30", "end": "17:30" },
-      "saturday": { "start": "07:00", "end": "12:00" }
+      "mondayToFriday": {
+        "start": "06:30",
+        "end": "17:30"
+      },
+      "saturday": {
+        "start": "07:00",
+        "end": "12:00"
+      }
     },
     "holidayAndSeasonalHours": "configurable-not-yet-modeled"
   },
   "warehouse": {
     "teams": [
-      { "id": "pair-pino-massimo", "members": ["Pino Vartuca", "Massimo Caruso"], "keepTogetherByDefault": true },
-      { "id": "pair-vincenzo-mattia", "members": ["Vincenzo Rallo", "Mattia Drigo"], "keepTogetherByDefault": true }
+      {
+        "id": "pair-pino-massimo",
+        "members": [
+          "Pino Vartuca",
+          "Massimo Caruso"
+        ],
+        "keepTogetherByDefault": true
+      },
+      {
+        "id": "pair-vincenzo-mattia",
+        "members": [
+          "Vincenzo Rallo",
+          "Mattia Drigo"
+        ],
+        "keepTogetherByDefault": true
+      }
     ],
     "flexibleWorker": {
       "name": "Mario Ragone",
       "role": "jolly",
       "fixedPair": false,
       "avoidRotationByDefault": true,
-      "preferredUse": ["support opening when Pino is on leave", "move Mario before splitting a fixed pair"]
+      "preferredUse": [
+        "support opening when Pino is on leave",
+        "move Mario before splitting a fixed pair"
+      ]
     },
     "weekdayShifts": [
-      { "start": "06:30", "end": "15:30" },
-      { "start": "08:30", "end": "17:30" }
+      {
+        "start": "06:30",
+        "end": "15:30"
+      },
+      {
+        "start": "08:30",
+        "end": "17:30"
+      }
     ],
     "coveragePrinciples": [
       "When at least three warehouse workers are available, plan two people for opening.",
@@ -41,35 +70,110 @@
     "requiredSkills": "must-be-configured-per-task-before-assigning"
   },
   "office": {
-    "knownPeople": ["Davide Alpegiani", "Poppa", "Marco Caregnato", "Severin"],
-    "separateWorker": { "name": "Sandrini", "movableBetweenRoles": false },
+    "knownPeople": [
+      "Davide Alpegiani",
+      "Poppa",
+      "Marco Caregnato",
+      "Severin"
+    ],
+    "separateWorker": {
+      "name": "Sandrini",
+      "movableBetweenRoles": false
+    },
     "wednesday": {
-      "eligiblePeople": ["Davide Alpegiani", "Marco Caregnato", "Severin"],
+      "eligiblePeople": [
+        "Davide Alpegiani",
+        "Marco Caregnato",
+        "Severin"
+      ],
       "minimumOpeningPeople": 2,
       "minimumClosingPeople": 1
     },
     "friday": {
-      "caregnato": { "start": "08:30", "end": "17:30" },
+      "caregnato": {
+        "start": "08:30",
+        "end": "17:30"
+      },
       "severinAvailability": "only-if-at-least-two-office-absences"
     },
     "severin": {
-      "monday": [{ "start": "07:30", "end": "12:30" }, { "start": "13:00", "end": "17:30" }],
-      "tuesday": [{ "start": "06:30", "end": "12:30" }, { "start": "13:00", "end": "17:30" }],
-      "wednesday": [{ "start": "06:30", "end": "12:30" }, { "start": "13:00", "end": "17:30" }],
-      "thursday": [{ "start": "06:30", "end": "12:30" }, { "start": "13:00", "end": "16:30" }],
-      "breakWindows": ["12:30–13:00", "13:00–13:30"]
+      "monday": [
+        {
+          "start": "07:30",
+          "end": "12:30"
+        },
+        {
+          "start": "13:00",
+          "end": "17:30"
+        }
+      ],
+      "tuesday": [
+        {
+          "start": "06:30",
+          "end": "12:30"
+        },
+        {
+          "start": "13:00",
+          "end": "17:30"
+        }
+      ],
+      "wednesday": [
+        {
+          "start": "06:30",
+          "end": "12:30"
+        },
+        {
+          "start": "13:00",
+          "end": "17:30"
+        }
+      ],
+      "thursday": [
+        {
+          "start": "06:30",
+          "end": "12:30"
+        },
+        {
+          "start": "13:00",
+          "end": "16:30"
+        }
+      ],
+      "breakWindows": [
+        "12:30–13:00",
+        "13:00–13:30"
+      ]
     },
     "sandrini": {
-      "break": { "start": "13:00", "end": "14:00" },
+      "break": {
+        "start": "13:00",
+        "end": "14:00"
+      },
       "support": {
-        "mondayTuesdayThursdayFriday": { "start": "12:00", "end": "13:00" },
-        "wednesday": { "start": "12:00", "end": "12:30" }
+        "mondayTuesdayThursdayFriday": {
+          "start": "12:00",
+          "end": "13:00"
+        },
+        "wednesday": {
+          "start": "12:00",
+          "end": "12:30"
+        }
       }
     },
     "davide": {
       "tuesdaySpecial": {
-        "branchShift": [{ "start": "06:30", "end": "12:00" }, { "start": "13:00", "end": "14:30" }],
-        "meeting": { "start": "18:00", "end": "19:30" },
+        "branchShift": [
+          {
+            "start": "06:30",
+            "end": "12:00"
+          },
+          {
+            "start": "13:00",
+            "end": "14:30"
+          }
+        ],
+        "meeting": {
+          "start": "18:00",
+          "end": "19:30"
+        },
         "outsideDefinedHours": "flag-as-overtime"
       }
     },
@@ -93,6 +197,24 @@
     "Leave, ROL, permission, blood donation, training and split shifts need typed event semantics.",
     "Break deductions, paid/unpaid rules and weekly-hour accounting are not yet implemented.",
     "Holiday and seasonal opening hours need a configurable calendar.",
-    "Coverage windows need validation by role, task and skill, not only department."
-  ]
+    "Coverage windows need validation by role, task and skill, not only department.",
+    "Il motore valida gli eventi tipizzati e i conflitti con i turni, ma non calcola ancora il monte ore retribuito/non retribuito né genera automaticamente turni segmentati."
+  ],
+  "events": {
+    "supportedTypes": [
+      "ferie",
+      "rol",
+      "permesso-retribuito",
+      "permesso-non-retribuito",
+      "donazione-sangue",
+      "corso",
+      "visita-medica",
+      "pausa",
+      "recupero",
+      "altro"
+    ],
+    "validation": "persona, giorno, tipo riconosciuto e intervallo orario obbligatori; evento sovrapposto a turno assegnato blocca e richiede segmentazione del turno",
+    "coverage": "gli eventi non costituiscono automaticamente copertura",
+    "hours": "countsAsWorkHours va configurato esplicitamente; il calcolo ore non è ancora implementato"
+  }
 }
