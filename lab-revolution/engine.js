@@ -357,7 +357,27 @@
     const baseById = new Map(baseline.assignments.filter(a=>a && a.id).map(a=>[a.id,a]));
     const prepared = [];
     const errors = [];
+    const slotIds = new Set();
+    const assignmentIds = new Set();
+    for (const a of baseline.assignments) {
+      if (!a || !a.id || assignmentIds.has(a.id)) {
+        errors.push("Il piano base contiene ID di assegnazione mancanti o duplicati.");
+        break;
+      }
+      assignmentIds.add(a.id);
+    }
     for (const slot of slots) {
+      if (slot && slot.id) {
+        if (slotIds.has(slot.id)) {
+          errors.push("ID slot duplicato: " + slot.id + ".");
+          continue;
+        }
+        slotIds.add(slot.id);
+        if (assignmentIds.has("generated-" + slot.id)) {
+          errors.push("ID assegnazione generata già presente nel piano base: generated-" + slot.id + ".");
+          continue;
+        }
+      }
       if (!slot || !slot.id || !slot.day || !slot.department || !timeRange(slot) ||
           (slot.eligiblePersonIds !== undefined && !Array.isArray(slot.eligiblePersonIds))) {
         errors.push("Slot incompleto: servono ID, giorno, reparto e orari validi.");
