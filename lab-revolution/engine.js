@@ -298,5 +298,60 @@
       candidates, reason: candidates.length ? "Nessuna assegnazione automatica: confrontare copertura e vincoli globali." :
       "Nessun candidato verificato. Non inventare una sostituzione: dichiarare copertura impossibile o chiedere dati." };
   }
-  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, minutes });
+  // Conservative hour ledger: only explicit countsAsWorkHours flags are counted.
+  // Missing payroll semantics stay unknown; overlaps invalidate totals to avoid double counting.
+  function summarizeHours(plan, weeklyLimitMinutes = 2400) {
+    if (!plan || !Array.isArray(plan.people) || !Array.isArray(plan.assignments) ||
+        !Array.isArray(plan.events) || !Number.isFinite(weeklyLimitMinutes) || weeklyLimitMinutes < 0) {
+      return { status: "BLOCKED", people: [], errors: ["Dati insufficienti per il riepilogo ore."] };
+    }
+    const people = new Map(plan.people.filter(p => p && p.id).map(p => [p.id, p]));
+    const records = [];
+    const errors = [];
+    for (const a of plan.assignments) {
+      const r = a && timeRange(a);
+      if (!a || !people.has(a.personId) || !a.day || !r) {
+        errors.push("Segmento turno non valido nel riepilogo ore.");
+        continue;
+      }
+      records.push({ personId:a.personId, day:a.day, start:r.start, end:r.end,
+        kind:"turno", flag:a.countsAsWorkHours });
+    }
+    for (const ev of plan.events) {
+      const r = ev && timeRange(ev);
+      if (!ev || !people.has(ev.personId) || !ev.day || !r) {
+        errors.push("Evento non valido nel riepilogo ore.");
+        continue;
+      }
+      records.push({ personId:ev.personId, day:ev.day, start:r.start, end:r.end,
+        kind:"evento:" + (ev.type || "sconosciuto"), flag:ev.countsAsWorkHours });
+    }
+    const peopleRows = [];
+    for (const [id, person] of people) {
+      const mine = records.filter(r => r.personId === id);
+      const unknown = mine.filter(r => typeof r.flag !== "boolean");
+      const counted = mine.filter(r => r.flag === true);
+      const overlapsFound = [];
+      for (let i=0; i<mine.length; i++) for (let j=i+1; j<mine.length; j++) {
+        if (mine[i].day === mine[j].day && overlaps(mine[i].start,mine[i].end,mine[j].start,mine[j].end)) {
+          overlapsFound.push(mine[i].day + " " + mine[i].kind + " / " + mine[j].kind);
+        }
+      }
+      const knownMinutes = counted.reduce((sum,r)=>sum+(r.end-r.start),0);
+      const safeTotal = overlapsFound.length ? null : knownMinutes;
+      peopleRows.push({ personId:id, name:person.name || id,
+        knownWorkMinutes:safeTotal, knownWorkHours:safeTotal === null ? null : Math.round(safeTotal/60*100)/100,
+        unknownRecordCount:unknown.length, unknownRecords:unknown.map(r=>({day:r.day,kind:r.kind,start:r.start,end:r.end})),
+        overlaps:overlapsFound,
+        overWeeklyLimit:safeTotal === null ? null : safeTotal > weeklyLimitMinutes,
+        status:overlapsFound.length ? "BLOCKED_OVERLAP" : unknown.length ? "INCOMPLETE" :
+          safeTotal > weeklyLimitMinutes ? "NEEDS_HR_REVIEW" : "COMPLETE"
+      });
+    }
+    if (errors.length) return { status:"BLOCKED", people:peopleRows, errors };
+    return { status: peopleRows.some(p=>p.status==="BLOCKED_OVERLAP") ? "BLOCKED" :
+      peopleRows.some(p=>p.status==="INCOMPLETE" || p.status==="NEEDS_HR_REVIEW") ? "NEEDS_REVIEW" : "COMPLETE",
+      weeklyLimitMinutes, people:peopleRows, errors:[] };
+  }
+  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, summarizeHours, minutes });
 })(typeof window !== "undefined" ? window : globalThis);
