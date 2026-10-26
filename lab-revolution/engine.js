@@ -97,6 +97,67 @@
       if (present.size !== 2) blockers.push("Coppia richiesta non completa per " + pair.day + " " + pair.start + "–" + pair.end + ".");
     }
 
+    // Warehouse opening rule: if three or more workers are explicitly available,
+    // require the configured minimum at every point of the opening window.
+    for (const rule of (Array.isArray(plan.warehouseOpeningRules) ? plan.warehouseOpeningRules : [])) {
+      const rr = rule && timeRange(rule);
+      if (!rule || !rr || !rule.day || !Array.isArray(rule.availablePersonIds) ||
+          !Number.isInteger(rule.minimumWhenThreeOrMore) || rule.minimumWhenThreeOrMore < 1) {
+        blockers.push("Regola apertura magazzino incompleta o non valida.");
+        continue;
+      }
+      const available = new Set(rule.availablePersonIds.filter(id => people.has(id)));
+      if (available.size !== rule.availablePersonIds.length) {
+        blockers.push("Regola apertura magazzino: uno o più ID disponibili non corrispondono a persone censite.");
+        continue;
+      }
+      if (available.size < 3) continue;
+      const boundaries = new Set([rr.start, rr.end]);
+      normalized.forEach(x => {
+        if (x.assignment.day === rule.day && x.assignment.department === "magazzino" &&
+            available.has(x.person.id) && overlaps(x.range.start, x.range.end, rr.start, rr.end)) {
+          boundaries.add(Math.max(rr.start, x.range.start));
+          boundaries.add(Math.min(rr.end, x.range.end));
+        }
+      });
+      const points = [...boundaries].sort((a,b)=>a-b);
+      for (let i=0; i<points.length-1; i++) {
+        const left=points[i], right=points[i+1];
+        if (right<=left) continue;
+        const count = normalized.filter(x => x.assignment.day===rule.day &&
+          x.assignment.department==="magazzino" && available.has(x.person.id) &&
+          x.range.start<=left && x.range.end>=right).length;
+        if (count < rule.minimumWhenThreeOrMore) {
+          blockers.push("Apertura magazzino sotto soglia: " + rule.day + " " +
+            String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")+"–"+
+            String(Math.floor(right/60)).padStart(2,"0")+":"+String(right%60).padStart(2,"0")+
+            " ("+count+"/"+rule.minimumWhenThreeOrMore+" addetti disponibili assegnati).");
+          break;
+        }
+      }
+    }
+
+    // Preferred pairs are a soft constraint: splitting one raises a review warning,
+    // while explicitly required pairs above remain a hard blocker.
+    for (const pair of (Array.isArray(plan.preferredPairs) ? plan.preferredPairs : [])) {
+      if (!pair || !pair.day || !pair.start || !pair.end || !Array.isArray(pair.personIds) || pair.personIds.length !== 2) {
+        blockers.push("Preferenza coppia magazzino incompleta o non valida.");
+        continue;
+      }
+      const pr = timeRange(pair);
+      if (!pr) { blockers.push("Orario della coppia preferenziale non valido."); continue; }
+      const active = normalized.filter(x => x.assignment.day === pair.day &&
+        x.assignment.department === "magazzino" &&
+        overlaps(x.range.start, x.range.end, pr.start, pr.end) &&
+        pair.personIds.includes(x.person.id));
+      const present = new Set(active.map(x => x.person.id));
+      if (present.size === 1) {
+        const person = people.get([...present][0]);
+        warnings.push("Coppia preferenziale separata: " + (person ? person.name : [...present][0]) +
+          " lavora senza il compagno previsto il " + pair.day + " " + pair.start + "–" + pair.end + ". Verificare se Mario jolly può coprire prima di confermare.");
+      }
+    }
+
     // Every declared coverage window must be covered for its entire duration.
     for (const w of plan.coverageWindows) {
       const wr = w && timeRange(w);
