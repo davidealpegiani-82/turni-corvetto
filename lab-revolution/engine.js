@@ -182,6 +182,24 @@
       }
     }
 
+    // Explicit office coverage roles: opening and closing are separate windows, not just total headcount.
+    for (const w of (Array.isArray(plan.officeCoverageWindows) ? plan.officeCoverageWindows : [])) {
+      const wr = w && timeRange(w);
+      if (!w || !wr || w.day !== "mercoledi" || !["apertura","chiusura"].includes(w.role) ||
+          !Number.isInteger(w.minPeople) || w.minPeople < 1) {
+        blockers.push("Finestra di copertura ufficio incompleta o non valida.");
+        continue;
+      }
+      const covered = normalized.filter(x => x.assignment.day === w.day &&
+        x.assignment.department === "ufficio" && x.range.start <= wr.start && x.range.end >= wr.end &&
+        (!Array.isArray(x.assignment.roles) || x.assignment.roles.includes(w.role)));
+      const eligible = covered.filter(x => OFFICE_WEDNESDAY_POOL.has(x.person.name));
+      if (eligible.length < w.minPeople) {
+        blockers.push("Copertura ufficio del mercoledì insufficiente (" + w.role + "): " +
+          w.start + "–" + w.end + " (" + eligible.length + "/" + w.minPeople + ").");
+      }
+    }
+
     // Every declared coverage window must be covered for its entire duration.
     for (const w of plan.coverageWindows) {
       const wr = w && timeRange(w);
