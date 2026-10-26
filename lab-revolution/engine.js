@@ -193,7 +193,7 @@
       const covered = normalized.filter(x => x.assignment.day === w.day &&
         x.assignment.department === "ufficio" && x.range.start <= wr.start && x.range.end >= wr.end &&
         (!Array.isArray(x.assignment.roles) || x.assignment.roles.includes(w.role)));
-      const eligible = covered.filter(x => OFFICE_WEDNESDAY_POOL.has(x.person.name));
+      const eligible = w.day === "mercoledi" ? covered.filter(x => OFFICE_WEDNESDAY_POOL.has(x.person.name)) : covered;
       if (eligible.length < w.minPeople) {
         blockers.push("Copertura ufficio insufficiente (" + w.day + ", " + w.role + "): " +
           w.start + "–" + w.end + " (" + eligible.length + "/" + w.minPeople + ").");
