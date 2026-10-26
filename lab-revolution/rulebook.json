@@ -185,7 +185,7 @@
     },
     "weeklyHours": {
       "over40Hours": "allow-with-hr-warning",
-      "calculation": "not-yet-implemented"
+      "calculation": "riepilogo prudenziale disponibile: conta solo segments con countsAsWorkHours esplicito, sovrapposizioni invalidano il totale affidabile; regole contrattuali e pause non vengono dedotte automaticamente"
     },
     "saturdayRotation": {
       "rule": "one-office-worker; sabatista absence moves to next available and recovery must occur before rotation resumes",
@@ -196,10 +196,10 @@
     "Detailed employee skill matrix and experience levels are not yet verified.",
     "The exact active Saturday rotation must be confirmed against the current schedule.",
     "Leave, ROL, permission, blood donation, training and split shifts need typed event semantics.",
-    "Break deductions, paid/unpaid rules and weekly-hour accounting are not yet implemented.",
+    "Break deductions, paid/unpaid rules, Saturday rules and recovery policies still require explicit configuration; the conservative hour summary does not infer contract rules.",
     "Holiday and seasonal opening hours need a configurable calendar.",
     "Coverage windows need validation by role, task and skill, not only department.",
-    "Il motore valida gli eventi tipizzati e i conflitti con i turni, ma non calcola ancora il monte ore retribuito/non retribuito né genera automaticamente turni segmentati."
+    "Il motore valida gli eventi e include un riepilogo ore prudenziale, ma non deduce le regole contrattuali né genera automaticamente turni segmentati."
   ],
   "events": {
     "supportedTypes": [
@@ -216,6 +216,6 @@
     ],
     "validation": "persona, giorno, tipo riconosciuto e intervallo orario obbligatori; evento sovrapposto a turno assegnato blocca e richiede segmentazione del turno",
     "coverage": "gli eventi non costituiscono automaticamente copertura",
-    "hours": "countsAsWorkHours va configurato esplicitamente; il calcolo ore non è ancora implementato"
+    "hours": "countsAsWorkHours va configurato esplicitamente; summarizeHours conta soltanto flag booleani espliciti, segnala dati mancanti e invalida il totale affidabile in presenza di sovrapposizioni; nessuna regola paghe viene inferita"
   }
 }
