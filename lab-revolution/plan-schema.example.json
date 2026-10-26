@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "0.1.0",
+  "title": "Corvetto One plan contract — demo only",
+  "status": "illustrative-not-production-schema",
+  "safety": {
+    "officialDataConnection": false,
+    "applyMode": "manual-confirmation-only",
+    "unknownAvailability": "do-not-recommend",
+    "unknownHoursSemantics": "mark-incomplete"
+  },
+  "requiredTopLevel": [
+    "people",
+    "assignments",
+    "coverageWindows"
+  ],
+  "conventions": {
+    "times": "HH:MM, same-day intervals only in this lab module",
+    "assignment": "One continuous availability/work segment. Split around courses, pauses or other events.",
+    "countsAsWorkHours": "Boolean required for trusted hour totals; true counts interval, false excludes it, missing makes the person/week incomplete.",
+    "roles": "Explicit labels such as apertura or chiusura; presence alone does not imply a role.",
+    "skills": "Only explicitly declared skills can satisfy skill coverage."
+  },
+  "example": {
+    "people": [
+      {
+        "id": "worker-a",
+        "name": "Demo worker A",
+        "skills": [
+          "apertura",
+          "carrello-elevatore"
+        ],
+        "unavailable": []
+      },
+      {
+        "id": "worker-b",
+        "name": "Demo worker B",
+        "skills": [
+          "ufficio",
+          "chiusura"
+        ],
+        "unavailable": []
+      }
+    ],
+    "assignments": [
+      {
+        "id": "segment-1",
+        "personId": "worker-a",
+        "day": "lunedi",
+        "department": "magazzino",
+        "start": "06:30",
+        "end": "12:30",
+        "countsAsWorkHours": true,
+        "roles": [
+          "apertura"
+        ]
+      },
+      {
+        "id": "segment-2",
+        "personId": "worker-b",
+        "day": "mercoledi",
+        "department": "ufficio",
+        "start": "08:30",
+        "end": "17:30",
+        "countsAsWorkHours": true,
+        "roles": [
+          "chiusura"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "personId": "worker-a",
+        "day": "lunedi",
+        "type": "corso",
+        "start": "12:30",
+        "end": "13:30",
+        "countsAsWorkHours": true
+      }
+    ],
+    "coverageWindows": [
+      {
+        "day": "lunedi",
+        "department": "magazzino",
+        "start": "06:30",
+        "end": "12:30",
+        "minPeople": 1
+      }
+    ],
+    "officeCoverageWindows": [
+      {
+        "day": "mercoledi",
+        "role": "chiusura",
+        "start": "16:30",
+        "end": "17:30",
+        "minPeople": 1
+      }
+    ],
+    "skillCoverageWindows": [
+      {
+        "day": "lunedi",
+        "department": "magazzino",
+        "start": "06:30",
+        "end": "12:30",
+        "requiredSkill": "carrello-elevatore",
+        "minPeople": 1
+      }
+    ],
+    "requiredPairs": [],
+    "preferredPairs": [],
+    "warehouseOpeningRules": []
+  },
+  "limits": [
+    "Example contains fictitious workers only.",
+    "The current validator does not generate schedules.",
+    "No legal or payroll rule is inferred from this schema.",
+    "Validate event/assignment overlap before using hour totals."
+  ]
+}
