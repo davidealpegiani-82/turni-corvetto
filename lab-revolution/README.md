@@ -17,7 +17,8 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - eventi tipizzati (ferie, ROL, permessi, donazione sangue, corso, visita medica, pausa e recupero), conflitti turno-evento e richiesta di segmentare il turno;
 - riepilogo ore prudenziale (`summarizeHours`): conta soltanto segmenti con `countsAsWorkHours` esplicito, lascia incompleti i dati mancanti e annulla il totale affidabile in presenza di sovrapposizioni;
 - gruppo ufficio ammesso il mercoledì;
-- finestre di apertura e chiusura dell'ufficio del mercoledì verificate separatamente tramite ruoli espliciti;
+- finestre di apertura e chiusura per ruolo verificabili in tutti i giorni configurati; il gruppo ammesso dell'ufficio del mercoledì resta un vincolo separato;
+- confronto di proposte già fornite (`compareProposals`), con classificazione deterministica e blocco delle assegnazioni manuali protette se modificate o rimosse; non genera né applica turni;
 - coppie magazzino dichiarate come obbligatorie;
 - copertura minima su finestre temporali;
 - copertura per competenza (`skillCoverageWindows`), così una presenza numerica non basta se manca la qualifica richiesta;
@@ -33,9 +34,9 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - Nessun dato reale deve essere inserito in questa demo.
 
 ## Limiti noti e prossimo lavoro
-1. Suite corrente: 24 test su 24 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
+1. Suite corrente: 28 test su 28 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
 2. Estendere i test con tutte le regole ufficiali e casi reali anonimizzati.
 3. Completare l'integrazione del riepilogo ore con regole configurabili per pause, eventi retribuiti/non retribuiti, sabatisti e recuperi; il riepilogo prudenziale esiste, ma non deduce automaticamente le regole contrattuali.
-4. Implementare generazione di più proposte e confronto dei costi/vincoli, con motivazione leggibile.
+4. Implementare il generatore che costruisce più proposte candidate e confronta costi/vincoli con motivazioni leggibili; il confronto delle proposte già costruite è presente, ma il generatore non è ancora implementato.
 5. Collegare la UI al motore solo dopo test automatici; integrare i dati soltanto con un livello separato, autorizzato e con conflitti/backup verificabili.
 6. Non unire né promuovere finché revisione e test end-to-end non sono superati.
