@@ -118,7 +118,19 @@
         overlaps(x.range.start, x.range.end, pr.start, pr.end) &&
         pair.personIds.includes(x.person.id));
       const present = new Set(active.map(x => x.person.id));
-      if (present.size !== 2) blockers.push("Coppia richiesta non completa per " + pair.day + " " + pair.start + "–" + pair.end + ".");
+      if (present.size !== 2) {
+        const overrides = Array.isArray(plan.emergencyCoverageOverrides) ? plan.emergencyCoverageOverrides : [];
+        const emergency = overrides.find(o => {
+          const or = o && timeRange(o);
+          return o && or && o.day===pair.day && o.department==="magazzino" &&
+            or.start<=pr.start && or.end>=pr.end && o.allowRequiredPairSplit===true &&
+            typeof o.reason==="string" && o.reason.trim() &&
+            typeof o.approvedBy==="string" && o.approvedBy.trim() &&
+            Number.isInteger(o.minimumOperationalPeople) && o.minimumOperationalPeople>=1;
+        });
+        if (emergency) warnings.push("Deroga emergenziale autorizzata: coppia magazzino separata il "+pair.day+" "+pair.start+"–"+pair.end+". Motivo: "+emergency.reason.trim()+". Autorizzata da: "+emergency.approvedBy.trim()+". Verificare attività consentite e sicurezza.");
+        else blockers.push("Coppia richiesta non completa per " + pair.day + " " + pair.start + "–" + pair.end + ".");
+      }
     }
 
     // Warehouse opening rule: if three or more workers are explicitly available,
