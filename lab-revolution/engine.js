@@ -185,9 +185,9 @@
     // Explicit office coverage roles: opening and closing are separate windows, not just total headcount.
     for (const w of (Array.isArray(plan.officeCoverageWindows) ? plan.officeCoverageWindows : [])) {
       const wr = w && timeRange(w);
-      if (!w || !wr || w.day !== "mercoledi" || !["apertura","chiusura"].includes(w.role) ||
+      if (!w || !wr || !w.day || !["apertura","chiusura"].includes(w.role) ||
           !Number.isInteger(w.minPeople) || w.minPeople < 1) {
-        blockers.push("Finestra di copertura ufficio incompleta o non valida.");
+        blockers.push("Finestra di copertura ufficio per ruolo incompleta o non valida.");
         continue;
       }
       const covered = normalized.filter(x => x.assignment.day === w.day &&
@@ -195,7 +195,7 @@
         (!Array.isArray(x.assignment.roles) || x.assignment.roles.includes(w.role)));
       const eligible = covered.filter(x => OFFICE_WEDNESDAY_POOL.has(x.person.name));
       if (eligible.length < w.minPeople) {
-        blockers.push("Copertura ufficio del mercoledì insufficiente (" + w.role + "): " +
+        blockers.push("Copertura ufficio insufficiente (" + w.day + ", " + w.role + "): " +
           w.start + "–" + w.end + " (" + eligible.length + "/" + w.minPeople + ").");
       }
     }
@@ -298,6 +298,53 @@
       candidates, reason: candidates.length ? "Nessuna assegnazione automatica: confrontare copertura e vincoli globali." :
       "Nessun candidato verificato. Non inventare una sostituzione: dichiarare copertura impossibile o chiedere dati." };
   }
+  // Compares supplied proposals without generating or applying shifts.
+  // Locked/manual assignments must remain byte-for-byte equivalent on operational fields.
+  function compareProposals({ baseline, proposals, lockedAssignmentIds = [] } = {}) {
+    if (!baseline || !Array.isArray(baseline.assignments) || !Array.isArray(proposals) ||
+        !Array.isArray(lockedAssignmentIds)) {
+      return { status:"BLOCKED", proposals:[], reason:"Baseline, proposte o vincoli manuali mancanti." };
+    }
+    const locked = new Set(lockedAssignmentIds);
+    const baselineById = new Map(baseline.assignments.filter(a=>a && a.id).map(a=>[a.id,a]));
+    const signature = a => JSON.stringify({
+      personId:a && a.personId, day:a && a.day, department:a && a.department,
+      start:a && a.start, end:a && a.end,
+      roles:Array.isArray(a && a.roles) ? [...a.roles].sort() : null,
+      requiredSkill:a && a.requiredSkill
+    });
+    const evaluated = proposals.map((proposal,index)=>{
+      const id = proposal && proposal.id || "proposal-"+(index+1);
+      const label = proposal && proposal.label || id;
+      if (!proposal || !proposal.plan) return {id,label,status:"BLOCKED",safeToApply:false,
+        blockers:["Proposta senza piano."],warnings:[],score:null};
+      const validation = validatePlan(proposal.plan);
+      const blockers = [...validation.blockers];
+      for (const assignmentId of locked) {
+        const original = baselineById.get(assignmentId);
+        if (!original) {
+          blockers.push("Vincolo manuale sconosciuto nel piano base: "+assignmentId+".");
+          continue;
+        }
+        const candidate = proposal.plan.assignments.find(a=>a && a.id===assignmentId);
+        if (!candidate || signature(candidate)!==signature(original)) {
+          blockers.push("Assegnazione manuale protetta modificata o rimossa: "+assignmentId+".");
+        }
+      }
+      const unique = [...new Set(blockers)];
+      const status = unique.length ? "BLOCKED" : validation.status;
+      return {id,label,status,safeToApply:status==="VALID",blockers:unique,
+        warnings:validation.warnings,checkedAssignments:validation.checkedAssignments,
+        score:status==="VALID"?0:status==="NEEDS_REVIEW"?1:2};
+    });
+    evaluated.sort((a,b)=>a.score-b.score ||
+      a.warnings.length-b.warnings.length || a.blockers.length-b.blockers.length ||
+      String(a.label).localeCompare(String(b.label)));
+    return {status:evaluated.some(p=>p.status==="VALID")?"HAS_VALID_PROPOSAL":
+      evaluated.some(p=>p.status==="NEEDS_REVIEW")?"REVIEW_REQUIRED":"NO_VALID_PROPOSAL",
+      proposals:evaluated,reason:"Confronto deterministico: non genera turni e non applica modifiche."};
+  }
+
   // Conservative hour ledger: only explicit countsAsWorkHours flags are counted.
   // Missing payroll semantics stay unknown; overlaps invalidate totals to avoid double counting.
   function summarizeHours(plan, weeklyLimitMinutes = 2400) {
@@ -353,5 +400,5 @@
       peopleRows.some(p=>p.status==="INCOMPLETE" || p.status==="NEEDS_HR_REVIEW") ? "NEEDS_REVIEW" : "COMPLETE",
       weeklyLimitMinutes, people:peopleRows, errors:[] };
   }
-  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, summarizeHours, minutes });
+  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, summarizeHours, minutes });
 })(typeof window !== "undefined" ? window : globalThis);
