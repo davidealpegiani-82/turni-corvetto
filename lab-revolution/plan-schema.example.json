@@ -17,7 +17,7 @@
     "times": "HH:MM, same-day intervals only in this lab module",
     "assignment": "One continuous availability/work segment. Split around courses, pauses or other events.",
     "countsAsWorkHours": "Boolean required for trusted hour totals; true counts interval, false excludes it, missing makes the person/week incomplete.",
-    "roles": "Explicit labels such as apertura or chiusura; presence alone does not imply a role.",
+    "roles": "Explicit labels such as apertura or chiusura; presence alone does not imply a role. officeCoverageWindows can target any configured day; the Wednesday office eligibility pool remains a separate hard rule.",
     "skills": "Only explicitly declared skills can satisfy skill coverage."
   },
   "example": {
@@ -88,6 +88,20 @@
     ],
     "officeCoverageWindows": [
       {
+        "day": "martedi",
+        "role": "apertura",
+        "start": "06:30",
+        "end": "08:30",
+        "minPeople": 2
+      },
+      {
+        "day": "mercoledi",
+        "role": "apertura",
+        "start": "06:30",
+        "end": "08:30",
+        "minPeople": 2
+      },
+      {
         "day": "mercoledi",
         "role": "chiusura",
         "start": "16:30",
@@ -107,7 +121,21 @@
     ],
     "requiredPairs": [],
     "preferredPairs": [],
-    "warehouseOpeningRules": []
+    "warehouseOpeningRules": [],
+    "proposalComparison": {
+      "baselinePlan": "plan before generation",
+      "proposals": [
+        {
+          "id": "proposal-a",
+          "label": "Alternative A",
+          "plan": "candidate plan"
+        }
+      ],
+      "lockedAssignmentIds": [
+        "segment-1"
+      ],
+      "note": "Illustrative shape only; compareProposals validates and ranks supplied plans but does not generate or apply them."
+    }
   },
   "limits": [
     "Example contains fictitious workers only.",
