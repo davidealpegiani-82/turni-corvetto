@@ -14,6 +14,7 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - identità e assegnazioni;
 - orari e sovrapposizioni della stessa persona;
 - indisponibilità e competenze esplicite;
+- eventi tipizzati (ferie, ROL, permessi, donazione sangue, corso, visita medica, pausa e recupero), conflitti turno-evento e richiesta di segmentare il turno;
 - gruppo ufficio ammesso il mercoledì;
 - coppie magazzino dichiarate come obbligatorie;
 - copertura minima su finestre temporali;
@@ -30,9 +31,9 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - Nessun dato reale deve essere inserito in questa demo.
 
 ## Limiti noti e prossimo lavoro
-1. Suite corrente: 14 test su 14 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
+1. Suite corrente: 18 test su 18 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
 2. Estendere i test con tutte le regole ufficiali e casi reali anonimizzati.
-3. Definire un modello esplicito per pause, monte ore, sabatisti, ferie, corsi, festività, competenze per mansione e recuperi.
+3. Completare il calcolo ore pagate/non pagate, le regole delle pause, i sabatisti, le festività, le competenze per mansione e i recuperi. Gli eventi tipizzati sono ora validati ma non producono ancora conteggi ore.
 4. Implementare generazione di più proposte e confronto dei costi/vincoli, con motivazione leggibile.
 5. Collegare la UI al motore solo dopo test automatici; integrare i dati soltanto con un livello separato, autorizzato e con conflitti/backup verificabili.
 6. Non unire né promuovere finché revisione e test end-to-end non sono superati.
