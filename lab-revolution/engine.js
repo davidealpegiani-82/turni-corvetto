@@ -80,6 +80,30 @@
       normalized.push({ assignment: a, person: p, range });
     }
 
+    // Typed events make non-availability explicit. They are not automatically counted as work hours.
+    const EVENT_TYPES = new Set(["ferie","rol","permesso-retribuito","permesso-non-retribuito","donazione-sangue","corso","visita-medica","pausa","recupero","altro"]);
+    for (const ev of (Array.isArray(plan.events) ? plan.events : [])) {
+      if (!ev || !ev.personId || !people.has(ev.personId) || !ev.day || !EVENT_TYPES.has(ev.type) || !timeRange(ev)) {
+        blockers.push("Evento personale incompleto: servono persona, giorno, tipo riconosciuto e orari validi.");
+        continue;
+      }
+      if (ev.type === "altro" && !(typeof ev.description === "string" && ev.description.trim())) {
+        blockers.push("Evento di tipo altro: specificare una descrizione.");
+      }
+      const er = timeRange(ev), person = people.get(ev.personId);
+      const conflicts = normalized.filter(x => x.person.id === ev.personId && x.assignment.day === ev.day &&
+        overlaps(x.range.start, x.range.end, er.start, er.end));
+      if (conflicts.length) blockers.push(person.name + " ha un turno assegnato durante l'evento " + ev.type +
+        " (" + ev.start + "–" + ev.end + "); dividere il turno o correggere l'evento.");
+      if (ev.type === "pausa" && ev.countsAsCoverage === true) {
+        blockers.push("Una pausa non può essere conteggiata come copertura.");
+      }
+      if (ev.countsAsWorkHours === undefined) {
+        warnings.push("Conteggio ore non configurato per l'evento " + ev.type + " di " + person.name +
+          " (" + ev.day + " " + ev.start + "–" + ev.end + ").");
+      }
+    }
+
     // Pair integrity: only enforced where a pair is explicitly declared as required.
     const requiredPairs = Array.isArray(plan.requiredPairs) ? plan.requiredPairs : [];
     for (const pair of requiredPairs) {
