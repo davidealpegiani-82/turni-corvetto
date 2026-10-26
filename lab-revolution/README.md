@@ -21,7 +21,7 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - generatore limitato e deterministico (`generateProposals`) per slot espliciti: valuta candidati solo con competenze/disponibilità note, combina alternative senza sovrapposizioni e produce piani da verificare; non scrive né applica turni;
 - confronto delle proposte (`compareProposals`), con classificazione deterministica e blocco delle assegnazioni manuali protette se modificate o rimosse;
 - coppie magazzino dichiarate come obbligatorie;
-- copertura minima su finestre temporali;
+- copertura minima su finestre temporali; le deroghe emergenziali sono esplicite, motivate e autorizzate, possono scendere sotto la soglia ordinaria soltanto fino al minimo operativo configurato e non possono autorizzare copertura zero;
 - copertura per competenza (`skillCoverageWindows`), così una presenza numerica non basta se manca la qualifica richiesta;
 - soglia di apertura magazzino quando sono disponibili almeno tre persone (`warehouseOpeningRules`);
 - coppie preferenziali che, se separate, generano un avviso di revisione (`preferredPairs`), senza confonderle con le coppie obbligatorie;
@@ -35,7 +35,7 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - Nessun dato reale deve essere inserito in questa demo.
 
 ## Limiti noti e prossimo lavoro
-1. Suite automatizzata del motore: 41 test su 41 superati nell'ultima esecuzione del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
+1. Suite automatizzata del motore: 44 test su 44 superati nell'ultima esecuzione del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
 2. Estendere i test con tutte le regole ufficiali e casi reali anonimizzati.
 3. Completare l'integrazione del riepilogo ore con regole configurabili per pause, eventi retribuiti/non retribuiti, sabatisti e recuperi; il riepilogo prudenziale esiste, ma non deduce automaticamente le regole contrattuali.
 4. Estendere il generatore limitato verso una ricerca multi-slot più completa, con costi/preferenze configurabili, motivazioni leggibili e casi reali anonimizzati. La generazione attuale è sperimentale: ordina per validità, avvisi, coppie preferenziali, uso del jolly esplicitamente censito e stabilità delle assegnazioni, ma non garantisce ottimalità globale.
