@@ -126,6 +126,40 @@
         }
       }
     }
+    // Skill-aware coverage windows: headcount alone is not proof of task coverage.
+    for (const w of (Array.isArray(plan.skillCoverageWindows) ? plan.skillCoverageWindows : [])) {
+      const wr = w && timeRange(w);
+      if (!w || !wr || !w.day || !w.department || !w.requiredSkill ||
+          !Number.isInteger(w.minPeople) || w.minPeople < 1) {
+        blockers.push("Finestra di copertura per competenza incompleta o non valida.");
+        continue;
+      }
+      const boundaries = new Set([wr.start, wr.end]);
+      normalized.forEach(x => {
+        if (x.assignment.day === w.day && x.assignment.department === w.department &&
+            overlaps(x.range.start, x.range.end, wr.start, wr.end)) {
+          boundaries.add(Math.max(wr.start, x.range.start));
+          boundaries.add(Math.min(wr.end, x.range.end));
+        }
+      });
+      const points = [...boundaries].sort((a,b)=>a-b);
+      for (let i=0; i<points.length-1; i++) {
+        const left=points[i], right=points[i+1];
+        if (right<=left) continue;
+        const qualified = normalized.filter(x =>
+          x.assignment.day===w.day && x.assignment.department===w.department &&
+          x.range.start<=left && x.range.end>=right &&
+          Array.isArray(x.person.skills) && x.person.skills.includes(w.requiredSkill)).length;
+        if (qualified < w.minPeople) {
+          blockers.push("Competenza non coperta: " + w.requiredSkill + " in " + w.department + " " + w.day + " " +
+            String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")+"–"+
+            String(Math.floor(right/60)).padStart(2,"0")+":"+String(right%60).padStart(2,"0")+
+            " ("+qualified+"/"+w.minPeople+" persone abilitate).");
+          break;
+        }
+      }
+    }
+
     const uniqueBlockers = [...new Set(blockers)];
     const uniqueWarnings = [...new Set(warnings)];
     return result(uniqueBlockers.length ? "BLOCKED" : uniqueWarnings.length ? "NEEDS_REVIEW" : "VALID",
