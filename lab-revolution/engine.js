@@ -345,6 +345,90 @@
       proposals:evaluated,reason:"Confronto deterministico: non genera turni e non applica modifiche."};
   }
 
+  // Bounded deterministic generator for explicitly described open slots.
+  // It only returns reviewed candidate plans; it never writes or applies a schedule.
+  function generateProposals({ baseline, slots, lockedAssignmentIds = [], maxProposals = 12 } = {}) {
+    if (!baseline || !Array.isArray(baseline.people) || !Array.isArray(baseline.assignments) ||
+        !Array.isArray(slots) || !slots.length || !Array.isArray(lockedAssignmentIds) ||
+        !Number.isInteger(maxProposals) || maxProposals < 1 || maxProposals > 50) {
+      return { status:"BLOCKED", proposals:[], reason:"Servono piano base, slot espliciti e limite proposte valido." };
+    }
+    const locked = new Set(lockedAssignmentIds);
+    const baseById = new Map(baseline.assignments.filter(a=>a && a.id).map(a=>[a.id,a]));
+    const prepared = [];
+    const errors = [];
+    for (const slot of slots) {
+      if (!slot || !slot.id || !slot.day || !slot.department || !timeRange(slot) ||
+          (slot.eligiblePersonIds !== undefined && !Array.isArray(slot.eligiblePersonIds))) {
+        errors.push("Slot incompleto: servono ID, giorno, reparto e orari validi.");
+        continue;
+      }
+      if (slot.replaceAssignmentId && locked.has(slot.replaceAssignmentId)) {
+        errors.push("Lo slot "+slot.id+" tenta di sostituire un'assegnazione manuale protetta.");
+        continue;
+      }
+      if (slot.replaceAssignmentId && !baseById.has(slot.replaceAssignmentId)) {
+        errors.push("Assegnazione da sostituire non trovata per lo slot "+slot.id+".");
+        continue;
+      }
+      const removeId = slot.replaceAssignmentId;
+      const current = baseline.assignments.filter(a=>!removeId || a.id!==removeId);
+      const pool = baseline.people.filter(p=>!slot.eligiblePersonIds || slot.eligiblePersonIds.includes(p.id));
+      const ranked = rankReplacements({people:pool,day:slot.day,start:slot.start,end:slot.end,
+        department:slot.department,requiredSkill:slot.requiredSkill,
+        currentAssignments:current});
+      if (!ranked.candidates.length) {
+        errors.push("Nessun candidato verificato per lo slot "+slot.id+".");
+        continue;
+      }
+      prepared.push({slot,current,candidates:ranked.candidates});
+    }
+    if (errors.length || prepared.length !== slots.length) {
+      return {status:"NO_COMPLETE_GENERATION",proposals:[],errors,
+        reason:"Generazione interrotta: dati o candidati insufficienti; nessun turno creato."};
+    }
+    let combinations = [[]];
+    for (const item of prepared) {
+      const next = [];
+      for (const partial of combinations) for (const person of item.candidates) {
+        if (partial.some(x=>x.personId===person.id && x.day===item.slot.day &&
+            overlaps(minutes(x.start),minutes(x.end),minutes(item.slot.start),minutes(item.slot.end)))) continue;
+        next.push([...partial,{slotId:item.slot.id,personId:person.id,day:item.slot.day,
+          department:item.slot.department,start:item.slot.start,end:item.slot.end}]);
+        if (next.length >= Math.min(500, maxProposals*20)) break;
+      }
+      combinations = next;
+      if (!combinations.length) break;
+    }
+    const proposals = [];
+    let n=0;
+    for (const combination of combinations) {
+      const assignments = baseline.assignments.filter(a=>
+        !prepared.some(x=>x.slot.replaceAssignmentId && x.slot.replaceAssignmentId===a.id)).map(a=>({...a}));
+      for (const item of combination) {
+        const slot=prepared.find(x=>x.slot.id===item.slotId).slot;
+        assignments.push({id:"generated-"+item.slotId,personId:item.personId,day:item.day,
+          department:item.department,start:item.start,end:item.end,
+          ...(Array.isArray(slot.roles)?{roles:[...slot.roles]}:{}),
+          ...(slot.requiredSkill?{requiredSkill:slot.requiredSkill}:{}),
+          ...(typeof slot.countsAsWorkHours==="boolean"?{countsAsWorkHours:slot.countsAsWorkHours}:{})});
+      }
+      const plan={...baseline,assignments};
+      const sig=JSON.stringify(assignments.map(a=>[a.id,a.personId,a.day,a.start,a.end]).sort());
+      if (proposals.some(p=>p._signature===sig)) continue;
+      n++;
+      proposals.push({id:"generated-proposal-"+n,label:"Alternativa "+n,plan,_signature:sig});
+      if (proposals.length>=maxProposals) break;
+    }
+    if (!proposals.length) return {status:"NO_VALID_COMBINATION",proposals:[],
+      reason:"Nessuna combinazione compatibile tra i candidati espliciti. Copertura impossibile o dati da verificare."};
+    const compared=compareProposals({baseline,proposals,lockedAssignmentIds});
+    const cleaned=compared.proposals.map(p=>({...p,plan:proposals.find(q=>q.id===p.id).plan}));
+    return {status:compared.status,proposals:cleaned,
+      exploredCombinations:combinations.length,
+      reason:"Proposte generate con ricerca limitata e deterministica; controllare vincoli e motivazioni. Nessuna proposta è applicata automaticamente."};
+  }
+
   // Conservative hour ledger: only explicit countsAsWorkHours flags are counted.
   // Missing payroll semantics stay unknown; overlaps invalidate totals to avoid double counting.
   function summarizeHours(plan, weeklyLimitMinutes = 2400) {
@@ -400,5 +484,5 @@
       peopleRows.some(p=>p.status==="INCOMPLETE" || p.status==="NEEDS_HR_REVIEW") ? "NEEDS_REVIEW" : "COMPLETE",
       weeklyLimitMinutes, people:peopleRows, errors:[] };
   }
-  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, summarizeHours, minutes });
+  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, generateProposals, summarizeHours, minutes });
 })(typeof window !== "undefined" ? window : globalThis);
