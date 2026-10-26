@@ -18,6 +18,8 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - coppie magazzino dichiarate come obbligatorie;
 - copertura minima su finestre temporali;
 - copertura per competenza (`skillCoverageWindows`), così una presenza numerica non basta se manca la qualifica richiesta;
+- soglia di apertura magazzino quando sono disponibili almeno tre persone (`warehouseOpeningRules`);
+- coppie preferenziali che, se separate, generano un avviso di revisione (`preferredPairs`), senza confonderle con le coppie obbligatorie;
 - candidati sostitutivi soltanto quando disponibilità e skill sono note, senza applicarli automaticamente.
 
 ## Contratto di sicurezza
@@ -28,7 +30,7 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - Nessun dato reale deve essere inserito in questa demo.
 
 ## Limiti noti e prossimo lavoro
-1. Suite corrente: 11 test su 11 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
+1. Suite corrente: 14 test su 14 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
 2. Estendere i test con tutte le regole ufficiali e casi reali anonimizzati.
 3. Definire un modello esplicito per pause, monte ore, sabatisti, ferie, corsi, festività, competenze per mansione e recuperi.
 4. Implementare generazione di più proposte e confronto dei costi/vincoli, con motivazione leggibile.
