@@ -397,6 +397,7 @@
           department:item.slot.department,start:item.slot.start,end:item.slot.end}]);
         if (next.length >= Math.min(500, maxProposals*20)) break;
       }
+      if (next.length > Math.min(500, maxProposals*20)) next.length = Math.min(500, maxProposals*20);
       combinations = next;
       if (!combinations.length) break;
     }
@@ -423,10 +424,42 @@
     if (!proposals.length) return {status:"NO_VALID_COMBINATION",proposals:[],
       reason:"Nessuna combinazione compatibile tra i candidati espliciti. Copertura impossibile o dati da verificare."};
     const compared=compareProposals({baseline,proposals,lockedAssignmentIds});
-    const cleaned=compared.proposals.map(p=>({...p,plan:proposals.find(q=>q.id===p.id).plan}));
-    return {status:compared.status,proposals:cleaned,
-      exploredCombinations:combinations.length,
-      reason:"Proposte generate con ricerca limitata e deterministica; controllare vincoli e motivazioni. Nessuna proposta è applicata automaticamente."};
+    const byId=new Map(proposals.map(q=>[q.id,q]));
+    const personById=new Map(baseline.people.map(p=>[p.id,p]));
+    const original=new Map(baseline.assignments.filter(a=>a&&a.id).map(a=>[a.id,a]));
+    const quality = p => {
+      const q=byId.get(p.id), plan=q&&q.plan;
+      if (!plan) return {status:3,warnings:99,pairPenalty:99,jollyPenalty:99,changed:99};
+      const status={VALID:0,NEEDS_REVIEW:1,BLOCKED:2}[p.status] ?? 3;
+      const pairPenalty=(p.warnings||[]).filter(w=>w.includes("Coppia preferenziale separata")).length;
+      const jollyPenalty=plan.assignments.filter(a=>{
+        const person=personById.get(a.personId);
+        return person && (person.isJolly===true || (Array.isArray(person.skills)&&person.skills.includes("jolly"))) &&
+          !original.has(a.id);
+      }).length;
+      let changed=0;
+      for (const id of locked) { if (!original.has(id)) changed+=100; }
+      for (const [id,a] of original) {
+        const b=plan.assignments.find(x=>x&&x.id===id);
+        if (!b || JSON.stringify([a.personId,a.day,a.department,a.start,a.end])!==JSON.stringify([b.personId,b.day,b.department,b.start,b.end])) changed++;
+      }
+      return {status,warnings:(p.warnings||[]).length,pairPenalty,jollyPenalty,changed};
+    };
+    const cleaned=compared.proposals.map(p=>({...p,plan:byId.get(p.id).plan,
+      quality:quality(p),decisionReasons:[
+        p.status==="VALID"?"Vincoli controllati senza blocchi né avvisi.":p.status==="NEEDS_REVIEW"?"Richiede revisione degli avvisi.":"Proposta bloccata da vincoli non rispettati.",
+        (p.warnings||[]).some(w=>w.includes("Coppia preferenziale separata"))?"Una coppia preferenziale risulta separata.":null,
+        quality(p).jollyPenalty?"Impiega una persona marcata esplicitamente come jolly.":null
+      ].filter(Boolean)}));
+    cleaned.sort((a,b)=>a.quality.status-b.quality.status ||
+      a.quality.warnings-b.quality.warnings ||
+      a.quality.pairPenalty-b.quality.pairPenalty ||
+      a.quality.jollyPenalty-b.quality.jollyPenalty ||
+      a.quality.changed-b.quality.changed || a.label.localeCompare(b.label));
+    return {status:cleaned.some(p=>p.status==="VALID")?"HAS_VALID_PROPOSAL":
+      cleaned.some(p=>p.status==="NEEDS_REVIEW")?"REVIEW_REQUIRED":"NO_VALID_PROPOSAL",
+      proposals:cleaned,exploredCombinations:combinations.length,
+      reason:"Ricerca limitata e deterministica: priorità a validità, avvisi, coppie preferenziali, uso del jolly esplicitamente censito e stabilità delle assegnazioni. Non garantisce l'ottimo globale e non applica turni."};
   }
 
   // Conservative hour ledger: only explicit countsAsWorkHours flags are counted.
