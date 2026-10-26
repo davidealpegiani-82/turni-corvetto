@@ -87,7 +87,8 @@
         "Severin"
       ],
       "minimumOpeningPeople": 2,
-      "minimumClosingPeople": 1
+      "minimumClosingPeople": 1,
+      "coverageValidation": "Il motore può validare finestre distinte di apertura e chiusura tramite officeCoverageWindows; i turni devono dichiarare roles espliciti per rendere la verifica significativa."
     },
     "friday": {
       "caregnato": {
