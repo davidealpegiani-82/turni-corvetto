@@ -215,17 +215,34 @@
         }
       });
       const points = [...boundaries].sort((a,b)=>a-b);
+      const overrides = Array.isArray(plan.emergencyCoverageOverrides) ? plan.emergencyCoverageOverrides : [];
       for (let i=0; i<points.length-1; i++) {
         const left=points[i], right=points[i+1];
         if (right<=left) continue;
         const count = normalized.filter(x => x.assignment.day===w.day && x.assignment.department===w.department &&
           x.range.start<=left && x.range.end>=right).length;
         if (count < w.minPeople) {
-          blockers.push("Copertura insufficiente: " + w.department + " " + w.day + " " +
-            String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")+"–"+
-            String(Math.floor(right/60)).padStart(2,"0")+":"+String(right%60).padStart(2,"0")+
-            " ("+count+"/"+w.minPeople+" persone).");
-          break;
+          const override = overrides.find(o => {
+            const or = o && timeRange(o);
+            return o && or && o.day===w.day && o.department===w.department &&
+              or.start<=left && or.end>=right &&
+              typeof o.reason==="string" && o.reason.trim() &&
+              typeof o.approvedBy==="string" && o.approvedBy.trim() &&
+              Number.isInteger(o.minimumOperationalPeople) && o.minimumOperationalPeople>=1;
+          });
+          if (override && count >= override.minimumOperationalPeople) {
+            warnings.push("Deroga emergenziale autorizzata: copertura " + w.department + " " + w.day + " " +
+              String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")+"–"+
+              String(Math.floor(right/60)).padStart(2,"0")+":"+String(right%60).padStart(2,"0")+
+              " ridotta a "+count+"/"+w.minPeople+" persone. Motivo: "+override.reason.trim()+
+              ". Autorizzata da: "+override.approvedBy.trim()+". Verificare la sicurezza operativa.");
+          } else {
+            blockers.push("Copertura insufficiente: " + w.department + " " + w.day + " " +
+              String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0")+"–"+
+              String(Math.floor(right/60)).padStart(2,"0")+":"+String(right%60).padStart(2,"0")+
+              " ("+count+"/"+w.minPeople+" persone)."+(override ? " Sotto il minimo operativo d'emergenza ("+override.minimumOperationalPeople+")." : ""));
+            break;
+          }
         }
       }
     }
