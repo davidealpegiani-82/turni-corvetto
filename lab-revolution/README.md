@@ -15,6 +15,7 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - orari e sovrapposizioni della stessa persona;
 - indisponibilità e competenze esplicite;
 - eventi tipizzati (ferie, ROL, permessi, donazione sangue, corso, visita medica, pausa e recupero), conflitti turno-evento e richiesta di segmentare il turno;
+- riepilogo ore prudenziale (`summarizeHours`): conta soltanto segmenti con `countsAsWorkHours` esplicito, lascia incompleti i dati mancanti e annulla il totale affidabile in presenza di sovrapposizioni;
 - gruppo ufficio ammesso il mercoledì;
 - finestre di apertura e chiusura dell'ufficio del mercoledì verificate separatamente tramite ruoli espliciti;
 - coppie magazzino dichiarate come obbligatorie;
@@ -32,9 +33,9 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - Nessun dato reale deve essere inserito in questa demo.
 
 ## Limiti noti e prossimo lavoro
-1. Suite corrente: 21 test su 21 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
+1. Suite corrente: 24 test su 24 superati nell'esecuzione automatizzata del codice del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
 2. Estendere i test con tutte le regole ufficiali e casi reali anonimizzati.
-3. Completare il calcolo ore pagate/non pagate, le regole delle pause, i sabatisti, le festività, le competenze per mansione e i recuperi. Gli eventi tipizzati sono ora validati ma non producono ancora conteggi ore.
+3. Completare l'integrazione del riepilogo ore con regole configurabili per pause, eventi retribuiti/non retribuiti, sabatisti e recuperi; il riepilogo prudenziale esiste, ma non deduce automaticamente le regole contrattuali.
 4. Implementare generazione di più proposte e confronto dei costi/vincoli, con motivazione leggibile.
 5. Collegare la UI al motore solo dopo test automatici; integrare i dati soltanto con un livello separato, autorizzato e con conflitti/backup verificabili.
 6. Non unire né promuovere finché revisione e test end-to-end non sono superati.
