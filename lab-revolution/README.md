@@ -35,7 +35,7 @@ Apri `engine-tests.html` in un browser moderno. Il file carica `engine.js` ed es
 - Nessun dato reale deve essere inserito in questa demo.
 
 ## Limiti noti e prossimo lavoro
-1. Suite automatizzata del motore: 34 test su 34 superati nell'ultima esecuzione del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
+1. Suite automatizzata del motore: 37 test su 37 superati nell'ultima esecuzione del laboratorio; resta da eseguire la verifica manuale browser su più dispositivi.
 2. Estendere i test con tutte le regole ufficiali e casi reali anonimizzati.
 3. Completare l'integrazione del riepilogo ore con regole configurabili per pause, eventi retribuiti/non retribuiti, sabatisti e recuperi; il riepilogo prudenziale esiste, ma non deduce automaticamente le regole contrattuali.
 4. Estendere il generatore limitato verso una ricerca multi-slot più completa, con costi/preferenze configurabili, motivazioni leggibili e casi reali anonimizzati. La generazione attuale è sperimentale: ordina per validità, avvisi, coppie preferenziali, uso del jolly esplicitamente censito e stabilità delle assegnazioni, ma non garantisce ottimalità globale.
