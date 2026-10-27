@@ -24,10 +24,14 @@ Apri `engine-tests.html` in un browser moderno. La pagina esegue i test di `engi
 - Il motore deve ancora essere esteso e collaudato su giornate complete, casi normali, assenze multiple, coppie di magazzino e coperture minime.
 
 ## Prossima fase
-Rendere il motore capace di confrontare scenari di giornata intera (piano ordinario, piano ridotto con deroghe esplicite, migliore copertura possibile con lacune dichiarate), quindi collegare la UI ai risultati reali del motore e aggiungere test end-to-end prima di qualunque rilascio.
+Estendere la ricerca coordinata su giornate intere con diagnosi delle lacune per fascia e competenza; rendere la UI capace di confrontare scenari emergenziali usando dati reali configurabili; aggiungere test end-to-end e prove con turni reali anonimizzati prima di qualunque rilascio.
 
 ## Ultimo controllo automatico
-La suite attuale contiene **48 test superati su 48**. Sono inclusi controlli su scenari di giornata intera: priorità del piano ordinario rispetto a una deroga emergenziale, blocco della copertura residua insufficiente e generazione coordinata di più fasce nello stesso giorno. Questo è un test del motore in ambiente JavaScript, non sostituisce il collaudo end-to-end nel browser né la verifica con turni reali anonimizzati.
+La suite attuale contiene **51 test superati su 51**. Sono inclusi controlli su scenari di giornata intera: priorità del piano ordinario rispetto a una deroga emergenziale, blocco della copertura residua insufficiente e generazione coordinata di più fasce nello stesso giorno. Questo è un test del motore in ambiente JavaScript, non sostituisce il collaudo end-to-end nel browser né la verifica con turni reali anonimizzati.
 
 ## Interfaccia collegata al validatore
 Il pulsante di simulazione dell'anteprima ora chiama `engine.js` e mostra l'esito effettivo del validatore per tre scenari dimostrativi: assenza in magazzino (bloccata per coppia e copertura), competenza ruspa non censita (bloccata) e copertura ufficio del mercoledì (valida secondo le sole regole esplicitamente presenti nel piano demo). Questi risultati verificano il collegamento UI-motore, non la correttezza completa del calendario reale.
+
+
+## Ricerca combinazioni — ultimo aggiornamento
+Il motore applica ora il limite di ricerca anche attraverso entrambi i cicli di espansione delle combinazioni, evitando di continuare a generare candidati oltre il budget previsto. Un test con 30 candidati aggiuntivi verifica il limite osservabile delle combinazioni esplorate. Ultimo controllo automatico: **51/51 test superati**. Questo resta un controllo del motore in JavaScript, non un collaudo completo dell'app nel browser.
