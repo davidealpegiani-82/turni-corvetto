@@ -555,7 +555,9 @@
         const start=pts[i],end=pts[i+1];if(end<=start)continue;
         const active=rel.filter(x=>x.r.start<=start&&x.r.end>=end);
         const qualified=kind==="skill"?active.filter(x=>{const p=people.get(x.a.personId);return Array.isArray(p.skills)&&p.skills.includes(w.requiredSkill);}):active;
-        const actual=qualified.length;if(actual>=w.minPeople)continue;
+        // Count distinct people, not assignment segments: duplicate/overlapping records
+        // for one employee must never inflate operational coverage.
+        const actual=new Set(qualified.map(x=>x.a.personId)).size;if(actual>=w.minPeople)continue;
         const overrides=Array.isArray(plan.emergencyCoverageOverrides)?plan.emergencyCoverageOverrides:[];
         const ov=overrides.find(o=>{const r=o&&timeRange(o);return o&&r&&o.day===w.day&&o.department===w.department&&r.start<=start&&r.end>=end&&typeof o.reason==="string"&&o.reason.trim()&&typeof o.approvedBy==="string"&&o.approvedBy.trim()&&Number.isInteger(o.minimumOperationalPeople)&&o.minimumOperationalPeople>=1&&actual>=o.minimumOperationalPeople;});
         const gap={kind,windowId:typeof w.id==="string"?w.id:null,day:w.day,department:w.department,start:fmt(start),end:fmt(end),requiredSkill:kind==="skill"?w.requiredSkill:null,requiredPeople:w.minPeople,actualPeople:actual,deficit:w.minPeople-actual,minimumOperationalPeople:ov?ov.minimumOperationalPeople:null,emergencyOverrideApplied:!!ov,reason:ov?"Copertura ridotta con deroga tracciata":"Soglia dichiarata non raggiunta"};
