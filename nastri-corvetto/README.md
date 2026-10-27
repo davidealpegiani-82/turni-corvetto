@@ -43,3 +43,7 @@ Il confronto delle proposte confronta ora l'intero record dell'assegnazione manu
 
 ## Diagnosi strutturata delle lacune
 Il motore restituisce ora intervalli di copertura scoperti in forma strutturata, con finestra, giorno, reparto, orario, persone richieste/presenti e deficit numerico. Le finestre di competenza vengono diagnosticate separatamente dal semplice numero di addetti; le deroghe autorizzate restano visibili come coperture ridotte e non vengono fatte passare per coperture ordinarie. Gli scenari emergenziali espongono sia le lacune strutturate sia i messaggi di validazione leggibili. Ultimo controllo automatico: **56/56 test superati**. Le diagnosi sono limitate alle finestre esplicitamente configurate: il motore non inventa orari o fabbisogni mancanti.
+
+
+## Conteggio affidabile degli addetti
+La diagnosi di copertura conta persone distinte, non segmenti di turno. Due assegnazioni sovrapposte attribuite alla stessa persona non possono simulare due addetti presenti. Aggiunto un test dedicato; suite automatica: **57/57 test superati**.
