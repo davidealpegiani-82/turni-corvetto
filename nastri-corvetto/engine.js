@@ -538,6 +538,36 @@
       reason:"Ricerca limitata e deterministica: priorità a validità, avvisi, coppie preferenziali, uso del jolly esplicitamente censito e stabilità delle assegnazioni. Non garantisce l'ottimo globale e non applica turni."};
   }
 
+  // Machine-readable interval diagnosis: only explicit windows and known assignments are used.
+  function diagnoseCoverageGaps(plan) {
+    if (!plan || !Array.isArray(plan.people) || !Array.isArray(plan.assignments) || !Array.isArray(plan.coverageWindows))
+      return {status:"BLOCKED",gaps:[],errors:["Piano incompleto: servono persone, assegnazioni e finestre di copertura."]};
+    const people=new Map(plan.people.filter(p=>p&&p.id).map(p=>[p.id,p]));
+    const valid=plan.assignments.map(a=>({a,r:a&&timeRange(a)})).filter(x=>x.a&&people.has(x.a.personId)&&x.a.day&&x.a.department&&x.r);
+    const gaps=[],errors=[];
+    const scan=(w,kind)=>{
+      const wr=w&&timeRange(w);
+      if(!w||!wr||!w.day||!w.department||!Number.isInteger(w.minPeople)||w.minPeople<1||(kind==="skill"&&!(typeof w.requiredSkill==="string"&&w.requiredSkill.trim()))){errors.push("Finestra di diagnosi incompleta o non valida ("+kind+").");return;}
+      const rel=valid.filter(x=>x.a.day===w.day&&x.a.department===w.department&&overlaps(x.r.start,x.r.end,wr.start,wr.end));
+      const b=new Set([wr.start,wr.end]);rel.forEach(x=>{b.add(Math.max(wr.start,x.r.start));b.add(Math.min(wr.end,x.r.end));});
+      const pts=[...b].sort((a,c)=>a-c),fmt=n=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0");
+      for(let i=0;i<pts.length-1;i++){
+        const start=pts[i],end=pts[i+1];if(end<=start)continue;
+        const active=rel.filter(x=>x.r.start<=start&&x.r.end>=end);
+        const qualified=kind==="skill"?active.filter(x=>{const p=people.get(x.a.personId);return Array.isArray(p.skills)&&p.skills.includes(w.requiredSkill);}):active;
+        const actual=qualified.length;if(actual>=w.minPeople)continue;
+        const overrides=Array.isArray(plan.emergencyCoverageOverrides)?plan.emergencyCoverageOverrides:[];
+        const ov=overrides.find(o=>{const r=o&&timeRange(o);return o&&r&&o.day===w.day&&o.department===w.department&&r.start<=start&&r.end>=end&&typeof o.reason==="string"&&o.reason.trim()&&typeof o.approvedBy==="string"&&o.approvedBy.trim()&&Number.isInteger(o.minimumOperationalPeople)&&o.minimumOperationalPeople>=1&&actual>=o.minimumOperationalPeople;});
+        const gap={kind,windowId:typeof w.id==="string"?w.id:null,day:w.day,department:w.department,start:fmt(start),end:fmt(end),requiredSkill:kind==="skill"?w.requiredSkill:null,requiredPeople:w.minPeople,actualPeople:actual,deficit:w.minPeople-actual,minimumOperationalPeople:ov?ov.minimumOperationalPeople:null,emergencyOverrideApplied:!!ov,reason:ov?"Copertura ridotta con deroga tracciata":"Soglia dichiarata non raggiunta"};
+        const prev=gaps[gaps.length-1];
+        if(prev&&prev.kind===gap.kind&&prev.windowId===gap.windowId&&prev.day===gap.day&&prev.department===gap.department&&prev.end===gap.start&&prev.requiredSkill===gap.requiredSkill&&prev.actualPeople===gap.actualPeople&&prev.emergencyOverrideApplied===gap.emergencyOverrideApplied)prev.end=gap.end;else gaps.push(gap);
+      }
+    };
+    plan.coverageWindows.forEach(w=>scan(w,"headcount"));
+    (Array.isArray(plan.skillCoverageWindows)?plan.skillCoverageWindows:[]).forEach(w=>scan(w,"skill"));
+    return {status:errors.length?"BLOCKED":gaps.length?"GAPS_FOUND":"NO_GAPS",gaps,errors};
+  }
+
   // Compare explicit emergency-response scenarios. This does not invent staff,
   // confirm overtime/support, or generate a plan; every scenario must supply a concrete plan.
   function evaluateEmergencyScenarios({ baseline, scenarios, lockedAssignmentIds = [] } = {}) {
@@ -582,11 +612,12 @@
       const blockers=p.blockers||[], warnings=p.warnings||[];
       const uncovered = [...blockers,...warnings].filter(x=>
         /copertura|sotto soglia|coppia|competenza|candidato|indisponibil|impossibile|apertura|chiusura/i.test(x));
+      const diagnosis=diagnoseCoverageGaps(s.plan);
       return {...p, type:s.type, actionStatus:s.actionStatus,
         request:{people:s.requestedPeople,skills:s.requestedSkills,start:s.requestedStart,
           end:s.requestedEnd,recipient:s.recipient},
         rationale:s.rationale,
-        remainingGaps:uncovered,
+        remainingGaps:diagnosis.gaps, remainingGapMessages:uncovered, diagnosisStatus:diagnosis.status,
         decisionReasons:[...(p.decisionReasons||[]),
           s.type==="overtime"?"Straordinario solo come ipotesi: verificare disponibilità, ore e autorizzazioni.":null,
           s.type==="other-branch-support"?"Il supporto esterno non è acquisito finché non viene confermato.":null,
@@ -657,5 +688,5 @@
       peopleRows.some(p=>p.status==="INCOMPLETE" || p.status==="NEEDS_HR_REVIEW") ? "NEEDS_REVIEW" : "COMPLETE",
       weeklyLimitMinutes, people:peopleRows, errors:[] };
   }
-  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, generateProposals, evaluateEmergencyScenarios, summarizeHours, minutes });
+  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, generateProposals, evaluateEmergencyScenarios, diagnoseCoverageGaps, summarizeHours, minutes });
 })(typeof window !== "undefined" ? window : globalThis);
