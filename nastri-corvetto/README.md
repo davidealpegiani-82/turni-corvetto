@@ -57,3 +57,7 @@ La ricerca dei candidati esclude ora anche gli intervalli degli eventi personali
 
 
 Test aggiuntivo: anche la generazione su slot espliciti rifiuta una persona il cui evento personale nel piano base si sovrappone al turno richiesto. Suite motore aggiornata: **60/60 test superati**.
+
+
+## Spostamenti coordinati tra slot
+La ricerca multi-slot considera ora insieme tutte le assegnazioni che gli slot dichiarano di sostituire. Un dipendente non viene escluso solo perché compare ancora in un incarico che la stessa proposta rimuoverà; le assegnazioni non coinvolte restano invece vincoli di disponibilità. Aggiunto un test di scambio reciproco tra due slot sovrapposti. La generazione resta limitata agli slot espliciti e sottoposta alla validazione dell'intero piano.
