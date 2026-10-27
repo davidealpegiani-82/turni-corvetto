@@ -455,16 +455,20 @@
         reason:"Generazione interrotta: dati o candidati insufficienti; nessun turno creato."};
     }
     let combinations = [[]];
+    const searchCap = Math.min(500, maxProposals * 20);
     for (const item of prepared) {
       const next = [];
-      for (const partial of combinations) for (const person of item.candidates) {
-        if (partial.some(x=>x.personId===person.id && x.day===item.slot.day &&
-            overlaps(minutes(x.start),minutes(x.end),minutes(item.slot.start),minutes(item.slot.end)))) continue;
-        next.push([...partial,{slotId:item.slot.id,personId:person.id,day:item.slot.day,
-          department:item.slot.department,start:item.slot.start,end:item.slot.end}]);
-        if (next.length >= Math.min(500, maxProposals*20)) break;
+      // A labelled break enforces the cap across BOTH loops; a plain break only
+      // exits the candidate loop and can waste substantial work on large rosters.
+      search: for (const partial of combinations) {
+        for (const person of item.candidates) {
+          if (partial.some(x=>x.personId===person.id && x.day===item.slot.day &&
+              overlaps(minutes(x.start),minutes(x.end),minutes(item.slot.start),minutes(item.slot.end)))) continue;
+          next.push([...partial,{slotId:item.slot.id,personId:person.id,day:item.slot.day,
+            department:item.slot.department,start:item.slot.start,end:item.slot.end}]);
+          if (next.length >= searchCap) break search;
+        }
       }
-      if (next.length > Math.min(500, maxProposals*20)) next.length = Math.min(500, maxProposals*20);
       combinations = next;
       if (!combinations.length) break;
     }
