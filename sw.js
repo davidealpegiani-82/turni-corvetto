@@ -1,15 +1,33 @@
-const CACHE = 'turni-corvetto-9.11.54';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './VERSION.txt'];
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+/* SW 9.11.55 network-first */
+const CACHE = 'turni-corvetto-9.11.55';
+self.addEventListener('install', function(e) {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(function(c) {
+    return c.addAll(['./index.html', './VERSION.txt', './manifest.webmanifest']).catch(function(){});
+  }));
 });
-self.addEventListener('activate', (e) => {
+self.addEventListener('activate', function(e) {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(k){ return k !== CACHE; }).map(function(k){ return caches.delete(k); }));
+    }).then(function(){ return self.clients.claim(); })
   );
 });
-self.addEventListener('fetch', (e) => {
+self.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+self.addEventListener('fetch', function(e) {
+  var req = e.request;
+  if (req.method !== 'GET') return;
+  var url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request).catch(() => caches.match('./index.html')))
+    fetch(req).then(function(res) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function(c){ c.put(req, copy); }).catch(function(){});
+      return res;
+    }).catch(function() {
+      return caches.match(req).then(function(c){ return c || caches.match('./index.html'); });
+    })
   );
 });

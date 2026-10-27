@@ -3,7 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.54</title>
+  <title>Turni Corvetto v9.11.55</title>
+
+  <script>
+  (function(){
+    var EXPECTED='9.11.55';
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(reg){
+            try { reg.update(); } catch(e){}
+            if (reg.waiting) { try { reg.waiting.postMessage({type:'SKIP_WAITING'}); } catch(e){} }
+          });
+        });
+      }
+    } catch(e){}
+    try {
+      fetch('./VERSION.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
+        var remote=String(t||'').trim();
+        var pageVer=(document.title||'').match(/v(\d+\.\d+\.\d+)/);
+        pageVer=pageVer?pageVer[1]:'';
+        if(remote && pageVer && remote!==pageVer){
+          if('caches' in window){
+            caches.keys().then(function(keys){return Promise.all(keys.map(function(k){return caches.delete(k);}));})
+              .then(function(){ location.replace(location.pathname+'?v='+remote+'&t='+Date.now()); });
+          } else location.reload();
+        }
+      }).catch(function(){});
+    } catch(e){}
+  })();
+  </script>
+
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.54';
+    const APP_VERSION = '9.11.55';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -54,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.55 — Fix cache: SW network-first + aggiornamento forzato reale',
     '9.11.54 — Ripristino interfaccia standard pre-Pulse (versione stabile funzionante)',
     '9.11.53 — Contrasto UI (pulsanti leggibili) + colori PDF per eventi/malattia/ricovero',
     '9.11.52 — Colori malattia/ricovero allineati e contrastati (palette distinta, tema chiaro/scuro)',
@@ -2281,7 +2312,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.54</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.55</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -8127,7 +8158,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.53', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.55', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14094,21 +14125,23 @@ function minLunchBreakMinutes(wId) {
   const BACKUP_HISTORY_MAX = 30;
 
   async function forceAppUpdate() {
+    try { showToast('Aggiornamento forzato…', 'info', 2000); } catch (e0) {}
     try {
       if ('caches' in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map(function(k) { return caches.delete(k); }));
       }
+    } catch (e1) { console.warn(e1); }
+    try {
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
-      showToast('Cache cancellata — ricarico…', 'success');
-      setTimeout(function() { location.href = location.pathname + '?v=' + Date.now(); }, 500);
-    } catch (e) {
-      try { location.reload(true); } catch (e2) { location.reload(); }
-    }
+    } catch (e2) { console.warn(e2); }
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.55';
+    try { location.replace(url); } catch (e3) { location.href = url; }
   }
+  window.forceAppUpdate = forceAppUpdate;
 
   function pushBackupHistory(label) {
     try {

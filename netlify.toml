@@ -4,8 +4,18 @@
 [[headers]]
   for = "/sw.js"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-store, no-cache, must-revalidate"
     Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/VERSION.txt"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, must-revalidate"
 
 [[headers]]
   for = "/manifest.webmanifest"
@@ -14,17 +24,7 @@
     Cache-Control = "no-cache"
 
 [[headers]]
-  for = "/icons/*"
-  [headers.values]
-    Cache-Control = "public, max-age=86400"
-
-[[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "SAMEORIGIN"
     Referrer-Policy = "strict-origin-when-cross-origin"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
