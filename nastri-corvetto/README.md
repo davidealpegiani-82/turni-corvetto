@@ -47,3 +47,6 @@ Il motore restituisce ora intervalli di copertura scoperti in forma strutturata,
 
 ## Conteggio affidabile degli addetti
 La diagnosi di copertura conta persone distinte, non segmenti di turno. Due assegnazioni sovrapposte attribuite alla stessa persona non possono simulare due addetti presenti. Aggiunto un test dedicato; suite automatica: **57/57 test superati**.
+
+## Priorità delle alternative in revisione
+Quando più proposte richiedono revisione, il confronto quantifica il deficit dichiarato di copertura in persone-minuto, separa la componente legata alle competenze e rende visibile la copertura ridotta da deroga. A parità di classe di esito, le alternative con deficit inferiore vengono presentate prima. Questa priorità è un criterio trasparente di confronto, non una garanzia di ottimalità globale né un'autorizzazione automatica. Suite motore: **58/58 test superati**; nessun collaudo end-to-end o con dati reali è implicato.
