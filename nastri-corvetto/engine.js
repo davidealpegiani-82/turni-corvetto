@@ -439,6 +439,13 @@
     const errors = [];
     const slotIds = new Set();
     const assignmentIds = new Set();
+    // A coordinated multi-slot edit removes every explicitly replaced assignment
+    // from the candidate-availability baseline, not only the one replaced by the
+    // current slot. Otherwise a worker being moved away from another slot is
+    // incorrectly rejected as still occupied there.
+    const replacedAssignmentIds = new Set(slots
+      .filter(slot => slot && typeof slot.replaceAssignmentId === "string" && slot.replaceAssignmentId)
+      .map(slot => slot.replaceAssignmentId));
     for (const a of baseline.assignments) {
       if (!a || !a.id || assignmentIds.has(a.id)) {
         errors.push("Il piano base contiene ID di assegnazione mancanti o duplicati.");
@@ -471,8 +478,7 @@
         errors.push("Assegnazione da sostituire non trovata per lo slot "+slot.id+".");
         continue;
       }
-      const removeId = slot.replaceAssignmentId;
-      const current = baseline.assignments.filter(a=>!removeId || a.id!==removeId);
+      const current = baseline.assignments.filter(a=>!replacedAssignmentIds.has(a.id));
       const pool = baseline.people.filter(p=>!slot.eligiblePersonIds || slot.eligiblePersonIds.includes(p.id));
       const ranked = rankReplacements({people:pool,day:slot.day,start:slot.start,end:slot.end,
         department:slot.department,requiredSkill:slot.requiredSkill,
