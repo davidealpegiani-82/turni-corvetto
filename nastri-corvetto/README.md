@@ -27,7 +27,7 @@ Apri `engine-tests.html` in un browser moderno. La pagina esegue i test di `engi
 Estendere la ricerca coordinata su giornate intere con diagnosi delle lacune per fascia e competenza; rendere la UI capace di confrontare scenari emergenziali usando dati reali configurabili; aggiungere test end-to-end e prove con turni reali anonimizzati prima di qualunque rilascio.
 
 ## Ultimo controllo automatico
-La suite attuale contiene **51 test superati su 51**. Sono inclusi controlli su scenari di giornata intera: priorità del piano ordinario rispetto a una deroga emergenziale, blocco della copertura residua insufficiente e generazione coordinata di più fasce nello stesso giorno. Questo è un test del motore in ambiente JavaScript, non sostituisce il collaudo end-to-end nel browser né la verifica con turni reali anonimizzati.
+La suite attuale contiene **52 test superati su 52**. Sono inclusi controlli su scenari di giornata intera: priorità del piano ordinario rispetto a una deroga emergenziale, blocco della copertura residua insufficiente e generazione coordinata di più fasce nello stesso giorno. Questo è un test del motore in ambiente JavaScript, non sostituisce il collaudo end-to-end nel browser né la verifica con turni reali anonimizzati.
 
 ## Interfaccia collegata al validatore
 Il pulsante di simulazione dell'anteprima ora chiama `engine.js` e mostra l'esito effettivo del validatore per tre scenari dimostrativi: assenza in magazzino (bloccata per coppia e copertura), competenza ruspa non censita (bloccata) e copertura ufficio del mercoledì (valida secondo le sole regole esplicitamente presenti nel piano demo). Questi risultati verificano il collegamento UI-motore, non la correttezza completa del calendario reale.
@@ -35,3 +35,7 @@ Il pulsante di simulazione dell'anteprima ora chiama `engine.js` e mostra l'esit
 
 ## Ricerca combinazioni — ultimo aggiornamento
 Il motore applica ora il limite di ricerca anche attraverso entrambi i cicli di espansione delle combinazioni, evitando di continuare a generare candidati oltre il budget previsto. Un test con 30 candidati aggiuntivi verifica il limite osservabile delle combinazioni esplorate. Ultimo controllo automatico: **51/51 test superati**. Questo resta un controllo del motore in JavaScript, non un collaudo completo dell'app nel browser.
+
+
+## Protezione integrale delle assegnazioni manuali
+Il confronto delle proposte confronta ora l'intero record dell'assegnazione manuale con chiavi canoniche, non soltanto persona e orario. Una modifica anche ai metadati (per esempio `countsAsWorkHours`) viene bloccata; è stato aggiunto un test dedicato. Ultimo controllo automatico: **52/52 test superati**.
