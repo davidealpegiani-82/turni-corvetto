@@ -1,1 +1,2 @@
-Corvetto Pulse v11 — app nuova da zero. La versione precedente è in legacy.html
+Turni Corvetto v10.3.5 — app standard ripristinata.
+L'esperimento Pulse v11 è in pulse-archive.html (non usato).

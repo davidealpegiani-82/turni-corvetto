@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c0f" />
+  <title>Corvetto Pulse</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" defer></script>
+  <style>
+    :root {
+      --bg:#0a0c0f; --surface:#12151c; --surface2:#1a1f2a; --line:#2a3140;
+      --text:#f2f4f7; --muted:#9aa3b2; --accent:#c8f135; --ink:#12140a;
+      --danger:#ff6b7a; --ok:#7ddea0; --warn:#f0c14a;
+      --font:"DM Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font)}
+    body{min-height:100dvh;padding-bottom:90px}
+    button{font:inherit;font-weight:700;border:1px solid var(--line);background:var(--surface2);color:var(--text);border-radius:10px;min-height:44px;padding:10px 14px;cursor:pointer}
+    button.primary{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+    button.ghost{background:transparent}
+    .app{max-width:480px;margin:0 auto;padding:16px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:0;z-index:20;background:rgba(10,12,15,.92);backdrop-filter:blur(10px);padding:10px 0 12px}
+    .brand{display:flex;gap:10px;align-items:center}
+    .logo{width:36px;height:36px;border-radius:8px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:800}
+    .brand h1{margin:0;font-size:15px;letter-spacing:.12em;text-transform:uppercase}
+    .brand small{display:block;color:var(--muted);font-family:var(--mono);font-size:10px;margin-top:2px}
+    .week-nav{display:flex;align-items:center;gap:6px}
+    .week-nav button{min-width:40px;padding:8px}
+    .week-label{font-family:var(--mono);font-size:11px;min-width:92px;text-align:center}
+    .sync{font-family:var(--mono);font-size:10px;color:var(--muted);margin:0 0 10px}
+    .sync.ok{color:var(--ok)} .sync.err{color:var(--danger)}
+    .tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto}
+    .tabs button{min-height:38px;font-size:12px;padding:8px 12px;white-space:nowrap}
+    .tabs button.active{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+    .status{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:12px;font-weight:700;margin-bottom:12px}
+    .status .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+    .status.warn .dot{background:var(--warn)} .status.bad .dot{background:var(--danger)}
+    .label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;font-weight:600}
+    .zones{display:grid;gap:8px}
+    .zone{text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:12px;padding:14px}
+    .zone.active{border-left-color:var(--accent)}
+    .zone-top{display:flex;justify-content:space-between;gap:8px}
+    .pill{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:6px;font-weight:700}
+    .pill.ok{background:rgba(125,222,160,.15);color:var(--ok)}
+    .pill.warn{background:rgba(240,193,74,.15);color:var(--warn)}
+    .pill.bad{background:rgba(255,107,122,.15);color:var(--danger)}
+    .zone-metrics{margin-top:8px;font-family:var(--mono);font-size:12px;font-weight:600}
+    .zone-hint{margin-top:4px;font-size:12px;color:var(--muted)}
+    .days{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+    .day{flex:0 0 60px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center}
+    .day.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+    .day .n{font-size:11px;color:var(--muted);font-weight:700}
+    .day .d{font-family:var(--mono);font-size:16px;font-weight:700}
+    .day .heat{height:3px;border-radius:2px;background:var(--ok);margin-top:8px}
+    .day.heat-warn .heat{background:var(--warn)} .day.heat-bad .heat{background:var(--danger)}
+    .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px}
+    .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .panel-head h2{margin:0;font-size:18px}
+    .lanes{display:grid;gap:10px}
+    .lane{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:100px}
+    .lane.gap{border-color:rgba(255,107,122,.5);background:rgba(255,107,122,.06)}
+    .lane h3{margin:0 0 8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .person{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;margin-bottom:6px;background:rgba(200,241,53,.06);border:1px solid rgba(200,241,53,.12);font-size:13px;font-weight:700}
+    .person span:last-child{color:var(--muted);font-family:var(--mono);font-size:11px}
+    .gap-msg{color:var(--danger);font-family:var(--mono);font-size:12px;font-weight:700;padding:8px}
+    .actions{display:grid;gap:8px;margin-top:16px}
+    .actions-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .list{display:grid;gap:8px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .card strong{display:block;margin-bottom:4px}
+    .card .meta{font-size:12px;color:var(--muted)}
+    .dock{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;width:min(420px,calc(100% - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:rgba(18,21,28,.94);border:1px solid var(--line);border-radius:16px;padding:8px;z-index:50}
+    .dock button{min-height:52px;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;text-transform:uppercase;color:var(--muted);padding:6px 4px}
+    .dock button.active,.dock button.main{background:var(--accent);color:var(--ink)}
+    .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--line);padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;z-index:90;display:none;max-width:min(420px,calc(100% - 24px))}
+    .toast.show{display:block}
+    .hidden{display:none!important}
+    .foot{margin-top:18px;text-align:center;font-size:12px;color:var(--muted)}
+    .foot a{color:var(--text)}
+    input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px;font:inherit;margin:6px 0 10px}
+    label{font-size:12px;color:var(--muted);font-weight:700}
+  
+    .engine-frame-wrap {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.72); padding: 0;
+    }
+    .engine-frame-wrap.open { display: block; }
+    .engine-frame-wrap iframe {
+      width: 100%; height: 100%; border: 0; background: #0a0c0f;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div>
+        <h1>Pulse</h1>
+        <small>CORVETTO · v11.3.0</small>
+      </div>
+    </div>
+    <div class="week-nav">
+      <button type="button" class="ghost" id="btnPrev">‹</button>
+      <div class="week-label" id="weekLabel">—</div>
+      <button type="button" class="ghost" id="btnNext">›</button>
+    </div>
+  </header>
+  <div class="sync" id="syncLabel">Sync…</div>
+  <div class="tabs" id="tabs">
+    <button type="button" class="active" data-tab="pulse">Pulse</button>
+    <button type="button" data-tab="turni">Turni</button>
+    <button type="button" data-tab="assenze">Assenze</button>
+    <button type="button" data-tab="motore">Motore</button>
+  </div>
+
+  <section id="tab-pulse">
+    <div class="status" id="statusPill"><span class="dot"></span><span id="statusText">Caricamento dati…</span></div>
+    <div class="label">Zone</div>
+    <div class="zones" id="zones"></div>
+    <div class="label">Settimana</div>
+    <div class="days" id="days"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="dayTitle">Giorno</h2>
+        <button type="button" class="ghost" id="btnOpenTurni" style="min-height:36px;font-size:12px">Turno personalizzato</button>
+      </div>
+      <div class="lanes" id="lanes"></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="primary" id="btnSystem">Sistema (motore completo)</button>
+      <div class="actions-row">
+        <button type="button" id="btnPdf">PDF</button>
+        <button type="button" id="btnReload">Ricarica cloud</button>
+      </div>
+    </div>
+  </section>
+
+  
+  <section id="tab-turni" class="hidden">
+    <div class="label">Assegna turno · settimana corrente</div>
+    <div class="card">
+      <label>Collaboratore</label>
+      <select id="shWorker"></select>
+      <label>Giorno</label>
+      <select id="shDay">
+        <option value="0">Lunedì</option>
+        <option value="1">Martedì</option>
+        <option value="2">Mercoledì</option>
+        <option value="3">Giovedì</option>
+        <option value="4">Venerdì</option>
+        <option value="5">Sabato</option>
+      </select>
+      <label>Preset</label>
+      <select id="shPreset"></select>
+      <div class="actions-row" style="margin-top:4px">
+        <div>
+          <label>Mattina da</label>
+          <input type="time" id="shMIn" value="08:30" />
+        </div>
+        <div>
+          <label>Mattina a</label>
+          <input type="time" id="shMOut" value="13:00" />
+        </div>
+      </div>
+      <div class="actions-row">
+        <div>
+          <label>Pomeriggio da</label>
+          <input type="time" id="shPIn" value="14:00" />
+        </div>
+        <div>
+          <label>Pomeriggio a</label>
+          <input type="time" id="shPOut" value="17:30" />
+        </div>
+      </div>
+      <label><input type="checkbox" id="shNoLunch" /> Senza pausa (solo mattina–sera continui)</label>
+      <div class="actions-row" style="margin-top:10px">
+        <button type="button" class="primary" id="btnApplyShift">Applica turno</button>
+        <button type="button" id="btnClearShift">Svuota giorno</button>
+      </div>
+      <p class="meta" style="margin-top:8px;font-size:12px;color:var(--muted)">Il turno viene scritto sui dati cloud (stesso formato della legacy) e non viene sovrascritto dal motore se marcato manuale.</p>
+    </div>
+
+    <div class="label">Preset personalizzati</div>
+    <div class="card">
+      <label>Nome preset</label>
+      <input type="text" id="psName" placeholder="es. Apertura magazzino" />
+      <div class="actions-row">
+        <div>
+          <label>mIn</label>
+          <input type="time" id="psMIn" value="06:30" />
+        </div>
+        <div>
+          <label>mOut</label>
+          <input type="time" id="psMOut" value="12:00" />
+        </div>
+      </div>
+      <div class="actions-row">
+        <div>
+          <label>pIn</label>
+          <input type="time" id="psPIn" value="13:00" />
+        </div>
+        <div>
+          <label>pOut</label>
+          <input type="time" id="psPOut" value="15:30" />
+        </div>
+      </div>
+      <button type="button" class="primary" id="btnSavePreset" style="width:100%;margin-top:8px">Salva preset</button>
+    </div>
+    <div class="list" id="presetList" style="margin-top:10px"></div>
+
+    <div class="label">Turni del giorno selezionato (tutti)</div>
+    <div class="list" id="dayShiftsList"></div>
+  </section>
+
+  <section id="tab-assenze" class="hidden">
+    <div class="label">Malattia / ricovero / ferie (dati cloud)</div>
+    <div class="list" id="leaveList"></div>
+    <div class="label">Nuova assenza rapida</div>
+    <div class="card">
+      <label>Collaboratore</label>
+      <select id="leaveWorker"></select>
+      <label>Tipo</label>
+      <select id="leaveTipo">
+        <option>Ferie</option>
+        <option>Permesso retribuito</option>
+        <option>Malattia</option>
+        <option>Ricovero</option>
+      </select>
+      <label>Dal</label>
+      <input type="date" id="leaveFrom" />
+      <label>Al</label>
+      <input type="date" id="leaveTo" />
+      <button type="button" class="primary" id="btnSaveLeave" style="width:100%">Salva assenza</button>
+      <p class="meta" style="margin-top:8px;font-size:12px;color:var(--muted)">Le assenze si salvano su Firebase come nella app legacy. Per modifiche avanzate apri il motore completo.</p>
+    </div>
+  </section>
+
+  <section id="tab-motore" class="hidden">
+    <div class="card">
+      <strong>Motore regole avanzato</strong>
+      <p class="meta">Generazione turni, bilanciamento aperture/chiusure, Severin, magazzino e proposta guidata: integrati in Pulse sugli stessi dati cloud.</p>
+      <button type="button" class="primary" id="btnOpenEngine" style="width:100%;margin-top:10px">Avvia motore in Pulse</button>
+      <button type="button" id="btnOpenLegacyHome" style="width:100%;margin-top:8px">Apri app legacy intera</button>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <strong>Sincronizzazione</strong>
+      <p class="meta" id="syncDetail">—</p>
+      <button type="button" id="btnForcePull" style="width:100%;margin-top:8px">Scarica da cloud</button>
+      <button type="button" id="btnForcePush" style="width:100%;margin-top:8px">Invia locale al cloud</button>
+    </div>
+  </section>
+
+  <p class="foot">Pulse v11.1 legge/scrive gli stessi dati della legacy (`turni_data_v47_pdf`).</p>
+</div>
+
+<nav class="dock">
+  <button type="button" class="active" data-go="pulse">▣ Pulse</button>
+  <button type="button" class="main" data-go="motore">⚡ Motore</button>
+  <button type="button" data-go="turni">＋ Turni</button>
+  <button type="button" data-go="pdf">▦ PDF</button>
+</nav>
+<div class="engine-frame-wrap" id="engineFrameWrap" aria-hidden="true">
+  <iframe id="engineFrame" title="Motore regole Corvetto" src="about:blank"></iframe>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const VERSION='11.3.0';
+  const LOCAL_KEY='turni_corvetto_test_data';
+  const RTDB_PATH='turni_data_v47_pdf';
+  const DAY_NAMES=['Lun','Mar','Mer','Gio','Ven','Sab'];
+  const DAY_LONG=['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const firebaseConfig={
+    apiKey:"AIzaSyBUDN4_ebBKWXQ8E79fqFfu7gBiRsm_Z5s",
+    authDomain:"turni-corvetto-fca14.firebaseapp.com",
+    databaseURL:"https://turni-corvetto-fca14-default-rtdb.firebaseio.com",
+    projectId:"turni-corvetto-fca14",
+    storageBucket:"turni-corvetto-fca14.firebasestorage.app",
+    messagingSenderId:"250593850505",
+    appId:"1:250593850505:web:61dd87ad366e1a2025fac8"
+  };
+
+  let db=null, appData={workers:[],weeks:{},leaveRequests:[],events:[],rules:{}}, syncState='local';
+  let monday=startOfWeek(new Date());
+  let dayIdx=Math.min(5,Math.max(0,(new Date().getDay()+6)%7));
+  let zoneId='edile';
+  let _syncTimer=null;
+
+  function startOfWeek(d){const x=new Date(d);x.setHours(12,0,0,0);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x;}
+  function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+  function fmtIT(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
+  function pad(n){return String(n).padStart(2,'0');}
+  function weekKeyFromDate(d){
+    // ISO-ish week key compatible enough: use legacy getWeekKey if present later
+    const mon=startOfWeek(d);
+    const tmp=new Date(Date.UTC(mon.getFullYear(),mon.getMonth(),mon.getDate()));
+    const dayNum=tmp.getUTCDay()||7;
+    tmp.setUTCDate(tmp.getUTCDate()+4-dayNum);
+    const yearStart=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
+    const weekNo=Math.ceil((((tmp-yearStart)/86400000)+1)/7);
+    return tmp.getUTCFullYear()+'-W'+pad(weekNo);
+  }
+  function currentWeekKey(){return weekKeyFromDate(monday);}
+  function timeToMin(t){if(!t)return null;const p=String(t).split(':');return (+p[0])*60+(+p[1]||0);}
+  function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),2800);}
+  function setSync(state,text){syncState=state;const el=document.getElementById('syncLabel');el.className='sync '+(state==='ok'?'ok':(state==='err'?'err':''));el.textContent=text||state;document.getElementById('syncDetail').textContent=text||state;}
+
+  function zoneOfWorker(w){
+    const g=String(w.group||'').toUpperCase();
+    if(g==='FINITURE')return 'finiture';
+    if(g==='MAGAZZINO')return 'magazzino';
+    return 'edile';
+  }
+  function workersInZone(zid){return (appData.workers||[]).filter(w=>w&&w.selected!==false&&zoneOfWorker(w)===zid);}
+  function finitureHours(di){if(di===5)return{open:'08:00',close:'12:00'};if(di===2)return{open:'08:30',close:'12:30'};return{open:'08:30',close:'17:30'};}
+  function sampleTimes(zid,di){
+    if(zid==='finiture'){const h=finitureHours(di);return{open:timeToMin(h.open)+15,close:timeToMin(h.close)-15,label:h.open+'–'+h.close};}
+    if(di===5)return{open:timeToMin('07:30'),close:timeToMin('11:15'),label:'07:00–12:00'};
+    return{open:timeToMin('07:00'),close:timeToMin('17:15'),label:'06:30–17:30'};
+  }
+  function cellAt(week,wid,di){const W=appData.weeks&&appData.weeks[week];if(!W||!W[wid])return{};return W[wid][di]||W[wid][String(di)]||{};}
+  function isHardAway(cell){
+    const st=String(cell.status||'').toUpperCase();
+    if(['FERIE','MALATTIA','RICOVERO','ASSENTE','CHIUSO','RIPOSO'].includes(st))return true;
+    if(cell.leaveFullDay)return true;
+    return false;
+  }
+  function coveredAt(cell,tMin){
+    if(!cell||isHardAway(cell))return false;
+    const blocks=[];
+    if(cell.mIn&&cell.mOut)blocks.push([timeToMin(cell.mIn),timeToMin(cell.mOut)]);
+    if(cell.pIn&&cell.pOut)blocks.push([timeToMin(cell.pIn),timeToMin(cell.pOut)]);
+    return blocks.some(b=>tMin>=b[0]&&tMin<b[1]);
+  }
+  function whoCovered(zid,di,tMin){
+    const week=currentWeekKey();
+    return workersInZone(zid).filter(w=>coveredAt(cellAt(week,w.id,di),tMin));
+  }
+  function coverage(zid,di){
+    const st=sampleTimes(zid,di);
+    const openP=whoCovered(zid,di,st.open);
+    const closeP=whoCovered(zid,di,st.close);
+    const minO=zid==='finiture'?1:2;
+    const minC=1;
+    const openOk=openP.length>=minO;
+    const closeOk=closeP.length>=minC;
+    let level='ok';
+    if(!openOk&&!closeOk)level='bad';
+    else if(!openOk||!closeOk)level='warn';
+    return{openP,closeP,openOk,closeOk,level,minO,minC,st};
+  }
+  function weekHealth(){
+    let bad=0,warn=0;
+    for(let d=0;d<6;d++)['edile','magazzino','finiture'].forEach(z=>{const c=coverage(z,d);if(c.level==='bad')bad++;else if(c.level==='warn')warn++;});
+    if(bad)return{level:'bad',text:bad+' buchi critici'};
+    if(warn)return{level:'warn',text:warn+' punti al limite'};
+    return{level:'ok',text:'Settimana ok'};
+  }
+
+  function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(appData));}catch(e){}}
+  function loadLocal(){
+    try{const raw=localStorage.getItem(LOCAL_KEY);if(raw){const d=JSON.parse(raw);if(d&&typeof d==='object'){appData=d;return true;}}}catch(e){}
+    return false;
+  }
+  function initFirebase(){
+    try{
+      if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+      db=firebase.database();
+      setSync('local','cloud in collegamento…');
+      db.ref(RTDB_PATH).on('value',snap=>{
+        const val=snap.val();
+        if(val&&typeof val==='object'){
+          appData=val;
+          saveLocal();
+          setSync('ok','cloud live · rev '+(val.updatedRevision||'—'));
+          render();
+        }
+      },err=>{console.warn(err);setSync('err','errore cloud');});
+    }catch(e){console.warn(e);setSync('err','firebase non disponibile');}
+  }
+  function pushCloud(){
+    saveLocal();
+    if(!db){toast('Cloud non disponibile');return;}
+    const proposed=JSON.parse(JSON.stringify(appData));
+    proposed.updatedAt=Date.now();
+    proposed.updatedRevision=Number(proposed.updatedRevision||0)+1;
+    db.ref(RTDB_PATH).set(proposed).then(()=>{setSync('ok','inviato · rev '+proposed.updatedRevision);toast('Dati inviati al cloud');}).catch(e=>{setSync('err','push fallita');toast('Push fallita');console.warn(e);});
+  }
+  function pullCloud(){
+    if(!db){toast('Cloud non disponibile');return;}
+    db.ref(RTDB_PATH).once('value').then(snap=>{
+      const val=snap.val();
+      if(val&&typeof val==='object'){appData=val;saveLocal();setSync('ok','scaricato');render();toast('Dati scaricati');}
+      else toast('Cloud vuoto');
+    });
+  }
+
+
+  const DEFAULT_PRESETS = [
+    { id: 'p_std', name: 'Standard 8:30–13 / 14–17:30', mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' },
+    { id: 'p_open', name: 'Apertura 6:30–12 / 13–14:30', mIn:'06:30', mOut:'12:00', pIn:'13:00', pOut:'14:30' },
+    { id: 'p_sev', name: 'Severin 6:30–12:30 / 13:30–17:30', mIn:'06:30', mOut:'12:30', pIn:'13:30', pOut:'17:30' },
+    { id: 'p_sat', name: 'Sabato 7:00–12:00', mIn:'07:00', mOut:'12:00', pIn:'', pOut:'' },
+    { id: 'p_fin', name: 'Finiture 8:30–13 / 14–17:30', mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' },
+    { id: 'p_fin_wed', name: 'Finiture mer 8:30–12:30', mIn:'08:30', mOut:'12:30', pIn:'', pOut:'' },
+    { id: 'p_fin_sat', name: 'Finiture sab 8:00–12:00', mIn:'08:00', mOut:'12:00', pIn:'', pOut:'' }
+  ];
+
+  function ensureCustomShifts(){
+    if(!appData.customShiftPresets || !Array.isArray(appData.customShiftPresets)){
+      appData.customShiftPresets = [];
+    }
+    return appData.customShiftPresets;
+  }
+  function allPresets(){
+    return DEFAULT_PRESETS.concat(ensureCustomShifts());
+  }
+  function ensureWeekWorkerDay(week, wid, di){
+    if(!appData.weeks) appData.weeks = {};
+    if(!appData.weeks[week]) appData.weeks[week] = {};
+    if(!appData.weeks[week][wid]) appData.weeks[week][wid] = {};
+    const k = String(di);
+    if(!appData.weeks[week][wid][k] && !appData.weeks[week][wid][di]){
+      appData.weeks[week][wid][k] = {};
+    }
+    return appData.weeks[week][wid][k] || appData.weeks[week][wid][di];
+  }
+  function setWorkerDayShift(wid, di, times){
+    const week = currentWeekKey();
+    if(!appData.weeks) appData.weeks = {};
+    if(!appData.weeks[week]) appData.weeks[week] = {};
+    if(!appData.weeks[week][wid]) appData.weeks[week][wid] = {};
+    const cell = {
+      status: 'LAVORO',
+      mIn: times.mIn || '',
+      mOut: times.mOut || '',
+      pIn: times.pIn || '',
+      pOut: times.pOut || '',
+      manualEdit: true,
+      generated: false,
+      note: times.note || ''
+    };
+    // continuous morning-only if no lunch
+    if(times.noLunch && times.mIn && times.pOut){
+      cell.mIn = times.mIn;
+      cell.mOut = times.pOut;
+      cell.pIn = '';
+      cell.pOut = '';
+    }
+    appData.weeks[week][wid][String(di)] = cell;
+    appData.weeks[week][wid][di] = cell;
+  }
+  function clearWorkerDayShift(wid, di){
+    const week = currentWeekKey();
+    if(!appData.weeks || !appData.weeks[week] || !appData.weeks[week][wid]) return;
+    appData.weeks[week][wid][String(di)] = { status: 'LAVORO' };
+    appData.weeks[week][wid][di] = appData.weeks[week][wid][String(di)];
+  }
+  function fillShiftForm(){
+    const sel = document.getElementById('shWorker');
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = (appData.workers||[]).filter(w=>w.selected!==false)
+      .map(w=>'<option value="'+w.id+'">'+(w.name||w.id)+'</option>').join('');
+    if(cur) sel.value = cur;
+    const daySel = document.getElementById('shDay');
+    if(daySel) daySel.value = String(dayIdx);
+    const ps = document.getElementById('shPreset');
+    if(ps){
+      const list = allPresets();
+      ps.innerHTML = '<option value="">— personalizzato —</option>' +
+        list.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
+    }
+    renderPresetList();
+    renderDayShiftsList();
+  }
+  function applyPresetToFields(id){
+    const p = allPresets().find(x=>x.id===id);
+    if(!p) return;
+    document.getElementById('shMIn').value = p.mIn || '';
+    document.getElementById('shMOut').value = p.mOut || '';
+    document.getElementById('shPIn').value = p.pIn || '';
+    document.getElementById('shPOut').value = p.pOut || '';
+    document.getElementById('shNoLunch').checked = !p.pIn && !p.pOut;
+  }
+  function renderPresetList(){
+    const box = document.getElementById('presetList');
+    if(!box) return;
+    const custom = ensureCustomShifts();
+    if(!custom.length){
+      box.innerHTML = '<div class="card meta">Nessun preset utente — usa i predefiniti o creane uno</div>';
+      return;
+    }
+    box.innerHTML = custom.map(p=>
+      '<div class="card" style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+      '<div><strong>'+escapeHtml(p.name)+'</strong><div class="meta">' +
+      [p.mIn&&p.mOut?(p.mIn+'-'+p.mOut):'', p.pIn&&p.pOut?(p.pIn+'-'+p.pOut):''].filter(Boolean).join(' · ') +
+      '</div></div>' +
+      '<button type="button" data-del-preset="'+p.id+'" style="min-height:36px">Elimina</button></div>'
+    ).join('');
+  }
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function renderDayShiftsList(){
+    const box = document.getElementById('dayShiftsList');
+    if(!box) return;
+    const di = document.getElementById('shDay') ? +document.getElementById('shDay').value : dayIdx;
+    const week = currentWeekKey();
+    const rows = (appData.workers||[]).filter(w=>w.selected!==false).map(w=>{
+      const cell = cellAt(week, w.id, di);
+      if(!cell || (!cell.mIn && !cell.pIn && !isHardAway(cell))) return null;
+      let label = '';
+      if(isHardAway(cell)) label = String(cell.status||cell.leaveType||'ASSENTE');
+      else {
+        const parts=[];
+        if(cell.mIn) parts.push(cell.mIn+'-'+(cell.mOut||''));
+        if(cell.pIn) parts.push(cell.pIn+'-'+(cell.pOut||''));
+        label = parts.join(' · ') || '—';
+        if(cell.manualEdit) label += ' · manuale';
+      }
+      return '<div class="card"><strong>'+escapeHtml(w.name)+'</strong><div class="meta">'+escapeHtml(label)+'</div></div>';
+    }).filter(Boolean);
+    box.innerHTML = rows.length ? rows.join('') : '<div class="card meta">Nessun turno impostato in questo giorno</div>';
+  }
+
+
+  function renderTabs(tab){
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.getAttribute('data-tab')===tab));
+    ['pulse','turni','assenze','motore'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==tab);});
+    document.querySelectorAll('.dock button').forEach(b=>{
+      const g=b.getAttribute('data-go');
+      b.classList.toggle('active',g===tab||(tab==='pulse'&&g==='pulse'));
+    });
+  }
+
+  function render(){
+    const end=addDays(monday,5);
+    document.getElementById('weekLabel').textContent=fmtIT(monday)+'–'+fmtIT(end);
+    const st=weekHealth();
+    const pill=document.getElementById('statusPill');
+    pill.className='status'+(st.level!=='ok'?' '+st.level:'');
+    document.getElementById('statusText').textContent=st.text;
+
+    const zones=[{id:'edile',label:'Banco edile'},{id:'magazzino',label:'Magazzino'},{id:'finiture',label:'Finiture'}];
+    document.getElementById('zones').innerHTML=zones.map(z=>{
+      const c=coverage(z.id,dayIdx);
+      return '<button type="button" class="zone'+(z.id===zoneId?' active':'')+'" data-zone="'+z.id+'"><div class="zone-top"><strong>'+z.label+'</strong><span class="pill '+c.level+'">'+(c.level==='ok'?'OK':(c.level==='bad'?'BUCO':'LIMITE'))+'</span></div><div class="zone-metrics">Apertura '+c.openP.length+'/'+c.minO+' · Chiusura '+c.closeP.length+'/'+c.minC+'</div><div class="zone-hint">'+c.st.label+'</div></button>';
+    }).join('');
+
+    document.getElementById('days').innerHTML=DAY_NAMES.map((n,i)=>{
+      const d=addDays(monday,i);
+      let heat='ok';
+      zones.forEach(z=>{const c=coverage(z.id,i);if(c.level==='bad')heat='bad';else if(c.level==='warn'&&heat!=='bad')heat='warn';});
+      return '<button type="button" class="day heat-'+heat+(i===dayIdx?' active':'')+'" data-day="'+i+'"><div class="n">'+n+'</div><div class="d">'+d.getDate()+'</div><div class="heat"></div></button>';
+    }).join('');
+
+    const c=coverage(zoneId,dayIdx);
+    document.getElementById('dayTitle').textContent=DAY_LONG[dayIdx]+' · '+fmtIT(addDays(monday,dayIdx));
+    function lane(title,people,ok,min){
+      let body=people.map(w=>'<div class="person"><span>'+((w.name||'').split(' ').slice(-1)[0]||w.name)+'</span><span>'+([w].map(()=>{const cell=cellAt(currentWeekKey(),w.id,dayIdx);const parts=[];if(cell.mIn)parts.push(cell.mIn+'-'+(cell.mOut||''));if(cell.pIn)parts.push(cell.pIn+'-'+(cell.pOut||''));return parts.join(' · ')||c.st.label;})[0])+'</span></div>').join('');
+      if(!people.length)body='<div class="gap-msg">Buco — serve almeno '+min+'</div>';
+      return '<div class="lane'+(ok?'':' gap')+'"><h3>'+title+' ('+people.length+'/'+min+')</h3>'+body+'</div>';
+    }
+    document.getElementById('lanes').innerHTML=lane('Apertura',c.openP,c.openOk,c.minO)+lane('Chiusura',c.closeP,c.closeOk,c.minC);
+
+    // leaves
+    const reqs=(appData.leaveRequests||[]).slice().sort((a,b)=>String(b.fromDay||b.from||'').localeCompare(String(a.fromDay||a.from||'')));
+    const leaveList=document.getElementById('leaveList');
+    if(!reqs.length)leaveList.innerHTML='<div class="card meta">Nessuna assenza in archivio</div>';
+    else leaveList.innerHTML=reqs.slice(0,30).map(r=>{
+      const w=(appData.workers||[]).find(x=>x.id===r.workerId);
+      const name=w?w.name:(r.workerId||'—');
+      const from=r.fromDay||r.from||'';
+      const to=r.toDay||r.to||(r.openEnded?'in corso':'');
+      return '<div class="card"><strong>'+name+' · '+(r.tipo||r.type||'')+'</strong><div class="meta">'+from+(to?(' → '+to):'')+'</div></div>';
+    }).join('');
+
+    const sel=document.getElementById('leaveWorker');
+    const cur=sel.value;
+    sel.innerHTML=(appData.workers||[]).filter(w=>w.selected!==false).map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join('');
+    if(cur)sel.value=cur;
+    try { if(document.getElementById('tab-turni') && !document.getElementById('tab-turni').classList.contains('hidden')) fillShiftForm(); } catch(e) {}
+  }
+
+  function openLegacy(pathHash){
+    const url='legacy.html'+(pathHash||'');
+    window.location.href=url;
+  }
+
+  let _engineLoaded=false;
+  function openEngine(){
+    const wrap=document.getElementById('engineFrameWrap');
+    const frame=document.getElementById('engineFrame');
+    if(!wrap||!frame){openLegacy('?engine=1');return;}
+    // Persist latest local snapshot so engine reads same data
+    try{localStorage.setItem(LOCAL_KEY, JSON.stringify(appData));}catch(e){}
+    wrap.classList.add('open');
+    wrap.setAttribute('aria-hidden','false');
+    if(!_engineLoaded || !frame.src || frame.src==='about:blank' || frame.src.endsWith('about:blank')){
+      frame.src='legacy.html?engine=1';
+      _engineLoaded=true;
+      toast('Avvio motore regole…');
+    } else {
+      try {
+        const eng=frame.contentWindow && frame.contentWindow.CORVETTO_ENGINE;
+        if(eng && eng.reloadFromStorage) eng.reloadFromStorage();
+        if(eng && eng.generate) { eng.generate(); toast('Generazione avviata'); }
+        else toast('Motore pronto — usa Genera proposta');
+      } catch(e){ console.warn(e); toast('Motore in caricamento'); }
+    }
+  }
+  function closeEngine(){
+    const wrap=document.getElementById('engineFrameWrap');
+    if(wrap){ wrap.classList.remove('open'); wrap.setAttribute('aria-hidden','true'); }
+    // Refresh data after engine work
+    try{
+      const raw=localStorage.getItem(LOCAL_KEY);
+      if(raw){ const d=JSON.parse(raw); if(d&&typeof d==='object'){ appData=d; } }
+    }catch(e){}
+    if(typeof pullCloud==='function'){ try{pullCloud();}catch(e){} }
+    render();
+  }
+  window.addEventListener('message', function(ev){
+    const data=ev && ev.data;
+    if(!data || data.type!=='corvetto-engine') return;
+    if(data.event==='ready'){
+      toast('Motore collegato');
+      try{
+        const frame=document.getElementById('engineFrame');
+        const eng=frame && frame.contentWindow && frame.contentWindow.CORVETTO_ENGINE;
+        if(eng && eng.generate) eng.generate();
+      }catch(e){}
+    }
+    if(data.event==='close' || data.event==='proposal-applied'){
+      closeEngine();
+      if(data.event==='proposal-applied') toast('Proposta applicata · dati aggiornati');
+    }
+  });
+
+  function exportPdf(){
+    if(!window.jspdf||!window.jspdf.jsPDF){toast('PDF non pronto');return;}
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('landscape','mm','a4');
+    const week=currentWeekKey();
+    doc.setFontSize(13);
+    doc.text('Corvetto — '+fmtIT(monday)+' – '+fmtIT(addDays(monday,5))+' · '+week,14,12);
+    const head=['Collaboratore'].concat(DAY_NAMES.map((n,i)=>n+' '+addDays(monday,i).getDate()));
+    const body=(appData.workers||[]).filter(w=>w.selected!==false).map(w=>{
+      const row=[w.name||w.id];
+      for(let d=0;d<6;d++){
+        const cell=cellAt(week,w.id,d);
+        if(isHardAway(cell)){row.push(String(cell.status||cell.leaveType||'ASSENTE'));continue;}
+        const parts=[];
+        if(cell.mIn)parts.push(cell.mIn+'-'+(cell.mOut||''));
+        if(cell.pIn)parts.push(cell.pIn+'-'+(cell.pOut||''));
+        row.push(parts.join('\n')||'—');
+      }
+      return row;
+    });
+    doc.autoTable({startY:16,head:[head],body:body,styles:{fontSize:7,cellPadding:1.5},headStyles:{fillColor:[18,21,28],textColor:[242,244,247]}});
+    doc.save('Turni_Corvetto_'+week+'.pdf');
+    toast('PDF scaricato');
+  }
+
+  function saveLeave(){
+    const workerId=document.getElementById('leaveWorker').value;
+    const tipo=document.getElementById('leaveTipo').value;
+    const from=document.getElementById('leaveFrom').value;
+    const to=document.getElementById('leaveTo').value||from;
+    if(!workerId||!from){toast('Compila collaboratore e data');return;}
+    if(!appData.leaveRequests)appData.leaveRequests=[];
+    const isMed=/malattia|ricovero/i.test(tipo);
+    appData.leaveRequests.push({
+      id:'lr_'+Date.now(),
+      workerId:workerId,
+      tipo:tipo,
+      fromDay:from,
+      toDay:to,
+      fullDay:true,
+      mode:'range',
+      isMalattia:isMed,
+      openEnded:false,
+      createdAt:new Date().toISOString()
+    });
+    saveLocal();
+    pushCloud();
+    render();
+    toast('Assenza salvata su cloud');
+  }
+
+  // events
+  document.getElementById('btnPrev').onclick=()=>{monday=addDays(monday,-7);render();};
+  document.getElementById('btnNext').onclick=()=>{monday=addDays(monday,7);render();};
+  document.getElementById('zones').onclick=e=>{const b=e.target.closest('[data-zone]');if(!b)return;zoneId=b.getAttribute('data-zone');render();};
+  document.getElementById('days').onclick=e=>{const b=e.target.closest('[data-day]');if(!b)return;dayIdx=+b.getAttribute('data-day');render();};
+  document.getElementById('tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(!b)return;renderTabs(b.getAttribute('data-tab'));};
+  document.querySelector('.dock').onclick=e=>{
+    const b=e.target.closest('[data-go]');if(!b)return;
+    const g=b.getAttribute('data-go');
+    if(g==='pdf')exportPdf();
+    else if(g==='motore')renderTabs('motore');
+    else if(g==='turni'){renderTabs('turni');fillShiftForm();}
+    else if(g==='assenze')renderTabs('assenze');
+    else renderTabs('pulse');
+  };
+  document.getElementById('btnSystem').onclick=()=>openEngine();
+  document.getElementById('btnOpenEngine').onclick=()=>openEngine();
+  document.getElementById('btnOpenLegacyHome').onclick=()=>openLegacy('');
+  
+  document.getElementById('btnPdf').onclick=exportPdf;
+  document.getElementById('btnReload').onclick=pullCloud;
+  document.getElementById('btnForcePull').onclick=pullCloud;
+  document.getElementById('btnForcePush').onclick=pushCloud;
+  document.getElementById('btnSaveLeave').onclick=saveLeave;
+
+  loadLocal();
+  initFirebase();
+  render();
+})();
+</script>
+</body>
+</html>
