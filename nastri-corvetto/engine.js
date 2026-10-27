@@ -122,14 +122,17 @@
         const overrides = Array.isArray(plan.emergencyCoverageOverrides) ? plan.emergencyCoverageOverrides : [];
         const emergency = overrides.find(o => {
           const or = o && timeRange(o);
-          return o && or && o.day===pair.day && o.department==="magazzino" &&
+          if (!(o && or && o.day===pair.day && o.department==="magazzino" &&
             or.start<=pr.start && or.end>=pr.end && o.allowRequiredPairSplit===true &&
             typeof o.reason==="string" && o.reason.trim() &&
             typeof o.approvedBy==="string" && o.approvedBy.trim() &&
-            Number.isInteger(o.minimumOperationalPeople) && o.minimumOperationalPeople>=1;
+            Number.isInteger(o.minimumOperationalPeople) && o.minimumOperationalPeople>=1)) return false;
+          const headcount = normalized.filter(x => x.assignment.day===pair.day &&
+            x.assignment.department==="magazzino" && x.range.start<=pr.start && x.range.end>=pr.end).length;
+          return headcount >= o.minimumOperationalPeople;
         });
         if (emergency) warnings.push("Deroga emergenziale autorizzata: coppia magazzino separata il "+pair.day+" "+pair.start+"–"+pair.end+". Motivo: "+emergency.reason.trim()+". Autorizzata da: "+emergency.approvedBy.trim()+". Verificare attività consentite e sicurezza.");
-        else blockers.push("Coppia richiesta non completa per " + pair.day + " " + pair.start + "–" + pair.end + ".");
+        else blockers.push("Coppia richiesta non completa per " + pair.day + " " + pair.start + "–" + pair.end + ". Nessuna deroga valida con minimo operativo rispettato.");
       }
     }
 
