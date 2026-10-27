@@ -302,7 +302,7 @@
   }
 
   // Ranks possible replacements; never edits the plan. Unknown skills/availability fail closed.
-  function rankReplacements({ people, day, start, end, department, requiredSkill, excludedIds = [], currentAssignments = [] }) {
+  function rankReplacements({ people, day, start, end, department, requiredSkill, excludedIds = [], currentAssignments = [], currentEvents = [] }) {
     const startMin = minutes(start), endMin = minutes(end);
     if (!Array.isArray(people) || !day || !department || !Number.isFinite(startMin) ||
         !Number.isFinite(endMin) || endMin <= startMin) {
@@ -323,6 +323,14 @@
       const collision = currentAssignments.some(a => a.personId === p.id && a.day === day && timeRange(a) &&
         overlaps(startMin, endMin, timeRange(a).start, timeRange(a).end));
       if (collision) continue;
+      // Courses, medical visits, leave and breaks are explicit non-availability
+      // intervals even when they are not copied into person.unavailable.
+      const eventConflict = currentEvents.some(ev => {
+        if (!ev || ev.personId !== p.id || ev.day !== day) return false;
+        const r = timeRange(ev);
+        return !r || overlaps(startMin, endMin, r.start, r.end);
+      });
+      if (eventConflict) continue;
       if (department === "ufficio" && day === "mercoledi" && !OFFICE_WEDNESDAY_POOL.has(p.name)) continue;
       candidates.push({ id: p.id, name: p.name, skills: p.skills, reason: "Disponibilità e requisiti noti compatibili; verificare impatto sul resto del piano." });
     }
@@ -468,7 +476,7 @@
       const pool = baseline.people.filter(p=>!slot.eligiblePersonIds || slot.eligiblePersonIds.includes(p.id));
       const ranked = rankReplacements({people:pool,day:slot.day,start:slot.start,end:slot.end,
         department:slot.department,requiredSkill:slot.requiredSkill,
-        currentAssignments:current});
+        currentAssignments:current,currentEvents:Array.isArray(baseline.events)?baseline.events:[]});
       if (!ranked.candidates.length) {
         errors.push("Nessun candidato verificato per lo slot "+slot.id+".");
         continue;
