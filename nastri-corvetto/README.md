@@ -25,3 +25,6 @@ Apri `engine-tests.html` in un browser moderno. La pagina esegue i test di `engi
 
 ## Prossima fase
 Rendere il motore capace di confrontare scenari di giornata intera (piano ordinario, piano ridotto con deroghe esplicite, migliore copertura possibile con lacune dichiarate), quindi collegare la UI ai risultati reali del motore e aggiungere test end-to-end prima di qualunque rilascio.
+
+## Ultimo controllo automatico
+La suite attuale contiene **48 test superati su 48**. Sono inclusi controlli su scenari di giornata intera: priorità del piano ordinario rispetto a una deroga emergenziale, blocco della copertura residua insufficiente e generazione coordinata di più fasce nello stesso giorno. Questo è un test del motore in ambiente JavaScript, non sostituisce il collaudo end-to-end nel browser né la verifica con turni reali anonimizzati.
