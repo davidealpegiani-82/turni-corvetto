@@ -50,3 +50,7 @@ La diagnosi di copertura conta persone distinte, non segmenti di turno. Due asse
 
 ## Priorità delle alternative in revisione
 Quando più proposte richiedono revisione, il confronto quantifica il deficit dichiarato di copertura in persone-minuto, separa la componente legata alle competenze e rende visibile la copertura ridotta da deroga. A parità di classe di esito, le alternative con deficit inferiore vengono presentate prima. Questa priorità è un criterio trasparente di confronto, non una garanzia di ottimalità globale né un'autorizzazione automatica. Suite motore: **58/58 test superati**; nessun collaudo end-to-end o con dati reali è implicato.
+
+
+## Eventi personali e candidati sostitutivi
+La ricerca dei candidati esclude ora anche gli intervalli degli eventi personali espliciti del piano (per esempio corso, visita medica, permesso o pausa), senza richiedere che siano duplicati nel campo `unavailable`. Un evento sovrapposto impedisce la raccomandazione; un intervallo adiacente ma non sovrapposto non la impedisce. Suite motore aggiornata: **59/59 test superati**.
