@@ -54,3 +54,6 @@ Quando più proposte richiedono revisione, il confronto quantifica il deficit di
 
 ## Eventi personali e candidati sostitutivi
 La ricerca dei candidati esclude ora anche gli intervalli degli eventi personali espliciti del piano (per esempio corso, visita medica, permesso o pausa), senza richiedere che siano duplicati nel campo `unavailable`. Un evento sovrapposto impedisce la raccomandazione; un intervallo adiacente ma non sovrapposto non la impedisce. Suite motore aggiornata: **59/59 test superati**.
+
+
+Test aggiuntivo: anche la generazione su slot espliciti rifiuta una persona il cui evento personale nel piano base si sovrappone al turno richiesto. Suite motore aggiornata: **60/60 test superati**.
