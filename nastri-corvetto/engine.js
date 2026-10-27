@@ -529,6 +529,70 @@
       reason:"Ricerca limitata e deterministica: priorità a validità, avvisi, coppie preferenziali, uso del jolly esplicitamente censito e stabilità delle assegnazioni. Non garantisce l'ottimo globale e non applica turni."};
   }
 
+  // Compare explicit emergency-response scenarios. This does not invent staff,
+  // confirm overtime/support, or generate a plan; every scenario must supply a concrete plan.
+  function evaluateEmergencyScenarios({ baseline, scenarios, lockedAssignmentIds = [] } = {}) {
+    if (!baseline || !Array.isArray(baseline.assignments) || !Array.isArray(baseline.people) ||
+        !Array.isArray(scenarios) || !scenarios.length || !Array.isArray(lockedAssignmentIds)) {
+      return { status:"BLOCKED", scenarios:[], reason:"Servono piano base, scenari espliciti e vincoli manuali." };
+    }
+    const allowedTypes = new Set(["internal-reassignment","overtime","other-branch-support",
+      "manager-decision","reduced-service","baseline"]);
+    const seen = new Set(), errors = [];
+    const prepared = [];
+    for (const s of scenarios) {
+      if (!s || typeof s.id !== "string" || !s.id.trim() || seen.has(s.id) ||
+          typeof s.label !== "string" || !s.label.trim() || !allowedTypes.has(s.type) ||
+          !s.plan || !Array.isArray(s.plan.assignments)) {
+        errors.push("Scenario emergenziale incompleto, duplicato o con tipo non riconosciuto.");
+        continue;
+      }
+      seen.add(s.id);
+      const externalAction = ["overtime","other-branch-support","manager-decision"].includes(s.type);
+      prepared.push({
+        id:s.id, label:s.label, type:s.type, plan:s.plan,
+        actionStatus: externalAction ? (s.confirmed===true ? "CONFIRMED_BY_USER" : "TO_BE_CONFIRMED") : "NOT_APPLICABLE",
+        requestedPeople:Number.isInteger(s.requestedPeople)&&s.requestedPeople>0?s.requestedPeople:null,
+        requestedSkills:Array.isArray(s.requestedSkills)?s.requestedSkills.slice():[],
+        requestedStart:typeof s.requestedStart==="string"?s.requestedStart:null,
+        requestedEnd:typeof s.requestedEnd==="string"?s.requestedEnd:null,
+        recipient:typeof s.recipient==="string"?s.recipient:null,
+        rationale:typeof s.rationale==="string"?s.rationale:null
+      });
+    }
+    if (errors.length || prepared.length !== scenarios.length) {
+      return { status:"BLOCKED", scenarios:[], errors,
+        reason:"Nessuno scenario è stato valutato: correggere prima i dati." };
+    }
+    const compared = compareProposals({baseline,
+      proposals:prepared.map(s=>({id:s.id,label:s.label,plan:s.plan})),
+      lockedAssignmentIds});
+    const meta = new Map(prepared.map(s=>[s.id,s]));
+    const evaluated = compared.proposals.map(p=>{
+      const s=meta.get(p.id);
+      const blockers=p.blockers||[], warnings=p.warnings||[];
+      const uncovered = [...blockers,...warnings].filter(x=>
+        /copertura|sotto soglia|coppia|competenza|candidato|indisponibil|impossibile|apertura|chiusura/i.test(x));
+      return {...p, type:s.type, actionStatus:s.actionStatus,
+        request:{people:s.requestedPeople,skills:s.requestedSkills,start:s.requestedStart,
+          end:s.requestedEnd,recipient:s.recipient},
+        rationale:s.rationale,
+        remainingGaps:uncovered,
+        decisionReasons:[...(p.decisionReasons||[]),
+          s.type==="overtime"?"Straordinario solo come ipotesi: verificare disponibilità, ore e autorizzazioni.":null,
+          s.type==="other-branch-support"?"Il supporto esterno non è acquisito finché non viene confermato.":null,
+          s.type==="manager-decision"?"Richiede una decisione esplicita del responsabile.":null,
+          p.status==="BLOCKED"?"Non applicare: restano vincoli bloccanti.":null].filter(Boolean)
+      };
+    });
+    const usable=evaluated.filter(s=>s.status==="VALID"||s.status==="NEEDS_REVIEW");
+    return {status:usable.some(s=>s.status==="VALID")?"ACTIONABLE_SCENARIO_AVAILABLE":
+      usable.length?"REVIEW_REQUIRED":"NO_SAFE_SCENARIO",
+      scenarios:evaluated,
+      requiresHumanDecision:true,
+      reason:"Confronto di scenari forniti: non genera turni, non contatta altre filiali e non conferma straordinari. Un piano con lacune o vincoli bloccanti non diventa approvato."};
+  }
+
   // Conservative hour ledger: only explicit countsAsWorkHours flags are counted.
   // Missing payroll semantics stay unknown; overlaps invalidate totals to avoid double counting.
   function summarizeHours(plan, weeklyLimitMinutes = 2400) {
@@ -584,5 +648,5 @@
       peopleRows.some(p=>p.status==="INCOMPLETE" || p.status==="NEEDS_HR_REVIEW") ? "NEEDS_REVIEW" : "COMPLETE",
       weeklyLimitMinutes, people:peopleRows, errors:[] };
   }
-  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, generateProposals, summarizeHours, minutes });
+  root.CorvettoEngine = Object.freeze({ validatePlan, rankReplacements, compareProposals, generateProposals, evaluateEmergencyScenarios, summarizeHours, minutes });
 })(typeof window !== "undefined" ? window : globalThis);
