@@ -326,8 +326,23 @@
       if (department === "ufficio" && day === "mercoledi" && !OFFICE_WEDNESDAY_POOL.has(p.name)) continue;
       candidates.push({ id: p.id, name: p.name, skills: p.skills, reason: "Disponibilità e requisiti noti compatibili; verificare impatto sul resto del piano." });
     }
+    // Stable, explainable ordering: prefer ordinary staff before a declared jolly.
+    // This is only a tie-breaker; it does not replace whole-plan validation.
+    candidates.sort((a,b) => {
+      const pa=people.find(p=>p && p.id===a.id), pb=people.find(p=>p && p.id===b.id);
+      const ja=!!(pa && (pa.isJolly===true || (Array.isArray(pa.skills)&&pa.skills.includes("jolly"))));
+      const jb=!!(pb && (pb.isJolly===true || (Array.isArray(pb.skills)&&pb.skills.includes("jolly"))));
+      return Number(ja)-Number(jb) || a.name.localeCompare(b.name);
+    });
+    for (const c of candidates) {
+      const p=people.find(x=>x && x.id===c.id);
+      const jolly=!!(p && (p.isJolly===true || (Array.isArray(p.skills)&&p.skills.includes("jolly"))));
+      c.reason=jolly
+        ? "Candidato verificato ma marcato come jolly: preferire personale ordinario compatibile se disponibile; verificare l'impatto sull'intera giornata."
+        : "Disponibilità e requisiti noti compatibili; candidato ordinario prioritario. Verificare l'impatto sull'intero piano.";
+    }
     return { status: candidates.length ? "CANDIDATES_FOR_REVIEW" : "NO_VERIFIED_CANDIDATE",
-      candidates, reason: candidates.length ? "Nessuna assegnazione automatica: confrontare copertura e vincoli globali." :
+      candidates, reason: candidates.length ? "Candidati ordinati in modo deterministico: personale ordinario prima del jolly; l'ordine non è un'approvazione e va verificato sul piano completo." :
       "Nessun candidato verificato. Non inventare una sostituzione: dichiarare copertura impossibile o chiedere dati." };
   }
   // Compares supplied proposals without generating or applying shifts.
