@@ -541,6 +541,12 @@
       const q=byId.get(p.id), plan=q&&q.plan;
       if (!plan) return {status:3,warnings:99,pairPenalty:99,jollyPenalty:99,changed:99};
       const status={VALID:0,NEEDS_REVIEW:1,BLOCKED:2}[p.status] ?? 3;
+      // Keep the generator's final ranking aligned with compareProposals:
+      // declared coverage deficits matter before cosmetic tie-breakers.
+      const gapMetrics=p.gapMetrics||{};
+      const deficit=gapMetrics.deficitPersonMinutes??Number.MAX_SAFE_INTEGER;
+      const skillDeficit=gapMetrics.skillDeficitPersonMinutes??Number.MAX_SAFE_INTEGER;
+      const emergencyReduced=gapMetrics.emergencyReducedPersonMinutes??Number.MAX_SAFE_INTEGER;
       const pairPenalty=(p.warnings||[]).filter(w=>w.includes("Coppia preferenziale separata")).length;
       const jollyPenalty=plan.assignments.filter(a=>{
         const person=personById.get(a.personId);
@@ -553,7 +559,7 @@
         const b=plan.assignments.find(x=>x&&x.id===id);
         if (!b || JSON.stringify([a.personId,a.day,a.department,a.start,a.end])!==JSON.stringify([b.personId,b.day,b.department,b.start,b.end])) changed++;
       }
-      return {status,warnings:(p.warnings||[]).length,pairPenalty,jollyPenalty,changed};
+      return {status,deficit,skillDeficit,emergencyReduced,warnings:(p.warnings||[]).length,pairPenalty,jollyPenalty,changed};
     };
     const cleaned=compared.proposals.map(p=>({...p,plan:byId.get(p.id).plan,
       quality:quality(p),decisionReasons:[
@@ -562,6 +568,9 @@
         quality(p).jollyPenalty?"Impiega una persona marcata esplicitamente come jolly.":null
       ].filter(Boolean)}));
     cleaned.sort((a,b)=>a.quality.status-b.quality.status ||
+      a.quality.deficit-b.quality.deficit ||
+      a.quality.skillDeficit-b.quality.skillDeficit ||
+      a.quality.emergencyReduced-b.quality.emergencyReduced ||
       a.quality.warnings-b.quality.warnings ||
       a.quality.pairPenalty-b.quality.pairPenalty ||
       a.quality.jollyPenalty-b.quality.jollyPenalty ||
