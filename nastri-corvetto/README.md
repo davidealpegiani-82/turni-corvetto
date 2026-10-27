@@ -1,0 +1,27 @@
+# Nastri Corvetto — app indipendente in sviluppo
+
+Nastri Corvetto nasce come applicazione distinta da Turni Corvetto. Questa cartella è una base di sviluppo isolata: non modifica l'app ufficiale, non legge né scrive il database Firebase e non applica turni reali.
+
+## Aprire l'anteprima
+Apri `index.html` in un browser moderno. La schermata usa dati dimostrativi e interazioni locali.
+
+## Verificare il motore
+Apri `engine-tests.html` in un browser moderno. La pagina esegue i test di `engine.js` e mostra il risultato. I test del motore sono separati dalla demo grafica.
+
+## File principali
+- `index.html`: prima interfaccia e flussi dimostrativi.
+- `engine.js`: validatore deterministico sperimentale; non è ancora un generatore completo di turni.
+- `engine-tests.html`: test ripetibili del motore.
+- `rulebook.json`: regole operative in bozza da validare.
+- `plan-schema.example.json`: contratto dati esemplificativo.
+
+## Stato e limiti
+- Progetto separato a livello di cartella e ramo Git.
+- Nessuna connessione ai dati ufficiali.
+- Nessuna pubblicazione operativa o sostituzione di Turni Corvetto in questa fase.
+- I dati mostrati dall'interfaccia sono dimostrativi.
+- Una deroga emergenziale produce un esito da revisionare, non un'approvazione automatica.
+- Il motore deve ancora essere esteso e collaudato su giornate complete, casi normali, assenze multiple, coppie di magazzino e coperture minime.
+
+## Prossima fase
+Rendere il motore capace di confrontare scenari di giornata intera (piano ordinario, piano ridotto con deroghe esplicite, migliore copertura possibile con lacune dichiarate), quindi collegare la UI ai risultati reali del motore e aggiungere test end-to-end prima di qualunque rilascio.
