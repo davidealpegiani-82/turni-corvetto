@@ -385,11 +385,31 @@
       }
       const unique = [...new Set(blockers)];
       const status = unique.length ? "BLOCKED" : validation.status;
+      // Quantify declared coverage gaps so two review-required plans are not
+      // treated as equivalent when one leaves a much larger deficit.
+      const diagnosis = diagnoseCoverageGaps(proposal.plan);
+      const gapMetrics = diagnosis.gaps.reduce((m,g)=>{
+        const duration = Math.max(0, minutes(g.end)-minutes(g.start));
+        const deficitMinutes = duration * Math.max(0,g.deficit||0);
+        m.deficitPersonMinutes += deficitMinutes;
+        m.gapMinutes += duration;
+        m.intervals += 1;
+        if (g.kind === "skill") m.skillDeficitPersonMinutes += deficitMinutes;
+        if (g.emergencyOverrideApplied) m.emergencyReducedPersonMinutes += deficitMinutes;
+        return m;
+      },{deficitPersonMinutes:0,skillDeficitPersonMinutes:0,emergencyReducedPersonMinutes:0,gapMinutes:0,intervals:0});
       return {id,label,status,safeToApply:status==="VALID",blockers:unique,
         warnings:validation.warnings,checkedAssignments:validation.checkedAssignments,
+        gapMetrics,diagnosisStatus:diagnosis.status,
         score:status==="VALID"?0:status==="NEEDS_REVIEW"?1:2};
     });
     evaluated.sort((a,b)=>a.score-b.score ||
+      (a.gapMetrics?.deficitPersonMinutes ?? Number.MAX_SAFE_INTEGER)-
+        (b.gapMetrics?.deficitPersonMinutes ?? Number.MAX_SAFE_INTEGER) ||
+      (a.gapMetrics?.skillDeficitPersonMinutes ?? Number.MAX_SAFE_INTEGER)-
+        (b.gapMetrics?.skillDeficitPersonMinutes ?? Number.MAX_SAFE_INTEGER) ||
+      (a.gapMetrics?.emergencyReducedPersonMinutes ?? Number.MAX_SAFE_INTEGER)-
+        (b.gapMetrics?.emergencyReducedPersonMinutes ?? Number.MAX_SAFE_INTEGER) ||
       a.warnings.length-b.warnings.length || a.blockers.length-b.blockers.length ||
       String(a.label).localeCompare(String(b.label)));
     return {status:evaluated.some(p=>p.status==="VALID")?"HAS_VALID_PROPOSAL":
