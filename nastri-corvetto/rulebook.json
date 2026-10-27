@@ -217,5 +217,47 @@
     "validation": "persona, giorno, tipo riconosciuto e intervallo orario obbligatori; evento sovrapposto a turno assegnato blocca e richiede segmentazione del turno",
     "coverage": "gli eventi non costituiscono automaticamente copertura",
     "hours": "countsAsWorkHours va configurato esplicitamente; summarizeHours conta soltanto flag booleani espliciti, segnala dati mancanti e invalida il totale affidabile in presenza di sovrapposizioni; nessuna regola paghe viene inferita"
+  },
+  "emergencyOperations": {
+    "status": "requisito-fondamentale-da-implementare-e-collaudare",
+    "triggerCases": [
+      "assenza contemporanea di tre o più magazzinieri",
+      "copertura inferiore al minimo operativo in una o più fasce",
+      "assenza di una competenza obbligatoria anche quando il numero di persone sembra sufficiente",
+      "apertura, chiusura o sabato senza copertura minima verificata"
+    ],
+    "requiredScenarioComparison": [
+      "piano ordinario con le assenze effettive",
+      "riassegnazione interna che rispetta competenze, disponibilità, coppie e assegnazioni manuali protette",
+      "straordinario volontario/valutabile per persone compatibili, solo dopo verifica di disponibilità, ore note e soglie configurate",
+      "richiesta di supporto ad altre filiali, senza presumere che il personale sia disponibile",
+      "richiesta di intervento o decisione al responsabile",
+      "piano ridotto con attività/fasce non coperte dichiarate esplicitamente",
+      "impossibilità operativa quando nessuna alternativa verificata raggiunge i minimi"
+    ],
+    "escalationOrder": [
+      "misurare le lacune per fascia oraria, mansione e competenza",
+      "valutare riassegnazioni interne senza compromettere altre coperture della stessa giornata",
+      "mostrare eventuali opzioni di straordinario come proposte da confermare, mai come disponibilità presunta",
+      "preparare richiesta di supporto ad altre filiali con fascia, durata, competenze e numero di persone necessari",
+      "se la copertura resta insufficiente, richiedere decisione del responsabile e proporre riduzione/limitazione delle attività interessate",
+      "se i requisiti minimi o le competenze di sicurezza non sono rispettati, mantenere il piano bloccato per le fasce/attività interessate"
+    ],
+    "outputRequirements": [
+      "persone mancanti e numero di addetti necessari per ogni fascia",
+      "competenze mancanti e attività che non possono essere assegnate in sicurezza",
+      "alternative ordinate con impatto sulle altre fasce e sulle coppie",
+      "ore aggiuntive stimate solo quando i dati necessari sono espliciti; altrimenti indicare dato insufficiente",
+      "azioni da richiedere, destinatario/ruolo, dati della richiesta e stato: da valutare, richiesta preparata, confermata o rifiutata",
+      "motivazione, autore e orario di ogni deroga o decisione",
+      "coperture residue impossibili chiaramente evidenziate, senza inventare sostituti né mascherare lacune"
+    ],
+    "safeguards": [
+      "nessuno straordinario o supporto da altra filiale è considerato confermato senza conferma esplicita",
+      "nessuna deroga automatica a competenze obbligatorie o vincoli di sicurezza",
+      "una deroga numerica autorizzata resta soggetta a revisione e non equivale ad approvazione automatica del piano",
+      "le assegnazioni manuali protette non possono essere modificate in silenzio",
+      "se mancano dati su disponibilità, ore o autorizzazioni, l'alternativa viene segnalata come non verificabile"
+    ]
   }
 }
