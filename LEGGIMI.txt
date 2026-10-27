@@ -1,2 +1,2 @@
-Turni Corvetto v10.3.5 — app standard ripristinata.
-L'esperimento Pulse v11 è in pulse-archive.html (non usato).
+Turni Corvetto v9.11.54 — interfaccia STANDARD ripristinata (pre-Pulse).
+Motore, ferie, malattia, cloud e PDF come nella versione stabile.

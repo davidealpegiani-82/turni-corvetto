@@ -2,11 +2,8 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v10.3.5</title>
+  <title>Turni Corvetto v9.11.54</title>
 
   <!-- Configurazione Mobile -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -41,7 +38,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '10.3.5';
+    const APP_VERSION = '9.11.54';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -57,15 +54,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
-    '10.3.4 — Scroll giorni Ven/Sab + orari Finiture reali (8:30–17:30, mer 12:30, sab 8–12)',
-    '10.3.3 — Riepilogo: apre stato settimana (non più scroll a blocco nascosto)',
-    '10.3.2 — Contrasto leggibile su tutte le pagine (ferie, malattia, impegni, settings, griglia)',
-    '10.3.1 — Contrasto leggibile: testi e pulsanti scuri su fondi chiari (WCAG-oriented)',
-    '10.3.0 — UI snella: meno tasti, contrasto leggibile, Pulse pulito; griglia esperto minimale',
-    '10.2.0 — Taglio netto: Pulse a schermo intero; UI classica solo in modalità Esperto',
-    '10.1.0 — Skin completa Night Ops: nuova identità, tipografia, shell e navigazione (non un ritocco)',
-    '10.0.0 — Corvetto Pulse: radar zone negozio, timeline settimanale, giorno a carte (tabella e PDF restano)',
-    '9.12.0 — Design 2.0: profondità 3D soft, superfici elevate, home e controlli più premium (tabella resta leggibile)',
+    '9.11.54 — Ripristino interfaccia standard pre-Pulse (versione stabile funzionante)',
     '9.11.53 — Contrasto UI (pulsanti leggibili) + colori PDF per eventi/malattia/ricovero',
     '9.11.52 — Colori malattia/ricovero allineati e contrastati (palette distinta, tema chiaro/scuro)',
     '9.11.51 — Fail closed verifica coperture: errore/assenza verificatore blocca proposta (non forzabile); test di sicurezza; Poppa resta nel pool',
@@ -163,64 +152,47 @@
 
   <style>
     :root {
-      /* NIGHT OPS 10.1 — identità nuova (no corporate blue) */
-      --bg-deep: #050608;
-      --bg-accent: #0c1016;
-      --card-bg: #0e131a;
-      --card-bg-hover: #151c27;
-      --primary: #d0ff3a;
-      --primary-hover: #b8e62e;
-      --primary-2: #5ce1ff;
-      --text-main: #f4f6f5;
-      --text-muted: #b4bcb7;
-      --border: rgba(208, 255, 58, 0.12);
-      --danger: #ff5c7a;
-      --success: #d0ff3a;
-      --radius: 8px;
-      --radius-sm: 6px;
-      --shadow: 0 0 0 1px rgba(208,255,58,0.06), 0 16px 40px rgba(0,0,0,0.55);
-      --shadow-sm: 0 0 0 1px rgba(255,255,255,0.04);
-      --shadow-float: 0 0 0 1px rgba(208,255,58,0.18), 0 20px 50px rgba(0,0,0,0.65);
-      --header-grad: linear-gradient(180deg, #0a0d11 0%, #050608 100%);
-      --header-text: #f4f6f5;
-      --th-bg: #121820;
-      --name-bg: #0a0e14;
-      --glow: 0 0 24px rgba(208,255,58,0.12);
-      --font: "Manrope", system-ui, -apple-system, sans-serif;
-      --font-display: "Syne", "Manrope", system-ui, sans-serif;
-      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-      --elev-1: none;
-      --elev-2: none;
-      --elev-3: none;
-      --ink: #050608;
-      --panel: #0e131a;
-      --line: rgba(244,246,245,0.08);
+      /* v7.1.1 — moderno ma sobrio: blu, alto contrasto */
+      --bg-deep: #0f1419;
+      --card-bg: #1a222d;
+      --card-bg-hover: #243040;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-2: #0ea5e9;
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --border: rgba(255, 255, 255, 0.12);
+      --danger: #ef4444;
+      --success: #10b981;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45);
+      --header-grad: linear-gradient(135deg, #1a222d 0%, #1e293b 100%);
+      --header-text: #ffffff;
+      --th-bg: #1e293b;
+      --name-bg: #151b24;
+      --glow: none;
+      --font: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
     }
 
     body.light-theme {
-      --bg-deep: #f3f1ea;
-      --bg-accent: #e7e2d6;
-      --card-bg: #fffcf5;
-      --card-bg-hover: #ffffff;
-      --primary: #1a1f16;
-      --primary-hover: #000;
-      --primary-2: #0b6e7a;
-      --text-main: #0a0c09;
-      --text-muted: #3f463c;
-      --border: rgba(20, 23, 17, 0.12);
-      --danger: #c41d45;
-      --success: #3d6b1e;
-      --shadow: 0 0 0 1px rgba(20,23,17,0.08), 0 12px 32px rgba(20,23,17,0.08);
-      --shadow-sm: 0 0 0 1px rgba(20,23,17,0.06);
-      --shadow-float: 0 0 0 1px rgba(20,23,17,0.12), 0 18px 40px rgba(20,23,17,0.12);
-      --header-grad: linear-gradient(180deg, #fffcf5 0%, #f3f1ea 100%);
-      --header-text: #141711;
-      --th-bg: #ebe6da;
-      --name-bg: #f7f3ea;
+      --bg-deep: #f1f5f9;
+      --card-bg: #ffffff;
+      --card-bg-hover: #f8fafc;
+      --primary: #1d4ed8;
+      --primary-hover: #1e40af;
+      --primary-2: #0369a1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border: rgba(15, 23, 42, 0.14);
+      --danger: #dc2626;
+      --success: #047857;
+      --shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.12);
+      --header-grad: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+      --header-text: #0f172a;
+      --th-bg: #e2e8f0;
+      --name-bg: #f8fafc;
       --glow: none;
-      --ink: #141711;
-      --panel: #fffcf5;
-      --line: rgba(20,23,17,0.1);
     }
 
     
@@ -881,7 +853,7 @@
     
     .quick-status-header, .quick-hours-header, .quick-notes-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .quick-status { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-    .quick-status button { font-size: 12px; padding: 8px 10px; border-radius: 8px; flex: 1 1 calc(33.333% - 6px); color: var(--text-main); background: var(--card-bg-hover); border: 1px solid var(--border); font-weight: 700; justify-content: center; }
+    .quick-status button { font-size: 12px; padding: 8px 10px; border-radius: 8px; flex: 1 1 calc(33.333% - 6px); color: white; font-weight: 700; justify-content: center; }
 
     .btn-manage-hours { font-size: 11px; padding: 4px 8px; min-height: auto; background: var(--card-bg-hover); color: var(--text-muted); border-radius: 6px; border: 1px solid var(--border); }
     .btn-manage-hours:hover { filter: brightness(1.1); color: var(--text-main); }
@@ -2286,1545 +2258,7 @@
     td.cell-shift.manual-edit { box-shadow: inset 0 0 0 1.5px rgba(37,99,235,.35); }
     .manual-hint { font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.35; }
 
-
-
-    
-    /* ========== CORVETTO PULSE 10.0 ========== */
-    .pulse-shell { max-width: 820px; margin: 0 auto; padding-bottom: 12px; }
-    .pulse-top {
-      display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start;
-      justify-content:space-between; margin-bottom: 14px;
-    }
-    .pulse-brand { display:flex; gap:12px; align-items:flex-start; }
-    .pulse-live-dot {
-      width:12px; height:12px; border-radius:50%; margin-top:8px; flex-shrink:0;
-      background: #22c55e;
-      box-shadow: 0 0 0 0 rgba(34,197,94,.55);
-      animation: pulseLive 2s infinite;
-    }
-    @keyframes pulseLive {
-      0% { box-shadow: 0 0 0 0 rgba(34,197,94,.45); }
-      70% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
-    }
-    .pulse-kicker {
-      font-size: 10px; font-weight: 900; letter-spacing: .14em;
-      color: var(--primary); margin-bottom: 2px;
-    }
-    .pulse-title { margin: 0 0 4px; font-size: 1.45rem; font-weight: 900; letter-spacing: -0.03em; }
-    .pulse-sub { margin: 0; font-size: 13px; color: var(--text-muted); }
-    .pulse-section-label {
-      font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
-      color: var(--text-muted); margin: 16px 0 8px;
-    }
-    .pulse-zones {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-    }
-    @media (max-width: 720px) {
-      .pulse-zones { grid-template-columns: 1fr; }
-    }
-    .pulse-zone {
-      text-align: left; cursor: pointer;
-      border-radius: 18px !important;
-      padding: 14px 14px 12px !important;
-      background: var(--card-bg) !important;
-      border: 1px solid var(--border) !important;
-      box-shadow: var(--shadow) !important;
-      color: var(--text-main) !important;
-      min-height: 104px;
-      display: flex; flex-direction: column; gap: 6px;
-    }
-    .pulse-zone:hover { transform: translateY(-2px); }
-    .pulse-zone.is-focus {
-      border-color: rgba(59,130,246,.55) !important;
-      box-shadow: var(--shadow-float) !important;
-    }
-    .pulse-zone-head {
-      display:flex; justify-content:space-between; align-items:center;
-      font-weight: 800; font-size: 14px;
-    }
-    .pulse-sem {
-      font-size: 11px; font-weight: 900; padding: 3px 8px; border-radius: 999px;
-      text-transform: uppercase;
-    }
-    .pulse-sem.ok { background: rgba(34,197,94,.16); color: #16a34a; }
-    .pulse-sem.warn { background: rgba(245,158,11,.18); color: #d97706; }
-    .pulse-sem.bad { background: rgba(239,68,68,.16); color: #dc2626; }
-    body:not(.light-theme) .pulse-sem.ok { color: #4ade80; }
-    body:not(.light-theme) .pulse-sem.warn { color: #fbbf24; }
-    body:not(.light-theme) .pulse-sem.bad { color: #f87171; }
-    .pulse-zone-metrics { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
-    .pulse-zone-hint { font-size: 11px; color: var(--text-muted); }
-
-    .pulse-week {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 8px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scroll-snap-type: x proximity;
-      padding: 2px 2px 10px;
-      margin: 0 -2px;
-    }
-    .pulse-week::-webkit-scrollbar { height: 4px; }
-    .pulse-week::-webkit-scrollbar-thumb { background: rgba(208,255,58,0.25); border-radius: 4px; }
-    .pulse-day-chip {
-      border: 1px solid var(--border);
-      background: var(--card-bg);
-      border-radius: 14px;
-      padding: 10px 6px;
-      text-align: center;
-      cursor: pointer;
-      box-shadow: var(--shadow-sm);
-      color: var(--text-main);
-      min-height: 64px;
-      flex: 0 0 auto;
-      width: 64px;
-      min-width: 64px;
-      scroll-snap-align: start;
-    }
-    .pulse-day-chip .dname { font-size: 11px; font-weight: 800; opacity: .85; }
-    .pulse-day-chip .dnum { font-size: 16px; font-weight: 900; margin: 2px 0; }
-    .pulse-day-chip .dheat {
-      height: 6px; border-radius: 999px; margin-top: 6px;
-      background: #22c55e;
-    }
-    .pulse-day-chip.heat-warn .dheat { background: #f59e0b; }
-    .pulse-day-chip.heat-bad .dheat { background: #ef4444; }
-    .pulse-day-chip.is-active {
-      border-color: rgba(59,130,246,.6);
-      box-shadow: var(--shadow-float);
-      transform: translateY(-1px);
-    }
-
-    .pulse-day-panel {
-      margin-top: 12px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 12px;
-      box-shadow: var(--shadow);
-    }
-    .pulse-day-head {
-      display:flex; justify-content:space-between; align-items:center;
-      gap: 8px; margin-bottom: 10px;
-    }
-    .pulse-day-head h3 { margin: 0; font-size: 1.05rem; font-weight: 900; }
-    .pulse-mini { min-height: 34px !important; font-size: 12px !important; padding: 6px 10px !important; }
-    .pulse-day-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    }
-    @media (max-width: 640px) {
-      .pulse-day-grid { grid-template-columns: 1fr; }
-      .pulse-week { gap: 6px; }
-      .pulse-day-chip { padding: 8px 4px; min-height: 58px; width: 58px; min-width: 58px; }
-    }
-    .pulse-lane {
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background: color-mix(in srgb, var(--card-bg) 90%, #000 4%);
-      padding: 10px;
-      min-height: 120px;
-    }
-    body.light-theme .pulse-lane { background: #f8fafc; }
-    .pulse-lane h4 {
-      margin: 0 0 8px; font-size: 11px; text-transform: uppercase;
-      letter-spacing: .06em; color: var(--text-muted); font-weight: 800;
-    }
-    .pulse-lane.gap {
-      border-color: rgba(239,68,68,.35);
-      background: rgba(239,68,68,.06);
-    }
-    .pulse-person {
-      display:flex; justify-content:space-between; gap:8px;
-      padding: 7px 8px; border-radius: 10px; margin-bottom: 6px;
-      background: rgba(59,130,246,.08);
-      border: 1px solid rgba(59,130,246,.12);
-      font-size: 12px; font-weight: 700;
-    }
-    body.light-theme .pulse-person { background: #eff6ff; }
-    .pulse-person .role { font-size: 10px; font-weight: 700; color: var(--text-muted); }
-    .pulse-empty-gap {
-      font-size: 12px; font-weight: 800; color: #dc2626;
-      padding: 10px 8px; border-radius: 10px;
-      background: rgba(239,68,68,.08);
-    }
-    body:not(.light-theme) .pulse-empty-gap { color: #f87171; }
-
-    .pulse-actions { margin: 16px 0 8px; }
-    .pulse-cta {
-      width: 100%; min-height: 52px !important; font-size: 15px !important;
-      border-radius: 16px !important; margin-bottom: 8px;
-    }
-    .pulse-actions-row {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-    }
-    @media (max-width: 640px) {
-      .pulse-actions-row { grid-template-columns: repeat(2, 1fr); }
-    }
-    .pulse-two-col {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    }
-    @media (max-width: 720px) {
-      .pulse-two-col { grid-template-columns: 1fr; }
-    }
-    .pulse-list-card { margin: 0 !important; }
-    .pulse-footer-links {
-      display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 8px;
-    }
-
-
-
-    
-
-    /* ===== PULSE FULL SHELL (taglio netto) ===== */
-    body.mode-pulse .header {
-      display: none !important;
-    }
-    body.mode-pulse #turniControlCard,
-    body.mode-pulse #ferieControlCard,
-    body.mode-pulse #eventiControlCard,
-    body.mode-pulse #malattiaControlCard,
-    body.mode-pulse #propostaQuickBar {
-      display: none !important;
-    }
-    body.mode-pulse {
-      padding: 0 !important;
-      max-width: 100% !important;
-    }
-    body.mode-pulse #viewOggi.pulse-shell {
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 12px 14px 110px;
-      min-height: 100vh;
-    }
-    body.mode-expert .pulse-chrome { display: none !important; }
-
-    .pulse-chrome {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin: 0 0 16px;
-      padding: 10px 4px 12px;
-      border-bottom: 1px solid var(--line);
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      background: color-mix(in srgb, var(--bg-deep) 92%, transparent);
-      backdrop-filter: blur(12px);
-    }
-    .pulse-chrome-left { display:flex; align-items:center; gap:10px; min-width: 0; }
-    .pulse-mark-sm {
-      width: 32px; height: 32px; border-radius: 6px;
-      background: var(--primary); color: var(--ink);
-      font-family: var(--font-display); font-weight: 800;
-      display:flex; align-items:center; justify-content:center;
-      flex-shrink: 0;
-    }
-    .pulse-chrome-brand {
-      font-family: var(--font-display);
-      font-weight: 800; font-size: 14px;
-      letter-spacing: 0.12em; text-transform: uppercase;
-      line-height: 1.1;
-    }
-    .pulse-chrome-ver {
-      font-family: var(--font-mono);
-      font-size: 9px; letter-spacing: 0.08em;
-      color: var(--text-muted); text-transform: uppercase;
-    }
-    .pulse-chrome-week {
-      display:flex; align-items:center; gap: 6px;
-      flex: 1; justify-content: center; min-width: 0;
-    }
-    .pulse-chrome-week-label {
-      font-family: var(--font-mono);
-      font-size: 11px; font-weight: 700;
-      letter-spacing: 0.04em;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis;
-      max-width: 46vw;
-    }
-    .pulse-chrome-nav {
-      width: 36px; height: 36px; min-height: 36px !important;
-      padding: 0 !important;
-      border-radius: 6px !important;
-      font-size: 20px !important;
-      line-height: 1;
-      background: transparent !important;
-      border: 1px solid var(--line) !important;
-      color: var(--text-main) !important;
-    }
-    .pulse-chrome-right {
-      display:flex; align-items:center; gap: 8px;
-    }
-    .pulse-chrome-expert {
-      font-family: var(--font-mono) !important;
-      font-size: 10px !important;
-      letter-spacing: 0.06em !important;
-      text-transform: uppercase !important;
-      min-height: 34px !important;
-      padding: 6px 10px !important;
-      background: transparent !important;
-      border: 1px solid var(--primary) !important;
-      color: var(--primary) !important;
-      border-radius: 4px !important;
-    }
-    body.light-theme .pulse-chrome-expert {
-      border-color: var(--ink) !important;
-      color: var(--ink) !important;
-    }
-    #pulseSyncDot {
-      font-size: 14px; cursor: pointer;
-      color: var(--primary);
-    }
-
-    /* In Pulse hide the old hero brand block redundancy a bit */
-    body.mode-pulse .pulse-top { margin-bottom: 10px; }
-    body.mode-pulse .pulse-brand .pulse-live-dot { display:none; }
-
-    /* ============================================================
-       NIGHT OPS SKIN 10.1 — override aggressivo shell / chrome
-       ============================================================ */
-    html, body {
-      font-family: var(--font) !important;
-      background: var(--bg-deep) !important;
-      color: var(--text-main) !important;
-      letter-spacing: 0 !important;
-    }
-    body {
-      background:
-        radial-gradient(900px 480px at 0% -10%, rgba(208,255,58,0.07), transparent 55%),
-        radial-gradient(700px 400px at 100% 0%, rgba(92,225,255,0.05), transparent 50%),
-        var(--bg-deep) !important;
-    }
-    body.light-theme {
-      background:
-        radial-gradient(800px 400px at 0% 0%, rgba(208,255,58,0.12), transparent 50%),
-        var(--bg-deep) !important;
-    }
-
-    /* Kill soft 3D blue look */
-    .header,
-    .control-card,
-    .card,
-    .op-hero,
-    .op-card,
-    .modal .modal-content,
-    .modal-content,
-    #tableContainer {
-      border-radius: var(--radius) !important;
-      box-shadow: var(--shadow-sm) !important;
-      border: 1px solid var(--line) !important;
-      background: var(--panel) !important;
-    }
-    .header {
-      background: var(--header-grad) !important;
-      border: 1px solid var(--line) !important;
-      border-radius: 0 !important;
-      margin: -8px -8px 12px !important;
-      padding: 14px 16px 10px !important;
-      box-shadow: none !important;
-      position: sticky; top: 0; z-index: 40;
-      backdrop-filter: blur(10px);
-    }
-    @media (min-width: 900px) {
-      .header { margin: -18px -18px 16px !important; padding: 16px 24px 12px !important; }
-    }
-    .header h1, .header .brand h1, #appTitle {
-      font-family: var(--font-display) !important;
-      font-weight: 800 !important;
-      font-size: 1.55rem !important;
-      letter-spacing: -0.04em !important;
-      color: var(--text-main) !important;
-      text-transform: uppercase;
-    }
-    .header-subtitle, .header small, #appVersionLabel {
-      font-family: var(--font-mono) !important;
-      font-size: 10px !important;
-      letter-spacing: 0.08em !important;
-      text-transform: uppercase;
-      color: var(--text-muted) !important;
-    }
-    .app-icon, .pulse-mark {
-      width: 36px !important; height: 36px !important;
-      border-radius: 6px !important;
-      background: var(--primary) !important;
-      color: var(--ink) !important;
-      font-family: var(--font-display) !important;
-      font-weight: 800 !important;
-      font-size: 16px !important;
-      display:flex !important; align-items:center; justify-content:center;
-      box-shadow: none !important;
-      border: none !important;
-    }
-
-    /* Hide redundant second brand row visual noise — compact top-nav */
-    .top-nav .brand h1 { font-family: var(--font-display) !important; text-transform: uppercase; letter-spacing: -0.03em; }
-    .top-nav {
-      border-top: 1px solid var(--line);
-      padding-top: 10px;
-      margin-top: 8px;
-    }
-    .nav-tabs button,
-    .top-nav .nav-tabs button,
-    .view-toggle button {
-      border-radius: 4px !important;
-      background: transparent !important;
-      border: 1px solid transparent !important;
-      color: var(--text-muted) !important;
-      font-family: var(--font-mono) !important;
-      font-size: 11px !important;
-      letter-spacing: 0.04em !important;
-      text-transform: uppercase !important;
-      box-shadow: none !important;
-      font-weight: 700 !important;
-    }
-    .nav-tabs button.active,
-    .nav-tabs button.active-tab,
-    .top-nav .nav-tabs button.active-tab,
-    .view-toggle button.active {
-      background: var(--primary) !important;
-      color: var(--ink) !important;
-      border-color: var(--primary) !important;
-      box-shadow: none !important;
-    }
-
-    /* Buttons: flat, sharp, acid */
-    button, .btn {
-      border-radius: 6px !important;
-      font-family: var(--font) !important;
-      font-weight: 700 !important;
-      letter-spacing: 0.01em !important;
-      box-shadow: none !important;
-      border: 1px solid var(--line) !important;
-      background: var(--card-bg-hover) !important;
-      color: var(--text-main) !important;
-      text-shadow: none !important;
-      transform: none !important;
-    }
-    button:hover, .btn:hover { filter: brightness(1.08); transform: none !important; }
-    button:active { transform: none !important; }
-    button.primary,
-    .op-actions .primary,
-    .btn-proposal,
-    #btnGenerateProposal,
-    button[onclick*="generateAutoProposal"],
-    .pulse-cta,
-    .dock-main {
-      background: var(--primary) !important;
-      color: var(--ink) !important;
-      border: 1px solid var(--primary) !important;
-      font-weight: 800 !important;
-    }
-    body.light-theme button.primary,
-    body.light-theme .pulse-cta,
-    body.light-theme .btn-proposal,
-    body.light-theme .dock-main {
-      background: var(--ink) !important;
-      color: #f4f6f5 !important;
-      border-color: var(--ink) !important;
-    }
-    .op-actions .secondary,
-    button.secondary,
-    button.alt {
-      background: transparent !important;
-      color: var(--text-main) !important;
-      border: 1px solid var(--line) !important;
-    }
-    body:not(.light-theme) .op-actions .secondary {
-      background: transparent !important;
-      color: var(--text-main) !important;
-    }
-    button.success {
-      background: transparent !important;
-      color: var(--primary) !important;
-      border: 1px solid rgba(208,255,58,0.35) !important;
-    }
-    body.light-theme button.success {
-      color: var(--success) !important;
-      border-color: rgba(61,107,30,0.35) !important;
-    }
-
-    /* Control cards flatter */
-    .control-card {
-      background: var(--panel) !important;
-      border: 1px solid var(--line) !important;
-      box-shadow: none !important;
-    }
-    .week-badge {
-      font-family: var(--font-mono) !important;
-      font-size: 10px !important;
-      letter-spacing: 0.1em !important;
-      text-transform: uppercase;
-      background: transparent !important;
-      border: 1px solid var(--primary) !important;
-      color: var(--primary) !important;
-      border-radius: 4px !important;
-    }
-    body.light-theme .week-badge {
-      color: var(--ink) !important;
-      border-color: var(--ink) !important;
-    }
-
-    /* Pulse zones — industrial panels */
-    .pulse-kicker {
-      font-family: var(--font-mono) !important;
-      color: var(--primary) !important;
-      letter-spacing: 0.2em !important;
-    }
-    .pulse-title {
-      font-family: var(--font-display) !important;
-      text-transform: uppercase;
-      letter-spacing: -0.03em !important;
-    }
-    .pulse-zone {
-      border-radius: 6px !important;
-      border: 1px solid var(--line) !important;
-      background: var(--panel) !important;
-      box-shadow: none !important;
-      border-left: 3px solid var(--line) !important;
-      min-height: 110px !important;
-    }
-    .pulse-zone:hover { transform: none !important; border-color: rgba(208,255,58,0.25) !important; }
-    .pulse-zone.is-focus {
-      border-color: var(--primary) !important;
-      border-left-color: var(--primary) !important;
-      box-shadow: var(--glow) !important;
-    }
-    .pulse-zone-metrics {
-      font-family: var(--font-mono) !important;
-      font-size: 12px !important;
-      color: var(--text-main) !important;
-    }
-    .pulse-sem {
-      border-radius: 3px !important;
-      font-family: var(--font-mono) !important;
-      letter-spacing: 0.06em;
-    }
-    .pulse-sem.ok { background: rgba(208,255,58,0.12) !important; color: var(--primary) !important; }
-    .pulse-sem.warn { background: rgba(255,180,40,0.14) !important; color: #ffb428 !important; }
-    .pulse-sem.bad { background: rgba(255,92,122,0.14) !important; color: var(--danger) !important; }
-
-    .pulse-day-chip {
-      border-radius: 6px !important;
-      box-shadow: none !important;
-      border: 1px solid var(--line) !important;
-      background: var(--panel) !important;
-    }
-    .pulse-day-chip.is-active {
-      border-color: var(--primary) !important;
-      box-shadow: var(--glow) !important;
-      transform: none !important;
-    }
-    .pulse-day-chip .dnum {
-      font-family: var(--font-mono) !important;
-    }
-    .pulse-day-chip .dheat { border-radius: 1px !important; height: 3px !important; }
-    .pulse-day-chip.heat-ok .dheat, .pulse-day-chip .dheat { background: var(--primary) !important; }
-    .pulse-day-chip.heat-warn .dheat { background: #ffb428 !important; }
-    .pulse-day-chip.heat-bad .dheat { background: var(--danger) !important; }
-
-    .pulse-day-panel, .pulse-lane, .op-card, .pulse-list-card {
-      border-radius: 6px !important;
-      box-shadow: none !important;
-      border: 1px solid var(--line) !important;
-    }
-    .pulse-lane.gap {
-      border-color: rgba(255,92,122,0.45) !important;
-      background: rgba(255,92,122,0.06) !important;
-    }
-    .pulse-person {
-      border-radius: 4px !important;
-      background: rgba(208,255,58,0.05) !important;
-      border: 1px solid rgba(208,255,58,0.1) !important;
-      font-family: var(--font-mono) !important;
-      font-size: 11px !important;
-    }
-    body.light-theme .pulse-person {
-      background: rgba(20,23,17,0.04) !important;
-      border-color: rgba(20,23,17,0.08) !important;
-    }
-    .pulse-empty-gap {
-      font-family: var(--font-mono) !important;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .pulse-section-label {
-      font-family: var(--font-mono) !important;
-      letter-spacing: 0.14em !important;
-      color: var(--text-muted) !important;
-    }
-    .pulse-live-dot {
-      background: var(--primary) !important;
-      box-shadow: 0 0 0 0 rgba(208,255,58,.5) !important;
-      animation: pulseLiveAcid 2s infinite !important;
-    }
-    @keyframes pulseLiveAcid {
-      0% { box-shadow: 0 0 0 0 rgba(208,255,58,.45); }
-      70% { box-shadow: 0 0 0 14px rgba(208,255,58,0); }
-      100% { box-shadow: 0 0 0 0 rgba(208,255,58,0); }
-    }
-
-    /* Floating dock nav */
-    .bottom-nav, .dock-nav {
-      position: fixed !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      bottom: 14px !important;
-      width: min(420px, calc(100% - 24px)) !important;
-      display: grid !important;
-      grid-template-columns: repeat(4, 1fr) !important;
-      gap: 4px !important;
-      padding: 8px !important;
-      border-radius: 14px !important;
-      background: rgba(8,10,12,0.92) !important;
-      border: 1px solid rgba(208,255,58,0.14) !important;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.55) !important;
-      backdrop-filter: blur(16px) !important;
-      z-index: 90 !important;
-    }
-    body.light-theme .bottom-nav, body.light-theme .dock-nav {
-      background: rgba(255,252,245,0.94) !important;
-      border-color: rgba(20,23,17,0.12) !important;
-      box-shadow: 0 12px 32px rgba(20,23,17,0.12) !important;
-    }
-    .bottom-nav button {
-      background: transparent !important;
-      border: none !important;
-      color: var(--text-muted) !important;
-      border-radius: 8px !important;
-      min-height: 48px !important;
-      font-family: var(--font-mono) !important;
-      font-size: 9px !important;
-      letter-spacing: 0.06em !important;
-      text-transform: uppercase !important;
-      gap: 3px !important;
-    }
-    .bottom-nav button .ic { font-size: 16px !important; }
-    .bottom-nav button.dock-main,
-    .bottom-nav button.active {
-      background: var(--primary) !important;
-      color: var(--ink) !important;
-    }
-    body.light-theme .bottom-nav button.dock-main,
-    body.light-theme .bottom-nav button.active {
-      background: var(--ink) !important;
-      color: #f4f6f5 !important;
-    }
-    @media (max-width: 820px) {
-      body { padding-bottom: 92px !important; }
-      .bottom-nav { display: grid !important; }
-    }
-
-    /* Table: industrial */
-    #tableContainer {
-      border-radius: 6px !important;
-      border: 1px solid var(--line) !important;
-      box-shadow: none !important;
-    }
-    #tableContainer th {
-      background: var(--th-bg) !important;
-      color: var(--text-muted) !important;
-      font-family: var(--font-mono) !important;
-      font-size: 10px !important;
-      letter-spacing: 0.08em !important;
-      text-transform: uppercase !important;
-      border-bottom: 1px solid var(--line) !important;
-      box-shadow: none !important;
-    }
-    #tableContainer td:first-child {
-      font-family: var(--font-mono) !important;
-      font-size: 11px !important;
-    }
-    #tableContainer td.cell-shift:hover {
-      box-shadow: inset 0 0 0 1px var(--primary) !important;
-    }
-
-    /* Inputs */
-    input, select, textarea {
-      border-radius: 6px !important;
-      box-shadow: none !important;
-      border: 1px solid var(--line) !important;
-      background: var(--bg-deep) !important;
-      color: var(--text-main) !important;
-      font-family: var(--font) !important;
-    }
-    body.light-theme input,
-    body.light-theme select,
-    body.light-theme textarea {
-      background: #fff !important;
-      box-shadow: none !important;
-    }
-
-    /* Modals */
-    .modal, .modal-content {
-      border-radius: 8px !important;
-      border: 1px solid var(--line) !important;
-      box-shadow: var(--shadow-float) !important;
-      background: var(--panel) !important;
-    }
-    .modal h3, .modal h2 {
-      font-family: var(--font-display) !important;
-      text-transform: uppercase;
-      letter-spacing: -0.02em;
-    }
-
-    /* Pills */
-    .op-pill, .week-status-chip {
-      border-radius: 3px !important;
-      font-family: var(--font-mono) !important;
-      letter-spacing: 0.06em !important;
-      text-transform: uppercase !important;
-      box-shadow: none !important;
-    }
-    .op-pill.ok, .week-status-chip.ok {
-      background: rgba(208,255,58,0.12) !important;
-      color: var(--primary) !important;
-      border-color: rgba(208,255,58,0.25) !important;
-    }
-    body.light-theme .op-pill.ok {
-      color: var(--success) !important;
-      background: rgba(61,107,30,0.1) !important;
-    }
-
-    /* Scrollbar subtle */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-thumb { background: rgba(208,255,58,0.2); border-radius: 4px; }
-
-    /* DESIGN 2.0 blue gradients OFF */
-    .op-hero {
-      background: var(--panel) !important;
-      border: 1px solid var(--line) !important;
-      box-shadow: none !important;
-      border-radius: 6px !important;
-    }
-    .op-hero::before { display: none !important; }
-
-    /* ========== DESIGN 2.0 — soft 3D / elevated operational UI ========== */
-    html { color-scheme: dark light; }
-    body {
-      background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(59,130,246,0.18), transparent 55%),
-        radial-gradient(900px 500px at 100% 0%, rgba(14,165,233,0.12), transparent 50%),
-        radial-gradient(800px 400px at 50% 100%, rgba(16,185,129,0.08), transparent 50%),
-        var(--bg-deep) !important;
-      background-attachment: fixed;
-    }
-    body.light-theme {
-      background:
-        radial-gradient(1000px 500px at 0% 0%, rgba(37,99,235,0.10), transparent 50%),
-        radial-gradient(800px 400px at 100% 0%, rgba(14,165,233,0.08), transparent 45%),
-        linear-gradient(180deg, #eef3fa 0%, #e8eef7 100%) !important;
-    }
-
-    /* Elevated surfaces */
-    .header,
-    .control-card,
-    .card,
-    .op-hero,
-    .op-card,
-    .modal .modal-content,
-    .modal-content,
-    #tableContainer {
-      border-radius: var(--radius) !important;
-      box-shadow: var(--shadow) !important;
-      border: 1px solid var(--border) !important;
-      background: var(--card-bg);
-      position: relative;
-    }
-    .header {
-      background: var(--header-grad) !important;
-      box-shadow: var(--shadow-float) !important;
-      padding: 12px 14px !important;
-    }
-    body.light-theme .header {
-      background: var(--header-grad) !important;
-    }
-
-    .control-card,
-    .card,
-    .op-card {
-      transition: transform .18s ease, box-shadow .18s ease;
-    }
-    .control-card:hover,
-    .card:hover,
-    .op-card:hover {
-      transform: var(--elev-2);
-      box-shadow: var(--shadow-float) !important;
-    }
-
-    /* Hero 3D */
-    .op-hero {
-      background:
-        linear-gradient(145deg, rgba(59,130,246,0.22), rgba(14,165,233,0.10) 45%, rgba(16,185,129,0.10)) !important;
-      border: 1px solid rgba(59,130,246,0.28) !important;
-      box-shadow: var(--shadow-float) !important;
-      overflow: hidden;
-    }
-    .op-hero::before {
-      content: "";
-      position: absolute; inset: 0 auto auto 0; width: 140px; height: 140px;
-      background: radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%);
-      pointer-events: none;
-    }
-    body.light-theme .op-hero {
-      background: linear-gradient(145deg, #eff6ff, #e0f2fe 50%, #ecfdf5) !important;
-      border-color: #93c5fd !important;
-    }
-    .op-hero h2 {
-      font-size: 1.35rem !important;
-      letter-spacing: -0.03em;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.06);
-    }
-
-    /* 3D-ish buttons */
-    button, .btn {
-      border-radius: 14px !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.12) inset,
-        0 6px 14px -6px rgba(0,0,0,0.35) !important;
-      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease !important;
-    }
-    button:hover, .btn:hover {
-      transform: var(--elev-2);
-      filter: brightness(1.05);
-    }
-    button:active, .btn:active {
-      transform: translateY(1px) !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.08) inset,
-        0 2px 6px -2px rgba(0,0,0,0.3) !important;
-    }
-    button.primary,
-    .op-actions .primary,
-    .btn-proposal,
-    #btnGenerateProposal,
-    button[onclick*="generateAutoProposal"] {
-      background: linear-gradient(180deg, #60a5fa 0%, #2563eb 48%, #1d4ed8 100%) !important;
-      color: #fff !important;
-      border: 1px solid #1e40af !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.25) inset,
-        0 10px 22px -8px rgba(37,99,235,0.55),
-        0 3px 8px -3px rgba(0,0,0,0.25) !important;
-      text-shadow: 0 1px 1px rgba(0,0,0,0.2);
-      font-weight: 800 !important;
-    }
-    body.light-theme button.primary,
-    body.light-theme .op-actions .primary,
-    body.light-theme .btn-proposal,
-    body.light-theme #btnGenerateProposal {
-      background: linear-gradient(180deg, #3b82f6 0%, #2563eb 55%, #1d4ed8 100%) !important;
-    }
-    .op-actions .secondary {
-      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%) !important;
-      color: #0f172a !important;
-      border: 1px solid #94a3b8 !important;
-      box-shadow:
-        0 1px 0 #fff inset,
-        0 6px 14px -8px rgba(15,23,42,0.25) !important;
-    }
-    body:not(.light-theme) .op-actions .secondary {
-      background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
-      color: #f8fafc !important;
-      border: 1px solid #475569 !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.08) inset,
-        0 8px 16px -8px rgba(0,0,0,0.5) !important;
-    }
-    button.success {
-      background: linear-gradient(180deg, #34d399 0%, #059669 100%) !important;
-      color: #fff !important;
-      border: 1px solid #047857 !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.2) inset,
-        0 8px 18px -8px rgba(16,185,129,0.45) !important;
-    }
-    button.alt {
-      background: linear-gradient(180deg, rgba(148,163,184,0.16), rgba(148,163,184,0.08)) !important;
-      color: var(--text-main) !important;
-      border: 1px solid var(--border) !important;
-    }
-    body.light-theme button.alt {
-      background: linear-gradient(180deg, #fff, #f1f5f9) !important;
-      color: #0f172a !important;
-      border: 1px solid #cbd5e1 !important;
-    }
-
-    /* Nav pills 3D */
-    .nav-tabs button,
-    .view-toggle button,
-    .header .nav-tabs button {
-      border-radius: 999px !important;
-      box-shadow: var(--shadow-sm) !important;
-    }
-    .nav-tabs button.active,
-    .view-toggle button.active {
-      background: linear-gradient(180deg, #60a5fa, #2563eb) !important;
-      color: #fff !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.2) inset,
-        0 6px 14px -6px rgba(37,99,235,0.5) !important;
-    }
-
-    /* Table: solid & readable, light 3D frame only */
-    #tableContainer {
-      overflow: hidden;
-      background: var(--card-bg) !important;
-    }
-    #tableContainer table {
-      border-collapse: separate !important;
-      border-spacing: 0 !important;
-    }
-    #tableContainer th {
-      background: linear-gradient(180deg, var(--th-bg), color-mix(in srgb, var(--th-bg) 85%, #000)) !important;
-      color: var(--text-main) !important;
-      font-weight: 800 !important;
-      letter-spacing: 0.02em;
-      border-bottom: 2px solid rgba(59,130,246,0.35) !important;
-      box-shadow: 0 2px 0 rgba(0,0,0,0.06);
-    }
-    body.light-theme #tableContainer th {
-      background: linear-gradient(180deg, #f8fafc, #e2e8f0) !important;
-      color: #0f172a !important;
-    }
-    #tableContainer td.cell-shift {
-      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-    }
-    #tableContainer td.cell-shift:hover {
-      box-shadow: inset 0 0 0 2px rgba(59,130,246,0.35);
-      z-index: 1;
-    }
-    #tableContainer td:first-child {
-      background: var(--name-bg) !important;
-      font-weight: 800;
-      box-shadow: 2px 0 8px -4px rgba(0,0,0,0.2);
-    }
-
-    /* Status chips / pills with depth */
-    .op-pill,
-    .week-status-chip,
-    .cell-badge {
-      box-shadow: var(--shadow-sm) !important;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-    body.light-theme .op-pill,
-    body.light-theme .week-status-chip,
-    body.light-theme .cell-badge {
-      border-color: rgba(15,23,42,0.08);
-    }
-
-    /* Bottom nav elevated bar */
-    .bottom-nav {
-      background: color-mix(in srgb, var(--card-bg) 92%, transparent) !important;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-top: 1px solid var(--border) !important;
-      box-shadow: 0 -8px 24px -12px rgba(0,0,0,0.35) !important;
-    }
-    body.light-theme .bottom-nav {
-      background: rgba(255,255,255,0.92) !important;
-      box-shadow: 0 -8px 24px -12px rgba(15,23,42,0.12) !important;
-    }
-    .bottom-nav button.active {
-      background: linear-gradient(180deg, rgba(59,130,246,0.2), rgba(59,130,246,0.08)) !important;
-      color: var(--primary) !important;
-      box-shadow: var(--shadow-sm);
-    }
-
-    /* Modals float */
-    .modal .modal-content,
-    .modal-content {
-      box-shadow: var(--shadow-float) !important;
-      border: 1px solid var(--border) !important;
-    }
-
-    /* Inputs inset 3D */
-    input, select, textarea {
-      border-radius: 12px !important;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.04) inset,
-        inset 0 2px 4px rgba(0,0,0,0.12) !important;
-      border: 1px solid var(--border) !important;
-    }
-    body.light-theme input,
-    body.light-theme select,
-    body.light-theme textarea {
-      box-shadow:
-        0 1px 0 #fff inset,
-        inset 0 2px 4px rgba(15,23,42,0.04) !important;
-      background: #fff !important;
-    }
-
-    /* Soft reduce motion */
-    @media (prefers-reduced-motion: reduce) {
-      * { transition: none !important; }
-    }
-
-  
-
-    /* ===== 10.3 CLEAN LINEAR UI ===== */
-    body.mode-pulse .header,
-    body.mode-pulse .header-top,
-    body.mode-pulse .top-nav,
-    body.mode-pulse #turniControlCard,
-    body.mode-pulse #weekHome,
-    body.mode-pulse .rules-banner,
-    body.mode-pulse .week-home {
-      display: none !important;
-      height: 0 !important;
-      overflow: hidden !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      border: none !important;
-    }
-
-    /* Expert mode: hide secondary noise */
-    body.mode-expert #weekHome,
-    body.mode-expert .week-home,
-    body.mode-expert .rules-banner,
-    body.mode-expert .toolbar-hint,
-    body.mode-expert #turniHelpLong,
-    body.mode-expert .view-mode-toggle {
-      display: none !important;
-    }
-    body.mode-expert .header .nav-tabs,
-    body.mode-expert .top-nav .nav-tabs {
-      display: none !important;
-    }
-    body.mode-expert .header h1 {
-      font-size: 1.1rem !important;
-      white-space: nowrap;
-      overflow: hidden;
-    }
-
-    /* Readable buttons everywhere (light theme fix) */
-    body.light-theme button,
-    body.light-theme .btn,
-    body.light-theme button.alt,
-    body.light-theme button.secondary,
-    body.light-theme .op-actions .secondary {
-      background: #eef1f4 !important;
-      color: #0f172a !important;
-      border: 1px solid #94a3b8 !important;
-      text-shadow: none !important;
-    }
-    body.light-theme button.primary,
-    body.light-theme .primary,
-    body.light-theme .btn-proposal,
-    body.light-theme .pulse-cta,
-    body.light-theme .dock-main,
-    body.light-theme button[onclick*="generateAutoProposal"] {
-      background: #0f172a !important;
-      color: #f8fafc !important;
-      border: 1px solid #0f172a !important;
-    }
-    body.light-theme button.danger {
-      background: #fee2e2 !important;
-      color: #991b1b !important;
-      border: 1px solid #fca5a5 !important;
-    }
-    body.light-theme .nav-tabs button.active,
-    body.light-theme .nav-tabs button.active-tab {
-      background: #0f172a !important;
-      color: #fff !important;
-    }
-
-    .slim-toolbar {
-      display: flex !important;
-      flex-wrap: wrap !important;
-      gap: 6px !important;
-    }
-    .slim-toolbar button {
-      min-height: 40px !important;
-      font-size: 12px !important;
-    }
-
-    .pulse-actions-row-2 {
-      grid-template-columns: 1fr 1fr !important;
-    }
-    .pulse-details {
-      margin: 12px 0;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 12px;
-      background: var(--panel);
-    }
-    .pulse-details summary {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-weight: 700;
-      list-style: none;
-    }
-    .pulse-details summary::-webkit-details-marker { display: none; }
-    .pulse-suggestions-slim:empty { display: none; }
-    .pulse-suggestions-slim .op-card {
-      margin-bottom: 8px;
-    }
-    /* Only show first suggestion by default via CSS max - actually JS */
-
-    body.mode-pulse #viewOggi {
-      display: block !important;
-    }
-
-  
-
-    /* ===== 10.3.1 CONTRAST FIX (priorità massima) ===== */
-    body.light-theme {
-      color: #0a0c09 !important;
-    }
-    body.light-theme,
-    body.light-theme p,
-    body.light-theme span,
-    body.light-theme div,
-    body.light-theme li,
-    body.light-theme label,
-    body.light-theme strong,
-    body.light-theme h1,
-    body.light-theme h2,
-    body.light-theme h3,
-    body.light-theme h4 {
-      color: inherit;
-    }
-    body.light-theme .pulse-zone,
-    body.light-theme .pulse-zone-head,
-    body.light-theme .pulse-zone-head span,
-    body.light-theme .pulse-zone-metrics,
-    body.light-theme .pulse-zone-hint,
-    body.light-theme .pulse-title,
-    body.light-theme .pulse-sub,
-    body.light-theme .pulse-day-title,
-    body.light-theme .pulse-day-head h3,
-    body.light-theme .pulse-section-label,
-    body.light-theme .pulse-chrome-week-label,
-    body.light-theme .pulse-person,
-    body.light-theme .pulse-lane h4 {
-      color: #0a0c09 !important;
-      opacity: 1 !important;
-    }
-    body.light-theme .pulse-zone-hint,
-    body.light-theme .pulse-sub,
-    body.light-theme .pulse-section-label,
-    body.light-theme .pulse-lane h4,
-    body.light-theme .text-muted,
-    body.light-theme .role,
-    body.light-theme .hint,
-    body.light-theme .event-meta {
-      color: #3f463c !important;
-      opacity: 1 !important;
-    }
-    body.light-theme .pulse-zone {
-      background: #ffffff !important;
-      border: 1px solid #94a3b8 !important;
-    }
-    body.light-theme .pulse-zone-head {
-      font-weight: 800 !important;
-    }
-    body.light-theme .pulse-sem.ok {
-      background: #dcfce7 !important;
-      color: #14532d !important;
-    }
-    body.light-theme .pulse-sem.warn {
-      background: #fef3c7 !important;
-      color: #92400e !important;
-    }
-    body.light-theme .pulse-sem.bad {
-      background: #fee2e2 !important;
-      color: #991b1b !important;
-    }
-
-    /* Status / orari rapidi: MAI testo bianco su fondo chiaro */
-    body.light-theme .quick-status button,
-    body.light-theme .quick-hours button,
-    body.light-theme .quick-notes button,
-    body.light-theme .modal button.alt,
-    body.light-theme .modal .quick-status button,
-    body.light-theme #dayModal button,
-    body.light-theme #manualEditModal button,
-    body.light-theme button.alt {
-      background: #e8ecf0 !important;
-      color: #0f172a !important;
-      border: 1px solid #64748b !important;
-      font-weight: 700 !important;
-      opacity: 1 !important;
-      -webkit-text-fill-color: #0f172a !important;
-    }
-    body.light-theme .quick-status button:hover,
-    body.light-theme .quick-hours button:hover {
-      background: #d5dbe3 !important;
-      color: #0f172a !important;
-    }
-    /* Selected status: dark solid + white text */
-    body.light-theme .quick-status button.active,
-    body.light-theme .quick-status button[aria-pressed="true"],
-    body.light-theme .quick-hours button.active {
-      background: #0f172a !important;
-      color: #ffffff !important;
-      -webkit-text-fill-color: #ffffff !important;
-      border-color: #0f172a !important;
-    }
-
-    body.light-theme .pulse-day-chip {
-      background: #fff !important;
-      border: 1px solid #94a3b8 !important;
-      color: #0f172a !important;
-    }
-    body.light-theme .pulse-day-chip .dname,
-    body.light-theme .pulse-day-chip .dnum {
-      color: #0f172a !important;
-      opacity: 1 !important;
-    }
-    body.light-theme .pulse-day-chip.is-active {
-      border-color: #0f172a !important;
-      box-shadow: 0 0 0 2px rgba(15,23,42,0.15) !important;
-    }
-    body.light-theme .op-pill,
-    body.light-theme .week-status-chip {
-      color: #14532d !important;
-      background: #dcfce7 !important;
-      border: 1px solid #86efac !important;
-    }
-    body.light-theme .op-pill.warn,
-    body.light-theme .week-status-chip.warn {
-      color: #92400e !important;
-      background: #fef3c7 !important;
-      border-color: #fcd34d !important;
-    }
-    body.light-theme .op-pill.bad,
-    body.light-theme .week-status-chip.bad {
-      color: #991b1b !important;
-      background: #fee2e2 !important;
-      border-color: #fca5a5 !important;
-    }
-
-    body.light-theme .modal,
-    body.light-theme .modal-content {
-      background: #ffffff !important;
-      color: #0f172a !important;
-    }
-    body.light-theme .modal h3,
-    body.light-theme .modal h2,
-    body.light-theme .modal p,
-    body.light-theme .modal label {
-      color: #0f172a !important;
-    }
-    body.light-theme .form-group label {
-      color: #334155 !important;
-    }
-
-    /* Dark theme: ensure muted not too dim on cards */
-    body:not(.light-theme) .pulse-zone-head span,
-    body:not(.light-theme) .pulse-zone-metrics {
-      color: #f4f6f5 !important;
-      opacity: 1 !important;
-    }
-    body:not(.light-theme) .quick-status button {
-      background: #1c2430 !important;
-      color: #f4f6f5 !important;
-      border: 1px solid #64748b !important;
-      -webkit-text-fill-color: #f4f6f5 !important;
-    }
-
-
-
-    /* ===== 10.3.2 CONTRASTO GLOBALE TUTTE LE PAGINE ===== */
-    body.light-theme {
-      --text-main: #0a0c09;
-      --text-muted: #3f463c;
-      --border: rgba(15, 23, 42, 0.18);
-      --line: rgba(15, 23, 42, 0.14);
-    }
-
-    /* Tipografia base leggibile ovunque */
-    body.light-theme #viewFerie,
-    body.light-theme #viewMalattia,
-    body.light-theme #viewEventi,
-    body.light-theme #viewSettings,
-    body.light-theme #viewTurni,
-    body.light-theme #viewStats {
-      color: #0a0c09 !important;
-    }
-    body.light-theme #viewFerie *,
-    body.light-theme #viewMalattia *,
-    body.light-theme #viewEventi *,
-    body.light-theme #viewSettings *,
-    body.light-theme #viewTurni .rules-banner,
-    body.light-theme #viewTurni .week-home-card,
-    body.light-theme #tableContainer {
-      /* non forzare * color su tutto per non rompere badge colorati */
-    }
-
-    body.light-theme h1,
-    body.light-theme h2,
-    body.light-theme h3,
-    body.light-theme h4,
-    body.light-theme strong,
-    body.light-theme label,
-    body.light-theme .control-card,
-    body.light-theme .card {
-      color: #0a0c09;
-    }
-    body.light-theme .control-card,
-    body.light-theme .card,
-    body.light-theme .leave-req-card,
-    body.light-theme .week-home-card,
-    body.light-theme .op-card,
-    body.light-theme .archive-folder,
-    body.light-theme .settings-section {
-      background: #ffffff !important;
-      border: 1px solid #94a3b8 !important;
-      color: #0a0c09 !important;
-    }
-    body.light-theme .leave-req-card .meta,
-    body.light-theme .week-home-card h4,
-    body.light-theme .text-muted,
-    body.light-theme .hint,
-    body.light-theme .toolbar-hint,
-    body.light-theme .role,
-    body.light-theme .event-meta,
-    body.light-theme .header-subtitle,
-    body.light-theme small {
-      color: #3f463c !important;
-      opacity: 1 !important;
-    }
-
-    /* Toolbar / filtri su ferie-malattia-eventi */
-    body.light-theme .leave-toolbar button,
-    body.light-theme .filter-bar button,
-    body.light-theme .view-tabs button,
-    body.light-theme .leave-view-toggle button,
-    body.light-theme #ferieControlCard button,
-    body.light-theme #malattiaControlCard button,
-    body.light-theme #eventiControlCard button,
-    body.light-theme #turniControlCard button.alt,
-    body.light-theme #viewSettings button.alt {
-      background: #e8ecf0 !important;
-      color: #0f172a !important;
-      border: 1px solid #64748b !important;
-      -webkit-text-fill-color: #0f172a !important;
-      opacity: 1 !important;
-      font-weight: 700 !important;
-    }
-    body.light-theme .leave-toolbar button.success,
-    body.light-theme .leave-toolbar button.primary,
-    body.light-theme .leave-toolbar .btn-malattia,
-    body.light-theme #ferieControlCard button.success,
-    body.light-theme #eventiControlCard button.success {
-      background: #0f172a !important;
-      color: #f8fafc !important;
-      border-color: #0f172a !important;
-      -webkit-text-fill-color: #f8fafc !important;
-    }
-    body.light-theme .leave-view-toggle button.active,
-    body.light-theme .view-tabs button.active {
-      background: #0f172a !important;
-      color: #fff !important;
-      -webkit-text-fill-color: #fff !important;
-    }
-
-    /* Select / input leggibili */
-    body.light-theme select,
-    body.light-theme input,
-    body.light-theme textarea {
-      background: #ffffff !important;
-      color: #0f172a !important;
-      border: 1px solid #64748b !important;
-    }
-    body.light-theme select option {
-      color: #0f172a !important;
-      background: #fff !important;
-    }
-
-    /* Calendario ferie */
-    body.light-theme .leave-days,
-    body.light-theme .leave-cal,
-    body.light-theme .leave-day,
-    body.light-theme .cal-day {
-      color: #0f172a !important;
-    }
-    body.light-theme .leave-days .dow {
-      color: #334155 !important;
-      font-weight: 800 !important;
-    }
-
-    /* Liste richieste / eventi / malattia */
-    body.light-theme .leave-requests-list,
-    body.light-theme .leave-req-card,
-    body.light-theme #malattiaActiveList,
-    body.light-theme #eventsList,
-    body.light-theme .event-card,
-    body.light-theme .op-list li {
-      color: #0f172a !important;
-    }
-    body.light-theme .leave-req-card strong,
-    body.light-theme .event-card strong {
-      color: #0a0c09 !important;
-    }
-
-    /* Tabella griglia */
-    body.light-theme #tableContainer,
-    body.light-theme #tableContainer td,
-    body.light-theme #tableContainer th {
-      color: #0f172a !important;
-    }
-    body.light-theme #tableContainer th {
-      background: #e2e8f0 !important;
-      color: #0f172a !important;
-      font-weight: 800 !important;
-    }
-    body.light-theme #tableContainer td:first-child {
-      background: #f1f5f9 !important;
-      color: #0f172a !important;
-      font-weight: 800 !important;
-    }
-    body.light-theme .cell-hours-v47,
-    body.light-theme .cell-status-v47,
-    body.light-theme .cell-rest-v47 {
-      color: #0f172a !important;
-      opacity: 1 !important;
-    }
-    body.light-theme .cell-note-v47,
-    body.light-theme .cell-event-v47 {
-      color: #1e3a8a !important;
-      opacity: 1 !important;
-    }
-
-    /* Settings */
-    body.light-theme #viewSettings,
-    body.light-theme #viewSettings .control-card,
-    body.light-theme #viewSettings p,
-    body.light-theme #viewSettings li {
-      color: #0f172a !important;
-    }
-    body.light-theme #viewSettings h3,
-    body.light-theme #viewSettings h4 {
-      color: #0a0c09 !important;
-    }
-
-    /* Header (mode expert) */
-    body.light-theme .header,
-    body.light-theme .header h1,
-    body.light-theme .header .brand h1 {
-      color: #0a0c09 !important;
-    }
-    body.light-theme .header-subtitle,
-    body.light-theme #appVersionLabel {
-      color: #3f463c !important;
-    }
-    body.light-theme .week-badge {
-      color: #0f172a !important;
-      border-color: #0f172a !important;
-      background: #fff !important;
-    }
-
-    /* Banner / empty states */
-    body.light-theme .rules-banner,
-    body.light-theme .op-empty,
-    body.light-theme .empty {
-      color: #0f172a !important;
-    }
-
-    /* Mobile cards */
-    body.light-theme .mobile-cards,
-    body.light-theme .worker-day-chip {
-      color: #0f172a !important;
-    }
-
-    /* Bottom dock leggibile in light */
-    body.light-theme .bottom-nav button {
-      color: #334155 !important;
-      -webkit-text-fill-color: #334155 !important;
-    }
-    body.light-theme .bottom-nav button.dock-main,
-    body.light-theme .bottom-nav button.active {
-      background: #0f172a !important;
-      color: #f8fafc !important;
-      -webkit-text-fill-color: #f8fafc !important;
-    }
-
-    /* Checklist / problems modals */
-    body.light-theme .checklist-list li,
-    body.light-theme #checklistItems,
-    body.light-theme #weekIssuesList {
-      color: #0f172a !important;
-    }
-
-    /* Dark theme: keep secondary text bright enough on all pages */
-    body:not(.light-theme) #viewFerie,
-    body:not(.light-theme) #viewMalattia,
-    body:not(.light-theme) #viewEventi,
-    body:not(.light-theme) #viewSettings {
-      color: #f4f6f5;
-    }
-    body:not(.light-theme) .text-muted,
-    body:not(.light-theme) .leave-req-card .meta,
-    body:not(.light-theme) .hint {
-      color: #c5cdc8 !important;
-      opacity: 1 !important;
-    }
-    body:not(.light-theme) .leave-toolbar button.alt,
-    body:not(.light-theme) .filter-bar button {
-      background: #1c2430 !important;
-      color: #f4f6f5 !important;
-      border: 1px solid #64748b !important;
-      -webkit-text-fill-color: #f4f6f5 !important;
-    }
-
-  
-    /* Embedded engine mode (hosted inside Pulse iframe) */
-    html.engine-embed body > *:not(.modal-backdrop):not(#proposalModal):not(#toast):not(.toast) {
-      /* keep modals visible; hide main chrome via body class rules below */
-    }
-    html.engine-embed .header,
-    html.engine-embed .bottom-nav,
-    html.engine-embed .dock-nav,
-    html.engine-embed #viewOggi,
-    html.engine-embed #viewTurni,
-    html.engine-embed #viewFerie,
-    html.engine-embed #viewEventi,
-    html.engine-embed #viewMalattia,
-    html.engine-embed #viewSettings,
-    html.engine-embed #turniControlCard,
-    html.engine-embed #ferieControlCard,
-    html.engine-embed #eventiControlCard,
-    html.engine-embed #malattiaControlCard,
-    html.engine-embed .local-file-banner,
-    html.engine-embed #pwaInstallBanner,
-    html.engine-embed .remote-update-bar {
-      display: none !important;
-    }
-    html.engine-embed body {
-      background: #0a0c0f !important;
-      min-height: 100dvh;
-    }
-    html.engine-embed body.engine-ui-open .header,
-    html.engine-embed body.engine-ui-open #viewTurni,
-    html.engine-embed body.engine-ui-open #turniControlCard {
-      display: block !important;
-    }
-    html.engine-host-bar {
-      display: none;
-    }
-    html.engine-embed .engine-host-bar {
-      display: flex !important;
-      position: sticky; top: 0; z-index: 200;
-      align-items: center; justify-content: space-between; gap: 10px;
-      padding: 12px 14px; background: #12151c; border-bottom: 1px solid #2a3140;
-      color: #f2f4f7; font-family: system-ui, sans-serif;
-    }
-    html.engine-embed .engine-host-bar strong { font-size: 14px; }
-    html.engine-embed .engine-host-bar button {
-      min-height: 40px; padding: 8px 12px; border-radius: 8px;
-      border: 1px solid #2a3140; background: #c8f135; color: #12140a;
-      font-weight: 800; cursor: pointer;
-    }
-  </style>
+</style>
 </head>
 <body>
 
@@ -3843,11 +2277,11 @@
 <div class="local-file-banner" id="localFileBanner"> Attenzione: stai usando un <strong>file locale</strong> — i dati NON sono in cloud. Per usare l'app con sync apri SOLO questo link Netlify: <a id="officialAppLink" href="https://phenomenal-rugelach-42f064.netlify.app" target="_blank" rel="noopener">phenomenal-rugelach-42f064.netlify.app</a></div><div class="remote-update-bar" id="remoteUpdateBar"><span id="remoteUpdateText">Dati aggiornati da un altro dispositivo.</span><button type="button" class="alt" onclick="applyPendingRemoteData()">Usa cloud</button><button type="button" class="alt" onclick="forcePushLocalToCloud()">Tieni locale</button><button type="button" class="alt" onclick="dismissRemoteUpdate()" style="min-height:auto;padding:4px 8px;">X</button></div><div class="header">
   <div class="header-top">
     <div class="app-title-area">
-      <div class="app-icon pulse-mark">P</div>
+      <div class="app-icon">📅</div>
       <div>
-        <h1 id="appTitle" onclick="editTitle()">PULSE</h1>
+        <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v10.3.5</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.54</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3868,8 +2302,8 @@
       <div class="brand">
         <div class="app-icon" style="width:36px;height:36px;font-size:16px;">📅</div>
         <div>
-          <h1 onclick="editTitle()">PULSE</h1>
-          <small id="appVersionLabel">CORVETTO · NIGHT OPS · V10.3.2</small>
+          <h1 onclick="editTitle()">Turni Manager</h1>
+          <small id="appVersionLabel">CORVETTO · V9.11.54</small>
         </div>
       </div>
       <div class="nav-meta">
@@ -3878,7 +2312,7 @@
       </div>
     </div>
     <div class="nav-tabs view-tabs">
-      <button type="button" id="tabOggi" class="active-tab" onclick="switchView('oggi')">📡 Pulse</button>
+      <button type="button" id="tabOggi" class="active-tab" onclick="switchView('oggi')">🏠 Oggi</button>
       <button type="button" id="tabTurni" onclick="switchView('turni')">📋 Turni</button>
       <button type="button" id="tabFerie" onclick="switchView('ferie')">🏖️ Assenze</button>
       <button type="button" id="tabAltro" onclick="toggleMoreNav()">⋯ Altro</button>
@@ -3894,15 +2328,20 @@
 
 
   <div class="control-card" id="turniControlCard" style="margin-bottom:0;">
-    <div class="leave-toolbar slim-toolbar" style="margin-bottom:0;gap:8px;align-items:center;">
-      <button type="button" class="alt" onclick="switchView('oggi')" title="Torna a Pulse">← Pulse</button>
-      <button type="button" class="alt" onclick="changeWeek(-1)" title="Settimana precedente">◀</button>
-      <strong id="weekLabel" style="min-width:100px;text-align:center;font-size:12px;font-family:var(--font-mono);">dal ... al ...</strong>
-      <button type="button" class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
-      <button type="button" class="primary" onclick="generateAutoProposal()">Sistema</button>
-      <button type="button" class="alt" onclick="openExportMenu()">PDF</button>
-      <button type="button" class="alt" onclick="openManualEditPicker()">Modifica</button>
+    <div class="leave-toolbar toolbar-primary" style="margin-bottom:8px;">
+      <button class="alt" onclick="changeWeek(-1)" title="Settimana precedente">◀</button>
+      <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
+      <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
+      <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
+      <button class="alt" onclick="openManualEditPicker()" title="Modifica manualmente un turno">✏️ Modifica turno</button>
+      <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
     </div>
+    <div class="leave-toolbar toolbar-secondary" style="margin-bottom:0;">
+      <button class="danger" onclick="resetAppData()" title="Svuota i turni della settimana (ferie/eventi restano)">🗑️ Svuota tabella</button>
+      <button class="alt" onclick="openExportMenu()">📤 Esporta</button>
+    </div>
+    <p class="toolbar-hint" style="margin:8px 0 0;font-size:11px;color:var(--text-muted);line-height:1.35;">
+      <p class="hint-compact" id="turniHelpLong">Settimana → Genera → controlla → applica. Esporta per PDF.</p>
   </div>
 
   <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
@@ -3954,94 +2393,35 @@
 </div>
 
 
-<div id="viewOggi" class="op-shell pulse-shell">
-  <div class="pulse-chrome">
-    <div class="pulse-chrome-left">
-      <div class="pulse-mark-sm">P</div>
-      <div>
-        <div class="pulse-chrome-brand">PULSE</div>
-        <div class="pulse-chrome-ver" id="pulseChromeVer">v10.3.5</div>
-      </div>
-    </div>
-    <div class="pulse-chrome-week">
-      <button type="button" class="pulse-chrome-nav" onclick="changeWeek(-1)" aria-label="Settimana precedente">‹</button>
-      <div class="pulse-chrome-week-label" id="pulseWeekLabel">—</div>
-      <button type="button" class="pulse-chrome-nav" onclick="changeWeek(1)" aria-label="Settimana successiva">›</button>
-    </div>
-    <div class="pulse-chrome-right">
-      <span class="sync-indicator sync-local" id="pulseSyncDot" onclick="forceReloadFromCloud()" title="Sync">●</span>
-      <button type="button" class="pulse-chrome-expert" onclick="switchView('turni')">Esperto</button>
-    </div>
-  </div>
-  <div class="pulse-top">
-    <div class="pulse-brand">
-      <div class="pulse-live-dot" aria-hidden="true"></div>
-      <div>
-        <div class="pulse-kicker">CORVETTO PULSE</div>
-        <h2 id="opHeroTitle" class="pulse-title">Questa settimana</h2>
-        <p id="opHeroSub" class="pulse-sub">Radar operativo della filiale</p>
-      </div>
-    </div>
+<div id="viewOggi" class="op-shell">
+  <div class="op-hero">
+    <h2 id="opHeroTitle">Questa settimana</h2>
+    <p id="opHeroSub">Stato operativo della filiale</p>
     <div class="op-status-row" id="opStatusRow"></div>
   </div>
 
-  <div class="pulse-zones" id="pulseZones">
-    <button type="button" class="pulse-zone" data-zone="ufficio" onclick="pulseFocusZone('ufficio')">
-      <div class="pulse-zone-head"><span>Banco edile</span><span class="pulse-sem" id="pulseSemUfficio">—</span></div>
-      <div class="pulse-zone-metrics" id="pulseMetUfficio">Apertura — · Chiusura —</div>
-      <div class="pulse-zone-hint" id="pulseHintUfficio">Tocca un giorno sotto</div>
-    </button>
-    <button type="button" class="pulse-zone" data-zone="magazzino" onclick="pulseFocusZone('magazzino')">
-      <div class="pulse-zone-head"><span>Magazzino</span><span class="pulse-sem" id="pulseSemMag">—</span></div>
-      <div class="pulse-zone-metrics" id="pulseMetMag">Apertura — · Chiusura —</div>
-      <div class="pulse-zone-hint" id="pulseHintMag">Tocca un giorno sotto</div>
-    </button>
-    <button type="button" class="pulse-zone" data-zone="finiture" onclick="pulseFocusZone('finiture')">
-      <div class="pulse-zone-head"><span>Finiture</span><span class="pulse-sem" id="pulseSemFin">—</span></div>
-      <div class="pulse-zone-metrics" id="pulseMetFin">Presenze —</div>
-      <div class="pulse-zone-hint" id="pulseHintFin">Area autonoma</div>
-    </button>
+  <div class="op-actions">
+    <button type="button" class="primary" onclick="generateAutoProposal()">✨ Genera turni</button>
+    <button type="button" class="secondary" onclick="openManualEditPicker()">✏️ Modifica turno</button>
+    <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
+    <button type="button" class="secondary" onclick="publishWeekOperational()">📤 Pubblica</button>
   </div>
 
-  <div class="pulse-section-label">Settimana</div>
-  <div class="pulse-week" id="pulseWeekStrip" role="tablist" aria-label="Giorni settimana"></div>
+  <div class="op-section-title">Cosa fare ora</div>
+  <div id="opSuggestions"></div>
 
-  <div class="pulse-day-panel" id="pulseDayPanel">
-    <div class="pulse-day-head">
-      <h3 id="pulseDayTitle">Giorno</h3>
-      <button type="button" class="alt pulse-mini" onclick="switchView('turni')">Vista tabella</button>
-    </div>
-    <div class="pulse-day-grid" id="pulseDayGrid"></div>
+  <div class="op-section-title">Assenze</div>
+  <div class="op-card"><ul class="op-list" id="opLeavesList"></ul></div>
+
+  <div class="op-section-title">Impegni</div>
+  <div class="op-card"><ul class="op-list" id="opEventsList"></ul></div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;">
+    <button type="button" class="alt" onclick="switchView('turni')">Apri tabella turni</button>
+    <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
+    <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
+    <button type="button" class="alt" onclick="switchView('eventi')">Tutti gli impegni</button>
   </div>
-
-  <div class="pulse-actions">
-    <button type="button" class="primary pulse-cta" onclick="generateAutoProposal()">Sistema la settimana</button>
-    <div class="pulse-actions-row pulse-actions-row-2">
-      <button type="button" class="secondary" onclick="if(typeof exportTableToJPG==='function')exportTableToJPG();">Esporta PDF</button>
-      <button type="button" class="secondary" onclick="switchView('turni')">Apri griglia</button>
-    </div>
-  </div>
-
-  <div id="opSuggestions" class="pulse-suggestions-slim"></div>
-
-  <details class="pulse-details">
-    <summary>Assenze e impegni della settimana</summary>
-    <div class="pulse-two-col" style="margin-top:10px;">
-      <div class="op-card pulse-list-card"><ul class="op-list" id="opLeavesList"></ul></div>
-      <div class="op-card pulse-list-card"><ul class="op-list" id="opEventsList"></ul></div>
-    </div>
-  </details>
-
-  <details class="pulse-details">
-    <summary>Altro</summary>
-    <div class="pulse-footer-links">
-      <button type="button" class="alt" onclick="openManualEditPicker()">Modifica turno</button>
-      <button type="button" class="alt" onclick="switchView('malattia')">Malattia</button>
-      <button type="button" class="alt" onclick="switchView('ferie')">Ferie</button>
-      <button type="button" class="alt" onclick="publishWeekOperational()">Pubblica</button>
-      <button type="button" class="alt" onclick="switchView('settings')">Impostazioni</button>
-    </div>
-  </details>
 </div>
 
 <div id="viewTurni" style="display:none;">
@@ -4062,7 +2442,7 @@
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
     <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist settimana</button>
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="showWeekSummary()">🏠 Riepilogo</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
   </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
@@ -6034,11 +4414,6 @@ function isUsableAppData(value) {
   }
 
   function finishInitRender() {
-    try {
-      document.body.classList.add('mode-pulse');
-      document.body.classList.remove('mode-expert');
-      currentView = 'oggi';
-    } catch (ePM) {}
     setTimeout(function(){ try { if (typeof updateRulesBanner==="function") updateRulesBanner(); } catch(e){} }, 120);
 
     try { if (typeof tryRecoverFromLocalBackups === 'function') tryRecoverFromLocalBackups(); } catch (e) {}
@@ -6375,7 +4750,7 @@ function isUsableAppData(value) {
   }
 
 
-  let currentView = 'oggi';
+  let currentView = 'turni';
 
   // ===== V3: Toast, Undo, Sync status =====
   const undoStack = [];
@@ -6536,99 +4911,8 @@ function isUsableAppData(value) {
   }
   window.applyOperationalSuggestion = applyOperationalSuggestion;
 
-  var _pulseSelectedDay = null;
-  var _pulseFocusZone = 'ufficio';
-
-  function pulseFocusZone(z) {
-    _pulseFocusZone = z || 'ufficio';
-    try {
-      document.querySelectorAll('.pulse-zone').forEach(function(el) {
-        el.classList.toggle('is-focus', el.getAttribute('data-zone') === _pulseFocusZone);
-      });
-    } catch (e) {}
-    renderOperationalHome();
-  }
-  window.pulseFocusZone = pulseFocusZone;
-
-  function pulseSelectDay(dayIdx) {
-    _pulseSelectedDay = dayIdx;
-    renderOperationalHome();
-  }
-  window.pulseSelectDay = pulseSelectDay;
-
-  function pulseWhoAt(week, ids, day, tMin) {
-    const out = [];
-    const unique = [...new Set(ids || [])];
-    unique.forEach(function(id) {
-      const w = workerObj(id);
-      if (!w || w.selected === false) return;
-      if (typeof coveredAt === 'function' && coveredAt(cellAt(week, id, day), tMin)) {
-        const cell = cellAt(week, id, day) || {};
-        const times = (typeof formatWorkHoursOnly === 'function') ? formatWorkHoursOnly(cell) : '';
-        out.push({
-          id: id,
-          name: w.name || id,
-          short: (w.name || id).split(' ').slice(-1)[0],
-          times: times,
-          cell: cell
-        });
-      }
-    });
-    return out;
-  }
-
-  function pulseFinitureIds() {
-    return (appData.workers || []).filter(function(w) {
-      return w.selected !== false && String(w.group || '').toUpperCase() === 'FINITURE';
-    }).map(function(w) { return w.id; });
-  }
-
-  /** Orari reali Finiture (Idalia): Lun-Ven apertura 08:30;
-   *  chiusura 17:30 tranne mercoledì 12:30; sabato 08:00-12:00. */
-  function pulseFinitureSampleTimes(day) {
-    const d = day | 0;
-    // sample pochi minuti dopo apertura / prima della chiusura
-    if (d === 5) {
-      return { openMin: timeToMin('08:15'), closeMin: timeToMin('11:45'), openLabel: '08:00', closeLabel: '12:00', halfDay: true };
-    }
-    if (d === 2) { // mercoledì
-      return { openMin: timeToMin('08:45'), closeMin: timeToMin('12:15'), openLabel: '08:30', closeLabel: '12:30', halfDay: true };
-    }
-    // lun, mar, gio, ven
-    return { openMin: timeToMin('08:45'), closeMin: timeToMin('17:15'), openLabel: '08:30', closeLabel: '17:30', halfDay: false };
-  }
-
-  function pulseLevel(okOpen, okClose) {
-    if (okOpen && okClose) return 'ok';
-    if (!okOpen && !okClose) return 'bad';
-    return 'warn';
-  }
-
   function renderOperationalHome() {
     const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : { level:'ok', label:'', leaves:[], events:[] };
-    const weekKey = currentWeekKey;
-    const week = (appData.weeks && appData.weeks[weekKey]) || {};
-    const cov = (typeof analyzeCoverage === 'function') ? analyzeCoverage(week) : [];
-
-    // Default day: today if in week, else first problematic, else 0
-    if (_pulseSelectedDay == null || _pulseSelectedDay < 0 || _pulseSelectedDay > 5) {
-      try {
-        const today = new Date(); today.setHours(12,0,0,0);
-        const di = (typeof dateToDayIdx === 'function') ? dateToDayIdx(today) : -1;
-        let monday = null;
-        try { monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null; } catch (e0) {}
-        if (di >= 0 && di <= 5 && monday) {
-          const end = new Date(monday); end.setDate(monday.getDate() + 5);
-          if (today >= monday && today <= end) _pulseSelectedDay = di;
-        }
-        if (_pulseSelectedDay == null) {
-          const bad = cov.find(function(r) { return !r.magOk || !r.impOk; });
-          _pulseSelectedDay = bad ? bad.dayIdx : 0;
-        }
-      } catch (e) { _pulseSelectedDay = 0; }
-    }
-    const day = _pulseSelectedDay;
-
     const title = document.getElementById('opHeroTitle');
     const sub = document.getElementById('opHeroSub');
     const status = document.getElementById('opStatusRow');
@@ -6636,195 +4920,36 @@ function isUsableAppData(value) {
       try {
         title.textContent = (typeof getWeekDisplayLabel === 'function')
           ? getWeekDisplayLabel(currentDate)
-          : ('Settimana ' + (weekKey || ''));
+          : ('Settimana ' + (currentWeekKey || ''));
       } catch (e) { title.textContent = 'Questa settimana'; }
     }
-    try {
-      var pwl = document.getElementById('pulseWeekLabel');
-      if (pwl) {
-        pwl.textContent = (typeof getWeekDisplayLabel === 'function')
-          ? getWeekDisplayLabel(currentDate)
-          : (weekKey || '');
-      }
-      var pver = document.getElementById('pulseChromeVer');
-      if (pver && typeof APP_VERSION !== 'undefined') pver.textContent = 'v' + APP_VERSION;
-    } catch (eLab) {}
     if (sub) {
-      const holes = cov.filter(function(r) { return !r.magOk || !r.impOk; }).length;
-      sub.textContent = holes
-        ? (holes + ' giorn' + (holes === 1 ? 'o' : 'i') + ' con pressione su aperture/chiusure')
-        : 'Filiale stabile — puoi pubblicare o esportare il PDF';
+      sub.textContent = health.level === 'ok'
+        ? 'Nessun problema critico. Puoi pubblicare o generare i turni.'
+        : 'Ci sono punti da sistemare prima di pubblicare.';
     }
     if (status) {
       const cls = health.level === 'bad' ? 'bad' : (health.level === 'warn' ? 'warn' : 'ok');
       status.innerHTML = '<span class="op-pill ' + cls + '">' + escapeHtmlV47(health.label || 'Stato') + '</span>';
     }
-
-    const row = cov[day] || {};
-    const magIds = [...(typeof MAG_PAIR_A === 'function' ? MAG_PAIR_A() : []),
-      ...(typeof MAG_PAIR_B === 'function' ? MAG_PAIR_B() : []),
-      (typeof MARIO_ID === 'function' ? MARIO_ID() : null)].filter(Boolean);
-    const impIds = (typeof officeCoverageIdsForDay === 'function') ? officeCoverageIdsForDay(day) : [];
-    const finIds = pulseFinitureIds();
-    const openT = day === 5 ? timeToMin('07:30') : timeToMin('07:00');
-    const closeT = day === 5 ? timeToMin('11:15') : timeToMin('17:15');
-    const finT = pulseFinitureSampleTimes(day);
-
-    // Zone cards for selected day
-    const uLv = pulseLevel(!!row.impOpenOk, !!row.impCloseOk);
-    const mLv = pulseLevel(!!row.magOpenOk, !!row.magCloseOk);
-    const finOpen = (typeof countCovered === 'function') ? countCovered(week, finIds, day, finT.openMin) : 0;
-    const finClose = (typeof countCovered === 'function') ? countCovered(week, finIds, day, finT.closeMin) : 0;
-    const finOpenOk = finIds.length === 0 || finOpen >= 1;
-    const finCloseOk = finIds.length === 0 || finClose >= 1;
-    const fLv = pulseLevel(finOpenOk, finCloseOk);
-
-    function setSem(id, lv, label) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.className = 'pulse-sem ' + lv;
-      el.textContent = label;
-    }
-    setSem('pulseSemUfficio', uLv, uLv === 'ok' ? 'OK' : (uLv === 'bad' ? 'BUCO' : 'LIMITE'));
-    setSem('pulseSemMag', mLv, mLv === 'ok' ? 'OK' : (mLv === 'bad' ? 'BUCO' : 'LIMITE'));
-    setSem('pulseSemFin', fLv, fLv === 'ok' ? 'OK' : 'CHECK');
-
-    const mu = document.getElementById('pulseMetUfficio');
-    if (mu) mu.textContent = 'Apertura ' + (row.impOpen != null ? row.impOpen : '—') + '/' + (row.minImp != null ? row.minImp : '2') +
-      ' · Chiusura ' + (row.impClose != null ? row.impClose : '—') + '/' + (row.minCloseImp != null ? row.minCloseImp : '1');
-    const mm = document.getElementById('pulseMetMag');
-    if (mm) mm.textContent = 'Apertura ' + (row.magOpen != null ? row.magOpen : '—') + '/' + (row.minMag != null ? row.minMag : '2') +
-      ' · Chiusura ' + (row.magClose != null ? row.magClose : '—') + '/' + (row.minCloseMag != null ? row.minCloseMag : '1');
-    const mf = document.getElementById('pulseMetFin');
-    if (mf) {
-      mf.textContent = 'Apertura ' + finOpen + '/1 · Chiusura ' + finClose + '/1 · ' + finT.openLabel + '–' + finT.closeLabel;
-    }
-
-    const hu = document.getElementById('pulseHintUfficio');
-    if (hu) hu.textContent = uLv === 'ok' ? 'Copertura ufficio ok' : 'Serve attenzione su questo giorno';
-    const hm = document.getElementById('pulseHintMag');
-    if (hm) hm.textContent = mLv === 'ok' ? 'Magazzino coperto' : 'Rischio copertura magazzino';
-    const hf = document.getElementById('pulseHintFin');
-    if (hf) {
-      if (fLv === 'ok') hf.textContent = 'Orari finiture rispettati';
-      else if (!finOpenOk) hf.textContent = 'Manca copertura in apertura finiture';
-      else hf.textContent = 'Manca copertura in chiusura finiture';
-    }
-
-    try {
-      document.querySelectorAll('.pulse-zone').forEach(function(el) {
-        el.classList.toggle('is-focus', el.getAttribute('data-zone') === _pulseFocusZone);
-      });
-    } catch (eZ) {}
-
-    // Week strip
-    const strip = document.getElementById('pulseWeekStrip');
-    if (strip) {
-      const dayNames = ['Lun','Mar','Mer','Gio','Ven','Sab'];
-      let dates = [];
-      try {
-        const monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null;
-        if (monday && typeof eventWeekDates === 'function') dates = eventWeekDates(monday) || [];
-      } catch (eD) {}
-      strip.innerHTML = dayNames.map(function(name, i) {
-        const r = cov[i] || {};
-        let heat = 'ok';
-        if (!r.magOk || !r.impOk) {
-          heat = (!r.magOpenOk && !r.impOpenOk) || (!r.magCloseOk && !r.impCloseOk) ? 'bad' : 'warn';
-        }
-        let num = '';
-        try { if (dates[i]) num = String(dates[i].getDate()); } catch (eN) {}
-        const active = i === day ? ' is-active' : '';
-        return '<button type="button" class="pulse-day-chip heat-' + heat + active +
-          '" onclick="pulseSelectDay(' + i + ')">' +
-          '<div class="dname">' + name + '</div>' +
-          '<div class="dnum">' + (num || (i + 1)) + '</div>' +
-          '<div class="dheat"></div></button>';
-      }).join('');
-    }
-
-    // Day panel title + lanes
-    const dayNamesLong = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
-    const dt = document.getElementById('pulseDayTitle');
-    if (dt) {
-      let extra = '';
-      try {
-        const monday = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null;
-        if (monday) {
-          const d = new Date(monday); d.setDate(monday.getDate() + day);
-          extra = ' · ' + d.getDate() + '/' + (d.getMonth() + 1);
-        }
-      } catch (eT) {}
-      dt.textContent = (dayNamesLong[day] || 'Giorno') + extra;
-    }
-
-    const grid = document.getElementById('pulseDayGrid');
-    if (grid) {
-      const zone = _pulseFocusZone || 'ufficio';
-      let openPeople = [], closePeople = [], openOk = true, closeOk = true, openNeed = 2, closeNeed = 1, zoneLabel = 'Zona';
-      if (zone === 'magazzino') {
-        openPeople = pulseWhoAt(week, magIds, day, openT);
-        closePeople = pulseWhoAt(week, magIds, day, closeT);
-        openOk = !!row.magOpenOk; closeOk = !!row.magCloseOk;
-        openNeed = row.minMag != null ? row.minMag : 2;
-        closeNeed = row.minCloseMag != null ? row.minCloseMag : 1;
-        zoneLabel = 'Magazzino';
-      } else if (zone === 'finiture') {
-        const ft = pulseFinitureSampleTimes(day);
-        openPeople = pulseWhoAt(week, finIds, day, ft.openMin);
-        closePeople = pulseWhoAt(week, finIds, day, ft.closeMin);
-        openOk = openPeople.length >= 1;
-        closeOk = closePeople.length >= 1;
-        openNeed = 1; closeNeed = 1;
-        zoneLabel = 'Finiture (' + ft.openLabel + '–' + ft.closeLabel + ')';
-      } else {
-        openPeople = pulseWhoAt(week, impIds, day, openT);
-        closePeople = pulseWhoAt(week, impIds, day, closeT);
-        openOk = !!row.impOpenOk; closeOk = !!row.impCloseOk;
-        openNeed = row.minImp != null ? row.minImp : 2;
-        closeNeed = row.minCloseImp != null ? row.minCloseImp : 1;
-        zoneLabel = 'Banco edile';
-      }
-
-      function laneHtml(title, people, ok, need) {
-        const gap = !ok;
-        let body = people.map(function(p) {
-          return '<div class="pulse-person"><span>' + escapeHtmlV47(p.short || p.name) +
-            '</span><span class="role">' + escapeHtmlV47(p.times || '') + '</span></div>';
-        }).join('');
-        if (!people.length) {
-          body = '<div class="pulse-empty-gap">Buco — serve almeno ' + need + '</div>';
-        } else if (gap) {
-          body += '<div class="pulse-empty-gap">Sotto minimo (' + people.length + '/' + need + ')</div>';
-        }
-        return '<div class="pulse-lane' + (gap ? ' gap' : '') + '"><h4>' + title + ' · ' + zoneLabel +
-          ' (' + people.length + '/' + need + ')</h4>' + body + '</div>';
-      }
-      grid.innerHTML = laneHtml('Apertura', openPeople, openOk, openNeed) +
-        laneHtml('Chiusura', closePeople, closeOk, closeNeed);
-    }
-
-    // Suggestions
     const box = document.getElementById('opSuggestions');
     if (box) {
-      const sugs = ((typeof buildOperationalSuggestions === 'function') ? buildOperationalSuggestions() : []).slice(0, 2);
-      if (!sugs.length) {
-        box.innerHTML = '';
-      } else {
-        box.innerHTML = sugs.map(function(s) {
-          const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
-          return '<div class="op-card">' +
-            '<div class="op-card-head"><strong>' + escapeHtmlV47(s.title) + '</strong>' +
-            '<span class="meta ' + escapeHtmlV47(s.level || '') + '">' + escapeHtmlV47(s.level) + '</span></div>' +
-            '<p class="detail">' + escapeHtmlV47(s.detail || '') + '</p>' +
-            '<div class="op-card-actions">' +
-            '<button type="button" class="' + (s.level === 'ok' ? 'alt' : 'btn-proposal') +
-            '" data-op-action=\'' + act + '\' onclick="applyOperationalSuggestion(JSON.parse(this.getAttribute(\'data-op-action\')))">' +
-            escapeHtmlV47(s.actionLabel || 'Ok') + '</button></div></div>';
-        }).join('');
-      }
+      const sugs = buildOperationalSuggestions();
+      box.innerHTML = sugs.map(function(s) {
+        const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
+        return '<div class="op-card">' +
+          '<div class="op-card-head"><strong>' + escapeHtmlV47(s.title) + '</strong>' +
+          '<span class="meta ' + escapeHtmlV47(s.level || '') + '">' + escapeHtmlV47(s.level) + '</span></div>' +
+          '<p class="detail">' + escapeHtmlV47(s.detail || '') + '</p>' +
+          '<div class="op-card-actions">' +
+          '<button type="button" class="' + (s.level === 'ok' ? 'alt' : 'btn-proposal') +
+          '" data-op-action=\'' + act + '\' onclick="applyOperationalSuggestion(JSON.parse(this.getAttribute(\'data-op-action\')))">' +
+          escapeHtmlV47(s.actionLabel || 'Ok') + '</button>' +
+          (s.action && s.action.type === 'put_close'
+            ? '<button type="button" class="alt" onclick="switchView(\'turni\')">Apri tabella</button>' : '') +
+          '</div></div>';
+      }).join('');
     }
-
     const leaves = document.getElementById('opLeavesList');
     if (leaves) {
       if (!health.leaves || !health.leaves.length) {
@@ -6852,8 +4977,6 @@ function isUsableAppData(value) {
     }
   }
   window.renderOperationalHome = renderOperationalHome;
-
-
 
   function publishWeekOperational() {
     try {
@@ -7037,61 +5160,6 @@ function isUsableAppData(value) {
     return health;
   }
   window.updateWeekStatusUI = updateWeekStatusUI;
-
-  
-  function showWeekSummary() {
-    try {
-      if (typeof updateWeekStatusUI === 'function') updateWeekStatusUI();
-      const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : null;
-      if (!health) {
-        showToast('Riepilogo non disponibile', 'warn');
-        return;
-      }
-      const lines = [];
-      lines.push(health.label || 'Stato settimana');
-      const badCov = (health.coverage || []).filter(function(x) { return x.bad; });
-      if (badCov.length) {
-        lines.push('Coperture: ' + badCov.slice(0, 4).map(function(x) {
-          return (x.day || '') + ' ' + (x.text || '');
-        }).join(' · '));
-      } else {
-        lines.push('Coperture: ok');
-      }
-      lines.push('Assenze: ' + ((health.leaves && health.leaves.length) || 0));
-      lines.push('Impegni: ' + ((health.events && health.events.length) || 0));
-      if (health.issues && health.issues.length) {
-        lines.push('Avvisi: ' + health.issues.slice(0, 3).join(' · '));
-      }
-      // Modal se disponibile, altrimenti toast lungo + dettagli
-      const list = document.getElementById('weekIssuesList');
-      const modal = document.getElementById('weekIssuesModal');
-      if (list && modal && typeof openModal === 'function') {
-        const items = [];
-        items.push('<li><span class="ck ' + (health.level === 'ok' ? 'ok' : (health.level === 'bad' ? 'bad' : 'warn')) + '">●</span><div><strong>' +
-          escapeHtmlV47(health.label || 'Stato') + '</strong><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' +
-          escapeHtmlV47(lines.slice(1).join(' — ')) + '</div></div></li>');
-        (health.issues || []).slice(0, 8).forEach(function(iss) {
-          items.push('<li><span class="ck warn">!</span><div>' + escapeHtmlV47(String(iss)) + '</div></li>');
-        });
-        badCov.slice(0, 6).forEach(function(x) {
-          items.push('<li><span class="ck bad">!</span><div>' + escapeHtmlV47((x.day || '') + ' · ' + (x.text || '')) + '</div></li>');
-        });
-        if (items.length === 1 && health.level === 'ok') {
-          items.push('<li><span class="ck ok">✓</span><div>Nessun problema critico su coperture, assenze o impegni.</div></li>');
-        }
-        list.innerHTML = items.join('');
-        const title = modal.querySelector('h3');
-        if (title) title.textContent = 'Riepilogo settimana';
-        openModal('weekIssuesModal');
-      } else {
-        showToast(lines.join(' · '), health.level === 'bad' ? 'error' : (health.level === 'warn' ? 'warn' : 'success'), 5000);
-      }
-    } catch (e) {
-      console.warn(e);
-      showToast('Impossibile aprire il riepilogo', 'error');
-    }
-  }
-  window.showWeekSummary = showWeekSummary;
 
   function openWeekIssues() {
     const health = computeWeekHealth();
@@ -7656,20 +5724,6 @@ function isUsableAppData(value) {
   function switchView(view) {
     currentView = view;
     closeMoreNav();
-    // Shell: Pulse full-screen vs classic expert chrome
-    try {
-      var pulseMode = (view === 'oggi');
-      document.body.classList.toggle('mode-pulse', pulseMode);
-      document.body.classList.toggle('mode-expert', !pulseMode);
-      document.querySelectorAll('#bottomNav button').forEach(function(b){ b.classList.remove('active'); });
-      if (pulseMode) {
-        var b0 = document.querySelector('#bottomNav button');
-        if (b0) b0.classList.add('active');
-      } else if (view === 'turni') {
-        var bs = document.querySelectorAll('#bottomNav button');
-        if (bs[2]) bs[2].classList.add('active');
-      }
-    } catch (eMode) {}
     const map = { oggi:'viewOggi', turni:'viewTurni', proposta:'viewTurni', ferie:'viewFerie', eventi:'viewEventi', malattia:'viewMalattia', settings:'viewSettings' };
     ['viewOggi','viewTurni','viewFerie','viewEventi','viewMalattia','viewStats','viewSettings'].forEach(function(id) {
       var el = document.getElementById(id);
@@ -7699,7 +5753,7 @@ function isUsableAppData(value) {
     var fc = document.getElementById('ferieControlCard');
     var ec = document.getElementById('eventiControlCard');
     var mc = document.getElementById('malattiaControlCard');
-    if (tc) tc.style.display = (view === 'turni' || view === 'proposta') ? '' : 'none';
+    if (tc) tc.style.display = (view === 'turni' || view === 'proposta' || view === 'oggi') ? '' : 'none';
     if (fc) fc.style.display = view === 'ferie' ? '' : 'none';
     if (ec) ec.style.display = view === 'eventi' ? '' : 'none';
     if (mc) {
@@ -10073,7 +8127,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=10.0.0', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.53', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -19021,55 +17075,7 @@ function applyPendingProposal(options) {
     const note = appData.notes && appData.notes[currentWeekKey];
     const events = getEventsForWeek();
     let html = `<!doctype html><html><head><meta charset="utf-8"><title>Anteprima Turni</title>
-      <style>@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0}h1{font-size:16px;margin:0 0 3px}p{font-size:9px;margin:0 0 6px;color:#333}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:7px;margin:0 0 6px}th,td{border:1px solid #777;padding:2px 3px;text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:anywhere}th:first-child,td:first-child{width:18%;text-align:left;font-weight:bold;background:#f0f4f8}th{background:#e8edf3;font-weight:bold}.note{margin-top:5px;font-size:8px;white-space:pre-wrap;overflow-wrap:anywhere}.event-title{font-size:9px;margin:6px 0 3px}.events{font-size:7px}.events th:first-child,.events td:first-child{width:auto;text-align:left;background:inherit;font-weight:normal}.events th{background:#f5f0ff}.print-warning{font-size:7px;color:#555;margin-top:4px}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-    /* Embedded engine mode (hosted inside Pulse iframe) */
-    html.engine-embed body > *:not(.modal-backdrop):not(#proposalModal):not(#toast):not(.toast) {
-      /* keep modals visible; hide main chrome via body class rules below */
-    }
-    html.engine-embed .header,
-    html.engine-embed .bottom-nav,
-    html.engine-embed .dock-nav,
-    html.engine-embed #viewOggi,
-    html.engine-embed #viewTurni,
-    html.engine-embed #viewFerie,
-    html.engine-embed #viewEventi,
-    html.engine-embed #viewMalattia,
-    html.engine-embed #viewSettings,
-    html.engine-embed #turniControlCard,
-    html.engine-embed #ferieControlCard,
-    html.engine-embed #eventiControlCard,
-    html.engine-embed #malattiaControlCard,
-    html.engine-embed .local-file-banner,
-    html.engine-embed #pwaInstallBanner,
-    html.engine-embed .remote-update-bar {
-      display: none !important;
-    }
-    html.engine-embed body {
-      background: #0a0c0f !important;
-      min-height: 100dvh;
-    }
-    html.engine-embed body.engine-ui-open .header,
-    html.engine-embed body.engine-ui-open #viewTurni,
-    html.engine-embed body.engine-ui-open #turniControlCard {
-      display: block !important;
-    }
-    html.engine-host-bar {
-      display: none;
-    }
-    html.engine-embed .engine-host-bar {
-      display: flex !important;
-      position: sticky; top: 0; z-index: 200;
-      align-items: center; justify-content: space-between; gap: 10px;
-      padding: 12px 14px; background: #12151c; border-bottom: 1px solid #2a3140;
-      color: #f2f4f7; font-family: system-ui, sans-serif;
-    }
-    html.engine-embed .engine-host-bar strong { font-size: 14px; }
-    html.engine-embed .engine-host-bar button {
-      min-height: 40px; padding: 8px 12px; border-radius: 8px;
-      border: 1px solid #2a3140; background: #c8f135; color: #12140a;
-      font-weight: 800; cursor: pointer;
-    }
-  </style></head><body>`;
+      <style>@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0}h1{font-size:16px;margin:0 0 3px}p{font-size:9px;margin:0 0 6px;color:#333}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:7px;margin:0 0 6px}th,td{border:1px solid #777;padding:2px 3px;text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:anywhere}th:first-child,td:first-child{width:18%;text-align:left;font-weight:bold;background:#f0f4f8}th{background:#e8edf3;font-weight:bold}.note{margin-top:5px;font-size:8px;white-space:pre-wrap;overflow-wrap:anywhere}.event-title{font-size:9px;margin:6px 0 3px}.events{font-size:7px}.events th:first-child,.events td:first-child{width:auto;text-align:left;background:inherit;font-weight:normal}.events th{background:#f5f0ff}.print-warning{font-size:7px;color:#555;margin-top:4px}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body>`;
     html += `<h1>${esc(appData.title)} - Programmazione Turni</h1><p>Settimana n.${esc(weekInfo.weekNo)}: dal ${esc(weekInfo.monStr)} al ${esc(weekInfo.satStr)}</p><table><thead><tr>`;
     html += matrix.headers.map(h=>`<th>${esc(h)}</th>`).join('') + '</tr></thead><tbody>';
     matrix.rows.forEach(row => { html += '<tr>' + row.map(c=>`<td>${esc(typeof c==='object'?c.text:c)}</td>`).join('') + '</tr>'; });
@@ -19080,95 +17086,7 @@ function applyPendingProposal(options) {
       html += events.map(e=>`<tr><td>${esc(formatEventDate(e.date))}</td><td>${esc(e.title)}</td><td>${esc(e.allDay?'Giornata intera':`${e.fromTime}-${e.toTime}`)}</td><td>${esc(e.location||'')}</td><td>${esc(eventParticipantsNames(e.participantIds).join(', '))}</td></tr>`).join('');
       html += '</tbody></table>';
     }
-    html += '<div class="print-warning">Se i contenuti superano l\'area A4, controllare l\'anteprima di stampa: il browser potrebbe distribuirli su piu pagine per non tagliare informazioni.</div>
-<script>
-(function(){
-  function isEngineEmbed(){
-    try {
-      const q = new URLSearchParams(location.search);
-      if (q.get('engine') === '1') return true;
-      if (window.self !== window.top) return true;
-    } catch (e) {}
-    return false;
-  }
-  function postParent(msg){
-    try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {}
-  }
-  function bootEngineEmbed(){
-    if (!isEngineEmbed()) return;
-    document.documentElement.classList.add('engine-embed');
-    const bar = document.getElementById('engineHostBar');
-    if (bar) bar.style.display = 'flex';
-    document.body.classList.add('engine-embed-body');
-
-    // Expose API for parent
-    window.CORVETTO_ENGINE = {
-      version: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'legacy'),
-      ready: true,
-      generate: function(){
-        try {
-          if (typeof generateAutoProposal === 'function') {
-            generateAutoProposal();
-            postParent({ type: 'corvetto-engine', event: 'generate-started' });
-            return true;
-          }
-        } catch (e) { console.warn(e); }
-        return false;
-      },
-      apply: function(force){
-        try {
-          if (typeof applyPendingProposal === 'function') {
-            applyPendingProposal(force ? { force: true } : {});
-            postParent({ type: 'corvetto-engine', event: 'apply-done' });
-            return true;
-          }
-        } catch (e) { console.warn(e); }
-        return false;
-      },
-      reloadFromStorage: function(){
-        try {
-          const raw = localStorage.getItem('turni_corvetto_test_data');
-          if (raw && typeof appData !== 'undefined') {
-            const data = JSON.parse(raw);
-            if (data && typeof data === 'object') {
-              appData = data;
-              if (typeof renderWeek === 'function') renderWeek();
-              return true;
-            }
-          }
-        } catch (e) { console.warn(e); }
-        return false;
-      }
-    };
-
-    const gen = document.getElementById('engineBtnGenerate');
-    if (gen) gen.onclick = function(){ window.CORVETTO_ENGINE.generate(); };
-    const cls = document.getElementById('engineBtnClose');
-    if (cls) cls.onclick = function(){ postParent({ type: 'corvetto-engine', event: 'close' }); };
-
-    // When proposal modal closes / applies, notify parent to refresh
-    const _origApply = typeof applyPendingProposal === 'function' ? applyPendingProposal : null;
-    if (_origApply) {
-      window.applyPendingProposal = function(options) {
-        const r = _origApply(options);
-        try { postParent({ type: 'corvetto-engine', event: 'proposal-applied' }); } catch (e) {}
-        return r;
-      };
-    }
-
-    postParent({ type: 'corvetto-engine', event: 'ready' });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(bootEngineEmbed, 50); });
-  } else {
-    setTimeout(bootEngineEmbed, 50);
-  }
-  window.addEventListener('load', function(){ setTimeout(bootEngineEmbed, 100); });
-})();
-</script>
-
-</body></html>';
+    html += '<div class="print-warning">Se i contenuti superano l\'area A4, controllare l\'anteprima di stampa: il browser potrebbe distribuirli su piu pagine per non tagliare informazioni.</div></body></html>';
     return html;
   }
 
@@ -21287,11 +19205,19 @@ async function downloadJpgFromPreview() {
 </div>
 
 
-<nav class="bottom-nav dock-nav" id="bottomNav" aria-label="Azioni rapide">
-  <button type="button" onclick="switchView('oggi')"><span class="ic">▣</span><span>Pulse</span></button>
-  <button type="button" class="dock-main" onclick="if(typeof generateAutoProposal==='function')generateAutoProposal();"><span class="ic">⚡</span><span>Sistema</span></button>
-  <button type="button" onclick="switchView('turni')"><span class="ic">▤</span><span>Griglia</span></button>
-  <button type="button" onclick="if(typeof exportTableToJPG==='function')exportTableToJPG();"><span class="ic">▦</span><span>PDF</span></button>
+<nav class="bottom-nav" id="bottomNav" aria-label="Azioni rapide">
+  <button type="button" onclick="switchView('oggi')">
+    <span class="ic">🏠</span>Oggi
+  </button>
+  <button type="button" onclick="if(typeof generateAutoProposal==='function')generateAutoProposal();">
+    <span class="ic">✨</span>Genera
+  </button>
+  <button type="button" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">
+    <span class="ic">➕</span>Assenza
+  </button>
+  <button type="button" onclick="if(typeof publishWeekOperational==='function')publishWeekOperational();">
+    <span class="ic">📤</span>Pubblica
+  </button>
 </nav>
 
 <div class="modal-backdrop" id="checklistModal" style="display:none;" onclick="if(event.target===this)closeModal('checklistModal')">
@@ -21317,94 +19243,6 @@ async function downloadJpgFromPreview() {
   </div>
 </div>
 
-
-
-<script>
-(function(){
-  function isEngineEmbed(){
-    try {
-      const q = new URLSearchParams(location.search);
-      if (q.get('engine') === '1') return true;
-      if (window.self !== window.top) return true;
-    } catch (e) {}
-    return false;
-  }
-  function postParent(msg){
-    try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {}
-  }
-  function bootEngineEmbed(){
-    if (!isEngineEmbed()) return;
-    document.documentElement.classList.add('engine-embed');
-    const bar = document.getElementById('engineHostBar');
-    if (bar) bar.style.display = 'flex';
-    document.body.classList.add('engine-embed-body');
-
-    // Expose API for parent
-    window.CORVETTO_ENGINE = {
-      version: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'legacy'),
-      ready: true,
-      generate: function(){
-        try {
-          if (typeof generateAutoProposal === 'function') {
-            generateAutoProposal();
-            postParent({ type: 'corvetto-engine', event: 'generate-started' });
-            return true;
-          }
-        } catch (e) { console.warn(e); }
-        return false;
-      },
-      apply: function(force){
-        try {
-          if (typeof applyPendingProposal === 'function') {
-            applyPendingProposal(force ? { force: true } : {});
-            postParent({ type: 'corvetto-engine', event: 'apply-done' });
-            return true;
-          }
-        } catch (e) { console.warn(e); }
-        return false;
-      },
-      reloadFromStorage: function(){
-        try {
-          const raw = localStorage.getItem('turni_corvetto_test_data');
-          if (raw && typeof appData !== 'undefined') {
-            const data = JSON.parse(raw);
-            if (data && typeof data === 'object') {
-              appData = data;
-              if (typeof renderWeek === 'function') renderWeek();
-              return true;
-            }
-          }
-        } catch (e) { console.warn(e); }
-        return false;
-      }
-    };
-
-    const gen = document.getElementById('engineBtnGenerate');
-    if (gen) gen.onclick = function(){ window.CORVETTO_ENGINE.generate(); };
-    const cls = document.getElementById('engineBtnClose');
-    if (cls) cls.onclick = function(){ postParent({ type: 'corvetto-engine', event: 'close' }); };
-
-    // When proposal modal closes / applies, notify parent to refresh
-    const _origApply = typeof applyPendingProposal === 'function' ? applyPendingProposal : null;
-    if (_origApply) {
-      window.applyPendingProposal = function(options) {
-        const r = _origApply(options);
-        try { postParent({ type: 'corvetto-engine', event: 'proposal-applied' }); } catch (e) {}
-        return r;
-      };
-    }
-
-    postParent({ type: 'corvetto-engine', event: 'ready' });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(bootEngineEmbed, 50); });
-  } else {
-    setTimeout(bootEngineEmbed, 50);
-  }
-  window.addEventListener('load', function(){ setTimeout(bootEngineEmbed, 100); });
-})();
-</script>
 
 </body>
 </html>

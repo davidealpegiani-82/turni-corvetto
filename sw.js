@@ -1,4 +1,4 @@
-const CACHE = 'turni-corvetto-10.3.5';
+const CACHE = 'turni-corvetto-9.11.54';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './VERSION.txt'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
