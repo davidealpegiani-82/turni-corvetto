@@ -354,12 +354,17 @@
     }
     const locked = new Set(lockedAssignmentIds);
     const baselineById = new Map(baseline.assignments.filter(a=>a && a.id).map(a=>[a.id,a]));
-    const signature = a => JSON.stringify({
-      personId:a && a.personId, day:a && a.day, department:a && a.department,
-      start:a && a.start, end:a && a.end,
-      roles:Array.isArray(a && a.roles) ? [...a.roles].sort() : null,
-      requiredSkill:a && a.requiredSkill
-    });
+    // A manual assignment is an immutable record, not just a person/time cell.
+    // Canonicalize object keys so key ordering does not create false differences,
+    // while any changed field (including hour-counting flags and metadata) is detected.
+    const canonical = value => {
+      if (Array.isArray(value)) return value.map(canonical);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])]));
+      }
+      return value;
+    };
+    const signature = a => JSON.stringify(canonical(a));
     const evaluated = proposals.map((proposal,index)=>{
       const id = proposal && proposal.id || "proposal-"+(index+1);
       const label = proposal && proposal.label || id;
