@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.62</title>
+  <title>Turni Corvetto v9.11.63</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.62';
+    var EXPECTED='9.11.63';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -51,7 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.62"></script>
+  <script src="./engine.js?v=9.11.63"></script>
 
   <script>
     const firebaseConfig = {
@@ -69,7 +69,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.62';
+    const APP_VERSION = '9.11.63';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -85,6 +85,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.63 — Calendario assenze fisso e condiviso con filtri ferie/malattia/impegni',
     '9.11.62 — Calendario assenze unificato: ferie + malattia + impegni con colori e legenda',
     '9.11.61 — Cartella Assenze unica: ferie, malattia e impegni insieme',
     '9.11.60 — Fase E: assistente operativo locale (spiega/proponi/verifica) con conferma; engine-aware',
@@ -2397,6 +2398,18 @@
       .abs-folder-btn { font-size: 11px; min-height: 46px; }
     }
 
+  
+    .cal-type-filters {
+      display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px;
+    }
+    .cal-type-btn {
+      min-height: 34px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+      border: 1px solid var(--border); background: var(--bg-deep); color: var(--text-muted);
+    }
+    .cal-type-btn.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+
   </style>
 </head>
 <body>
@@ -2420,7 +2433,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.62</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.63</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2496,28 +2509,40 @@
     </div>
   </div>
 
-  <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
-    <div class="leave-toolbar leave-toolbar-b" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;align-items:center;">
-      <button type="button" class="alt" onclick="changeLeaveYear(-1)" aria-label="Anno precedente">◀</button>
-      <strong id="leaveYearLabel" style="min-width:70px; text-align:center; font-size:13px;">2026</strong>
-      <button type="button" class="alt" onclick="changeLeaveYear(1)" aria-label="Anno successivo">▶</button>
-      <select id="leaveWorkerFilter" onchange="leaveFilterWorker=this.value; renderLeaveView();">
+  <div class="control-card" id="absencesCalendarCard" style="margin-bottom:0; display:none;">
+    <div class="abs-folder-head">Calendario condiviso</div>
+    <div class="leave-toolbar" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;align-items:center;">
+      <button type="button" class="alt" onclick="changeLeaveYear(-1)" aria-label="Precedente">◀</button>
+      <strong id="leaveYearLabel" style="min-width:90px;text-align:center;font-size:13px;">2026</strong>
+      <button type="button" class="alt" onclick="changeLeaveYear(1)" aria-label="Successivo">▶</button>
+      <select id="leaveWorkerFilter" onchange="leaveFilterWorker=this.value; renderSharedAbsenceCalendar();">
         <option value="">Tutti i collaboratori</option>
       </select>
+      <div class="leave-view-toggle" id="leaveCalTools">
+        <button type="button" id="btnCalYear" onclick="setLeaveCalMode('year')">Anno</button>
+        <button type="button" id="btnCalMonth" class="active" onclick="setLeaveCalMode('month')">Mese</button>
+      </div>
+      <select id="leaveMonthSelect" style="display:none;" onchange="leaveMonth=parseInt(this.value); renderSharedAbsenceCalendar();"></select>
+    </div>
+    <div class="cal-type-filters" role="tablist" aria-label="Filtro calendario">
+      <button type="button" class="cal-type-btn active" data-cal-type="all" onclick="setCalendarTypeFilter('all')">Tutti</button>
+      <button type="button" class="cal-type-btn" data-cal-type="ferie" onclick="setCalendarTypeFilter('ferie')">Ferie</button>
+      <button type="button" class="cal-type-btn" data-cal-type="permesso" onclick="setCalendarTypeFilter('permesso')">Permessi</button>
+      <button type="button" class="cal-type-btn" data-cal-type="malattia" onclick="setCalendarTypeFilter('malattia')">Malattia</button>
+      <button type="button" class="cal-type-btn" data-cal-type="evento" onclick="setCalendarTypeFilter('evento')">Impegni</button>
+    </div>
+    <div class="leave-calendar-grid" id="leaveCalendarGrid"></div>
+  </div>
+
+
+  <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
+    <div class="leave-toolbar leave-toolbar-b" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;align-items:center;">
       <button type="button" class="success" onclick="openLeaveRequestModal()">➕ Nuova assenza</button>
       <button type="button" class="alt" onclick="exportLeavePDF()" title="PDF ferie">📄 PDF</button>
     </div>
     <div class="leave-seg" role="tablist" aria-label="Sezioni ferie">
-      <button type="button" class="leave-seg-btn active" data-leave-seg="cal" onclick="setLeaveSection('cal')">Calendario unico</button>
-      <button type="button" class="leave-seg-btn" data-leave-seg="req" onclick="setLeaveSection('req')">Richieste</button>
+      <button type="button" class="leave-seg-btn active" data-leave-seg="req" onclick="setLeaveSection('req')">Richieste</button>
       <button type="button" class="leave-seg-btn" data-leave-seg="bal" onclick="setLeaveSection('bal')">Residui</button>
-    </div>
-    <div class="leave-cal-tools" id="leaveCalTools" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center;">
-      <div class="leave-view-toggle">
-        <button type="button" id="btnCalYear" onclick="setLeaveCalMode('year')">Anno</button>
-        <button type="button" id="btnCalMonth" class="active" onclick="setLeaveCalMode('month')">Mese</button>
-      </div>
-      <select id="leaveMonthSelect" style="display:none;" onchange="leaveMonth=parseInt(this.value); renderLeaveView();"></select>
     </div>
   </div>
 
@@ -2705,7 +2730,6 @@
     <h3 style="font-size:13px; margin:0 0 10px; color:#f87171; text-transform:uppercase; letter-spacing:0.04em;">🤒 Malattia / Ricovero (cartella separata)</h3>
     <div id="malattiaRequestsList"></div>
   </div>
-<div class="leave-calendar-grid" id="leaveCalendarGrid"></div>
 </div>
 
 <!-- Modal Richiesta Ferie/Permessi (modello CENTROEDILE) -->
@@ -5885,6 +5909,48 @@ function isUsableAppData(value) {
 
 
   var _absencesFolder = 'ferie';
+
+  var _calendarTypeFilter = 'all';
+  function setCalendarTypeFilter(t) {
+    _calendarTypeFilter = t || 'all';
+    try {
+      document.querySelectorAll('.cal-type-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-cal-type') === _calendarTypeFilter);
+      });
+    } catch (e) {}
+    try { renderSharedAbsenceCalendar(); } catch (e2) {}
+  }
+  window.setCalendarTypeFilter = setCalendarTypeFilter;
+
+  function filterCalendarEntries(map) {
+    const f = _calendarTypeFilter || 'all';
+    if (f === 'all' || !map) return map || {};
+    const out = {};
+    Object.keys(map).forEach(function(k) {
+      const list = (map[k] || []).filter(function(en) {
+        const t = String(en.tipo || '').toLowerCase();
+        const kind = en.kind || '';
+        if (f === 'evento') return kind === 'evento' || en.status === 'evento';
+        if (f === 'malattia') return kind === 'malattia' || t.indexOf('malattia') >= 0 || t.indexOf('ricovero') >= 0;
+        if (f === 'ferie') return t.indexOf('ferie') >= 0;
+        if (f === 'permesso') {
+          return t.indexOf('permesso') >= 0 || t === 'rol' || t.indexOf('visita') >= 0 || t.indexOf('donazione') >= 0 || t.indexOf('congedo') >= 0;
+        }
+        return true;
+      });
+      if (list.length) out[k] = list;
+    });
+    return out;
+  }
+
+  function renderSharedAbsenceCalendar() {
+    // Riusa il renderer del calendario in renderLeaveView (stesso grid id)
+    if (typeof renderLeaveView === 'function') {
+      try { renderLeaveView(); } catch (e) { console.warn(e); }
+    }
+  }
+  window.renderSharedAbsenceCalendar = renderSharedAbsenceCalendar;
+
   function openAbsencesFolder(section) {
     const sec = section || 'ferie';
     _absencesFolder = (sec === 'malattia' || sec === 'eventi' || sec === 'ferie') ? sec : 'ferie';
@@ -5896,6 +5962,7 @@ function isUsableAppData(value) {
         b.classList.toggle('active', b.getAttribute('data-abs') === _absencesFolder);
       });
     } catch (e2) {}
+    try { renderSharedAbsenceCalendar(); } catch (e3) {}
   }
   window.openAbsencesFolder = openAbsencesFolder;
 
@@ -5930,6 +5997,8 @@ function isUsableAppData(value) {
 
     var af = document.getElementById('absencesFolderCard');
     if (af) af.style.display = isAbs ? '' : 'none';
+    var ac = document.getElementById('absencesCalendarCard');
+    if (ac) ac.style.display = isAbs ? '' : 'none';
     if (isAbs) {
       _absencesFolder = view;
       try {
@@ -5957,9 +6026,13 @@ function isUsableAppData(value) {
     if (pq) pq.style.display = view === 'proposta' ? '' : 'none';
 
     try {
-      if (view === 'ferie' && typeof renderLeaveView === 'function') { renderLeaveView(); try { setLeaveSection(_leaveSection || 'cal'); } catch (eLS) {} }
-      if (view === 'malattia' && typeof renderMalattiaView === 'function') { try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch(e){} renderMalattiaView(); }
-      if (view === 'eventi' && typeof renderEventsView === 'function') renderEventsView();
+      if (view === 'ferie' && typeof renderLeaveView === 'function') {
+        renderLeaveView();
+        try { setLeaveSection(_leaveSection === 'cal' ? 'req' : (_leaveSection || 'req')); } catch (eLS) {}
+      }
+      if (view === 'malattia' && typeof renderMalattiaView === 'function') { try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch(e){} renderMalattiaView(); try { renderSharedAbsenceCalendar(); } catch(eC){} }
+      if (view === 'eventi' && typeof renderEventsView === 'function') { renderEventsView(); try { renderSharedAbsenceCalendar(); } catch(eC2){} }
+      if (isAbs && typeof renderSharedAbsenceCalendar === 'function') { try { renderSharedAbsenceCalendar(); } catch (eC3) {} }
       if ((view === 'turni' || view === 'proposta') && typeof renderWeek === 'function') renderWeek();
       if (typeof updateRulesBanner === 'function') updateRulesBanner();
       if (view === 'stats' && typeof renderStatsView === 'function') renderStatsView();
@@ -8317,7 +8390,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.62', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.63', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14297,7 +14370,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.62';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.63';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -17690,7 +17763,7 @@ async function downloadJpgFromPreview() {
   }
 
 
-  var _leaveSection = 'cal';
+  var _leaveSection = 'req';
   function setLeaveSection(seg) {
     _leaveSection = seg || 'cal';
     try {
@@ -17702,11 +17775,11 @@ async function downloadJpgFromPreview() {
     var req = document.getElementById('leaveRequestsPanel');
     var bal = document.getElementById('leaveBalancesPanel');
     var tools = document.getElementById('leaveCalTools');
-    var showCal = _leaveSection === 'cal';
+    if (_leaveSection === 'cal') _leaveSection = 'req';
     var showReq = _leaveSection === 'req';
     var showBal = _leaveSection === 'bal';
-    if (cal) cal.style.display = showCal ? '' : 'none';
-    if (tools) tools.style.display = showCal ? 'flex' : 'none';
+    if (cal) cal.style.display = '';
+    if (tools) tools.style.display = 'flex';
     if (req) {
       req.style.display = showReq ? 'block' : 'none';
       if (showReq && typeof renderLeaveRequestsList === 'function') {
@@ -19032,7 +19105,7 @@ async function downloadJpgFromPreview() {
     const grid = document.getElementById('leaveCalendarGrid');
     grid.innerHTML = '';
     grid.classList.toggle('month-mode', leaveCalMode === 'month');
-    const leaveMap = getUnifiedCalendarEntriesForYear(leaveYear, leaveFilterWorker || null);
+    const leaveMap = filterCalendarEntries(getUnifiedCalendarEntriesForYear(leaveYear, leaveFilterWorker || null));
 
     const monthsToShow = leaveCalMode === 'month' ? [leaveMonth] : [0,1,2,3,4,5,6,7,8,9,10,11];
     let currentMonthCard = null;

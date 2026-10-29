@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.62
-Calendario unificato in Assenze: ferie, malattia e impegni insieme.
+Turni Corvetto v9.11.63
+Calendario condiviso fisso in Assenze, con filtri Tutti/Ferie/Permessi/Malattia/Impegni.
