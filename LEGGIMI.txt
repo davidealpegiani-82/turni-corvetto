@@ -1,3 +1,4 @@
-Turni Corvetto v9.11.56
-P0: toolbar Turni semplificata (Genera / Esporta / Problemi + Altro).
-Pannello problemi settimana unificato. SW network-first allineato.
+Turni Corvetto v9.11.57 — Fase B UX
+- Oggi: 2 azioni primarie + scorciatoie
+- Ferie: sezioni Calendario / Richieste / Residui
+- Malattia: registrazione rapida

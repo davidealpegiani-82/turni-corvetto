@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.56</title>
+  <title>Turni Corvetto v9.11.57</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.56';
+    var EXPECTED='9.11.57';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.56';
+    const APP_VERSION = '9.11.57';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.57 — Fase B UX: Oggi snella, Ferie a sezioni Calendario/Richieste/Residui, percorsi rapidi',
     '9.11.56 — P0: toolbar Turni snella, pannello problemi unico, versioning/SW allineati',
     '9.11.55 — Fix cache: SW network-first + aggiornamento forzato reale',
     '9.11.54 — Ripristino interfaccia standard pre-Pulse (versione stabile funzionante)',
@@ -2311,6 +2312,38 @@
       .toolbar-more-panel { right: auto; left: 0; }
     }
 
+  
+    .op-actions-b { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 8px; }
+    .op-actions-b .primary { grid-column: 1 / -1; }
+    @media (min-width: 520px) {
+      .op-actions-b { grid-template-columns: 1.4fr 1fr; }
+      .op-actions-b .primary { grid-column: auto; }
+    }
+    .op-actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .op-actions-row .alt { min-height: 40px; font-size: 13px; }
+    .op-details {
+      margin: 12px 0; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--card-bg);
+    }
+    .op-details > summary {
+      cursor: pointer; font-weight: 800; font-size: 13px;
+      list-style: none; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .op-details > summary::-webkit-details-marker { display: none; }
+    .leave-seg {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+      margin-top: 4px;
+    }
+    .leave-seg-btn {
+      min-height: 40px; border-radius: 10px; font-weight: 700; font-size: 13px;
+      border: 1px solid var(--border); background: var(--bg-deep); color: var(--text-muted);
+    }
+    .leave-seg-btn.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+    body.light-theme .leave-seg-btn.active { color: #fff; }
+
   </style>
 </head>
 <body>
@@ -2334,7 +2367,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.56</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.57</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2402,38 +2435,43 @@
   </div>
 
   <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
-    <div class="leave-toolbar" style="margin-bottom:0;">
-      <button class="alt" onclick="changeLeaveYear(-1)">◀</button>
+    <div class="leave-toolbar leave-toolbar-b" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;align-items:center;">
+      <button type="button" class="alt" onclick="changeLeaveYear(-1)" aria-label="Anno precedente">◀</button>
       <strong id="leaveYearLabel" style="min-width:70px; text-align:center; font-size:13px;">2026</strong>
-      <button class="alt" onclick="changeLeaveYear(1)">▶</button>
+      <button type="button" class="alt" onclick="changeLeaveYear(1)" aria-label="Anno successivo">▶</button>
+      <select id="leaveWorkerFilter" onchange="leaveFilterWorker=this.value; renderLeaveView();">
+        <option value="">Tutti i collaboratori</option>
+      </select>
+      <button type="button" class="success" onclick="openLeaveRequestModal()">➕ Nuova assenza</button>
+      <button type="button" class="alt" onclick="exportLeavePDF()" title="PDF ferie">📄 PDF</button>
+    </div>
+    <div class="leave-seg" role="tablist" aria-label="Sezioni ferie">
+      <button type="button" class="leave-seg-btn active" data-leave-seg="cal" onclick="setLeaveSection('cal')">Calendario</button>
+      <button type="button" class="leave-seg-btn" data-leave-seg="req" onclick="setLeaveSection('req')">Richieste</button>
+      <button type="button" class="leave-seg-btn" data-leave-seg="bal" onclick="setLeaveSection('bal')">Residui</button>
+    </div>
+    <div class="leave-cal-tools" id="leaveCalTools" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center;">
       <div class="leave-view-toggle">
         <button type="button" id="btnCalYear" onclick="setLeaveCalMode('year')">Anno</button>
         <button type="button" id="btnCalMonth" class="active" onclick="setLeaveCalMode('month')">Mese</button>
       </div>
       <select id="leaveMonthSelect" style="display:none;" onchange="leaveMonth=parseInt(this.value); renderLeaveView();"></select>
-      <select id="leaveWorkerFilter" onchange="leaveFilterWorker=this.value; renderLeaveView();">
-        <option value="">Tutti i collaboratori</option>
-      </select>
-      <button class="success" onclick="openLeaveRequestModal()">➕ Ferie / Permesso</button>
-      <button class="alt" type="button" id="btnToggleRequests" onclick="toggleLeaveRequests()">📋 Richieste ▾</button>
-      <button class="alt" type="button" id="btnToggleBalances" onclick="toggleLeaveBalances()">📊 Residui ▾</button>
-      <button class="alt" onclick="exportLeavePDF()">📄 PDF</button>
     </div>
   </div>
 
   
   <div class="control-card" id="malattiaControlCard" style="margin-bottom:0; display:none;">
-    <div class="leave-toolbar" style="margin-bottom:0; flex-wrap:wrap; gap:8px;">
-      <button class="alt" onclick="changeLeaveYear(-1)">◀</button>
+    <div class="leave-toolbar" style="margin-bottom:0; flex-wrap:wrap; gap:8px;align-items:center;">
+      <button type="button" class="alt" onclick="changeLeaveYear(-1)">◀</button>
       <strong id="malattiaYearLabel" style="min-width:70px; text-align:center; font-size:13px;">2026</strong>
-      <button class="alt" onclick="changeLeaveYear(1)">▶</button>
+      <button type="button" class="alt" onclick="changeLeaveYear(1)">▶</button>
       <select id="malattiaWorkerFilter" onchange="leaveFilterWorker=this.value; renderMalattiaView();">
         <option value="">Tutti i collaboratori</option>
       </select>
-      <button type="button" class="btn-malattia" onclick="openMalattiaModal()">➕ Malattia / Ricovero</button>
-      <button class="alt" type="button" onclick="exportMalattiaPDF()">📄 PDF malattie</button>
+      <button type="button" class="btn-malattia" onclick="openMalattiaModal()">➕ Registra</button>
+      <button type="button" class="alt" onclick="exportMalattiaPDF()">📄 PDF</button>
     </div>
-    <p style="margin:10px 0 0; font-size:12px; color:var(--text-muted);">Cartella separata da ferie e permessi. Certificati medici e ricoveri.</p>
+    <p style="margin:10px 0 0; font-size:12px; color:var(--text-muted);">In alto le pratiche <strong>in corso</strong>; storico sotto. Separato da ferie/permessi.</p>
   </div>
 
 <div class="control-card" id="eventiControlCard" style="margin-bottom:0; display:none;">
@@ -2457,27 +2495,31 @@
     <div class="op-status-row" id="opStatusRow"></div>
   </div>
 
-  <div class="op-actions">
+  <div class="op-actions op-actions-b">
     <button type="button" class="primary" onclick="generateAutoProposal()">✨ Genera turni</button>
-    <button type="button" class="secondary" onclick="openManualEditPicker()">✏️ Modifica turno</button>
     <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
-    <button type="button" class="secondary" onclick="publishWeekOperational()">📤 Pubblica</button>
+  </div>
+  <div class="op-actions-row">
+    <button type="button" class="alt" onclick="switchView('turni')">📋 Tabella</button>
+    <button type="button" class="alt" onclick="openWeekIssues()">⚠️ Problemi</button>
+    <button type="button" class="alt" onclick="switchView('turni'); if(typeof openExportMenu==='function')openExportMenu();">📄 Esporta</button>
   </div>
 
   <div class="op-section-title">Cosa fare ora</div>
   <div id="opSuggestions"></div>
 
-  <div class="op-section-title">Assenze</div>
-  <div class="op-card"><ul class="op-list" id="opLeavesList"></ul></div>
+  <details class="op-details" open>
+    <summary>Assenze e impegni</summary>
+    <div class="op-section-title" style="margin-top:10px;">Assenze</div>
+    <div class="op-card"><ul class="op-list" id="opLeavesList"></ul></div>
+    <div class="op-section-title">Impegni</div>
+    <div class="op-card"><ul class="op-list" id="opEventsList"></ul></div>
+  </details>
 
-  <div class="op-section-title">Impegni</div>
-  <div class="op-card"><ul class="op-list" id="opEventsList"></ul></div>
-
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px;">
-    <button type="button" class="alt" onclick="switchView('turni')">Apri tabella turni</button>
+  <div class="op-actions-row" style="margin-top:14px;">
     <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
     <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
-    <button type="button" class="alt" onclick="switchView('eventi')">Tutti gli impegni</button>
+    <button type="button" class="alt" onclick="switchView('eventi')">Impegni</button>
   </div>
 </div>
 
@@ -2498,8 +2540,8 @@
     </div>
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist settimana</button>
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="document.getElementById('weekHome').scrollIntoView({behavior:'smooth',block:'nearest'})">🏠 Riepilogo</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openWeekIssues()">⚠️ Problemi settimana</button>
+    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist</button>
   </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
@@ -4991,7 +5033,7 @@ function isUsableAppData(value) {
     }
     const box = document.getElementById('opSuggestions');
     if (box) {
-      const sugs = buildOperationalSuggestions();
+      const sugs = (buildOperationalSuggestions() || []).slice(0, 3);
       box.innerHTML = sugs.map(function(s) {
         const act = JSON.stringify(s.action || {}).replace(/'/g, '&#39;');
         return '<div class="op-card">' +
@@ -5867,7 +5909,7 @@ function isUsableAppData(value) {
     if (pq) pq.style.display = view === 'proposta' ? '' : 'none';
 
     try {
-      if (view === 'ferie' && typeof renderLeaveView === 'function') renderLeaveView();
+      if (view === 'ferie' && typeof renderLeaveView === 'function') { renderLeaveView(); try { setLeaveSection(_leaveSection || 'cal'); } catch (eLS) {} }
       if (view === 'malattia' && typeof renderMalattiaView === 'function') { try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch(e){} renderMalattiaView(); }
       if (view === 'eventi' && typeof renderEventsView === 'function') renderEventsView();
       if ((view === 'turni' || view === 'proposta') && typeof renderWeek === 'function') renderWeek();
@@ -8227,7 +8269,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.56', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.57', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14207,7 +14249,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.56';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.57';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -17454,6 +17496,48 @@ async function downloadJpgFromPreview() {
     document.getElementById('leaveMonthSelect').style.display = mode === 'month' ? 'inline-block' : 'none';
     renderLeaveView();
   }
+
+
+  var _leaveSection = 'cal';
+  function setLeaveSection(seg) {
+    _leaveSection = seg || 'cal';
+    try {
+      document.querySelectorAll('.leave-seg-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-leave-seg') === _leaveSection);
+      });
+    } catch (e) {}
+    var cal = document.getElementById('leaveCalendarGrid');
+    var req = document.getElementById('leaveRequestsPanel');
+    var bal = document.getElementById('leaveBalancesPanel');
+    var tools = document.getElementById('leaveCalTools');
+    var showCal = _leaveSection === 'cal';
+    var showReq = _leaveSection === 'req';
+    var showBal = _leaveSection === 'bal';
+    if (cal) cal.style.display = showCal ? '' : 'none';
+    if (tools) tools.style.display = showCal ? 'flex' : 'none';
+    if (req) {
+      req.style.display = showReq ? 'block' : 'none';
+      if (showReq && typeof renderLeaveRequestsList === 'function') {
+        try { renderLeaveRequestsList(); } catch (eR) {}
+      }
+    }
+    if (bal) {
+      bal.style.display = showBal ? 'block' : 'none';
+      if (showBal && typeof renderLeaveBalances === 'function') {
+        try { renderLeaveBalances(); } catch (eB) {
+          try { if (typeof renderLeaveBalanceBar === 'function') renderLeaveBalanceBar(); } catch (e2) {}
+        }
+      }
+    }
+    // keep legacy toggle buttons in sync if present
+    try {
+      var br = document.getElementById('btnToggleRequests');
+      var bb = document.getElementById('btnToggleBalances');
+      if (br) br.textContent = showReq ? '📋 Richieste ▴' : '📋 Richieste ▾';
+      if (bb) bb.textContent = showBal ? '📊 Residui ▴' : '📊 Residui ▾';
+    } catch (eT) {}
+  }
+  window.setLeaveSection = setLeaveSection;
 
   function toggleLeaveRequests() {
     const panel = document.getElementById('leaveRequestsPanel');
