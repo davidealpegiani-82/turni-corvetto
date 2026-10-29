@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.67
-Spazio utile sopra bottom bar: pagine e modali non coperte dai 4 tasti.
+Turni Corvetto v9.11.68
+Toolbar: un solo percorso Problemi, menu Altro visibile, Svuota tabella in Altro.

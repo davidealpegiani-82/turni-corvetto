@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.67</title>
+  <title>Turni Corvetto v9.11.68</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.67';
+    var EXPECTED='9.11.68';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.67"></script>
+  <script src="./engine.js?v=9.11.68"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.67';
+    const APP_VERSION = '9.11.68';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.68 — Toolbar Turni: niente Problemi doppio, Altro visibile, Svuota tabella accessibile',
     '9.11.67 — Spazio utile sopra la bottom bar: body e modali non più coperti',
     '9.11.66 — Pasqua + 16 agosto (commercio); chip calendario con nome festa',
     '9.11.65 — Festività nazionali e Milano (S.Ambrogio) in calendario, tabella e generatore',
@@ -2343,23 +2344,40 @@
     .manual-hint { font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.35; }
 
     .toolbar-p0 { display: flex; }
-    .toolbar-more { position: relative; }
+    #turniControlCard,
+    #turniControlCard .leave-toolbar {
+      overflow: visible !important;
+      position: relative;
+      z-index: 40;
+    }
+    .toolbar-more { position: relative; z-index: 50; }
+    .toolbar-more[open] { z-index: 9700; }
     .toolbar-more > summary {
       list-style: none; cursor: pointer; user-select: none;
       min-height: 40px; display: inline-flex; align-items: center;
       padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
       background: var(--card-bg); font-weight: 700; font-size: 13px;
+      color: var(--text-main);
     }
     .toolbar-more > summary::-webkit-details-marker { display: none; }
     .toolbar-more-panel {
-      position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
-      min-width: 200px; display: flex; flex-direction: column; gap: 6px;
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 9700;
+      min-width: 220px; display: flex; flex-direction: column; gap: 6px;
       padding: 10px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--card-bg); box-shadow: 0 12px 28px rgba(0,0,0,.25);
+      background: var(--card-bg); box-shadow: 0 16px 36px rgba(0,0,0,.35);
+    }
+    body.light-theme .toolbar-more-panel {
+      background: #fff;
+      box-shadow: 0 16px 36px rgba(15,23,42,.18);
     }
     .toolbar-more-panel button { width: 100%; justify-content: flex-start; }
     @media (max-width: 640px) {
-      .toolbar-more-panel { right: auto; left: 0; }
+      .toolbar-more-panel {
+        right: 0; left: auto;
+        /* apre verso l'alto se poco spazio sotto */
+        top: auto;
+        bottom: calc(100% + 6px);
+      }
     }
 
   
@@ -2460,7 +2478,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.67</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.68</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2509,15 +2527,15 @@
       <button type="button" class="alt" onclick="changeWeek(1)" title="Settimana successiva" aria-label="Settimana successiva">▶</button>
       <button type="button" class="btn-proposal" onclick="generateAutoProposal()" title="Genera proposta turni">✨ Genera</button>
       <button type="button" class="alt" onclick="openExportMenu()" title="Esporta PDF o immagini">📄 Esporta</button>
-      <button type="button" class="alt" onclick="openWeekIssues()" title="Problemi e coperture della settimana">⚠️ Problemi</button>
-      <details class="toolbar-more">
+      <details class="toolbar-more" id="turniToolbarMore">
         <summary>Altro</summary>
         <div class="toolbar-more-panel">
-          <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
-          <button type="button" class="alt" onclick="copyWeek(2)">📋 Copia 2 sett. fa</button>
-          <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist</button>
-          <button type="button" class="alt" onclick="openGlobalAiAssistant()">🧠 Assistente</button>
-          <button type="button" class="danger" onclick="resetAppData()">🗑️ Svuota tabella</button>
+          <button type="button" class="alt" onclick="openWeekIssues(); closeTurniToolbarMore();">⚠️ Problemi settimana</button>
+          <button type="button" class="alt" onclick="openPublishChecklist(); closeTurniToolbarMore();">✅ Checklist</button>
+          <button type="button" class="alt" onclick="openManualEditPicker(); closeTurniToolbarMore();">✏️ Modifica turno</button>
+          <button type="button" class="alt" onclick="copyWeek(2); closeTurniToolbarMore();">📋 Copia 2 sett. fa</button>
+          <button type="button" class="alt" onclick="openGlobalAiAssistant(); closeTurniToolbarMore();">🧠 Assistente</button>
+          <button type="button" class="danger" onclick="closeTurniToolbarMore(); resetAppData();">🗑️ Svuota tabella</button>
         </div>
       </details>
     </div>
@@ -2651,10 +2669,6 @@
       <h4>Impegni</h4>
       <div id="weekHomeEvents" class="empty">—</div>
     </div>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;align-items:center;">
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openWeekIssues()">⚠️ Problemi settimana</button>
-    <button type="button" class="alt" style="font-size:12px;min-height:36px;" onclick="openPublishChecklist()">✅ Checklist</button>
   </div>
   <div id="propostaQuickBar" class="control-card" style="display:none;margin-bottom:12px;">
     <h3 style="margin:0 0 8px;font-size:15px;">✨ Proposta automatica</h3>
@@ -5286,6 +5300,22 @@ function isUsableAppData(value) {
     return health;
   }
   window.updateWeekStatusUI = updateWeekStatusUI;
+
+
+  function closeTurniToolbarMore() {
+    try {
+      var d = document.getElementById('turniToolbarMore');
+      if (d) d.open = false;
+    } catch (e) {}
+  }
+  window.closeTurniToolbarMore = closeTurniToolbarMore;
+  // Chiudi menu Altro cliccando fuori
+  document.addEventListener('click', function(ev) {
+    var d = document.getElementById('turniToolbarMore');
+    if (!d || !d.open) return;
+    if (d.contains(ev.target)) return;
+    d.open = false;
+  }, true);
 
   function openWeekIssues() {
     const list = document.getElementById('weekIssuesList');
@@ -8371,7 +8401,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.67', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.68', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14418,7 +14448,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.67';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.68';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
