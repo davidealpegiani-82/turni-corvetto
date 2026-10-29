@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.59</title>
+  <title>Turni Corvetto v9.11.60</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.59';
+    var EXPECTED='9.11.60';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -51,7 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.59"></script>
+  <script src="./engine.js?v=9.11.60"></script>
 
   <script>
     const firebaseConfig = {
@@ -69,7 +69,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.59';
+    const APP_VERSION = '9.11.60';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -85,6 +85,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.60 — Fase E: assistente operativo locale (spiega/proponi/verifica) con conferma; engine-aware',
     '9.11.59 — Fase D: conflitti con revisioni, indicatori sync, backup in conflitto, template regole RTDB',
     '9.11.58 — Fase C: OFFICIAL_POLICY + facciata CorvettoEngine in engine.js, self-test unificato',
     '9.11.57 — Fase B UX: Oggi snella, Ferie a sezioni Calendario/Richieste/Residui, percorsi rapidi',
@@ -2377,7 +2378,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.59</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.60</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2437,6 +2438,7 @@
           <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
           <button type="button" class="alt" onclick="copyWeek(2)">📋 Copia 2 sett. fa</button>
           <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist</button>
+          <button type="button" class="alt" onclick="openGlobalAiAssistant()">🧠 Assistente</button>
           <button type="button" class="danger" onclick="resetAppData()">🗑️ Svuota tabella</button>
         </div>
       </details>
@@ -2512,6 +2514,7 @@
   <div class="op-actions-row">
     <button type="button" class="alt" onclick="switchView('turni')">📋 Tabella</button>
     <button type="button" class="alt" onclick="openWeekIssues()">⚠️ Problemi</button>
+    <button type="button" class="alt" onclick="openGlobalAiAssistant()">🧠 Assistente</button>
     <button type="button" class="alt" onclick="switchView('turni'); if(typeof openExportMenu==='function')openExportMenu();">📄 Esporta</button>
   </div>
 
@@ -2898,9 +2901,10 @@
 
 
 
-<div class="modal-backdrop" id="globalAiModal" style="display:none!important;visibility:hidden;pointer-events:none;">
+<div class="modal-backdrop" id="globalAiModal" style="display:none;">
   <div class="modal" style="max-width:560px;">
-    <h3 style="margin:0 0 6px;">🧠 Assistente intelligente</h3>
+    <h3 style="margin:0 0 6px;">🧠 Assistente operativo</h3>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--text-muted);">Spiega e propone; applica solo dopo conferma. Usa il motore ufficiale per i turni.</p>
     <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
       Gestisci <strong>turni, ferie, permessi, malattia e impegni</strong> in italiano libero.
       Anteprima obbligatoria prima del salvataggio. Interprete locale + Groq (gratis) per frasi complesse.
@@ -2912,6 +2916,9 @@
       <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Corso ' )">Corso</button>
       <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('Malattia ' )">Malattia</button>
       <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="runGlobalAiWeekProblems()">Problemi settimana</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('genera proposta')">Genera proposta</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('verifica proposta')">Verifica proposta</button>
+      <button type="button" class="alt" style="font-size:11px;padding:4px 8px;" onclick="fillGlobalAiChip('aiuto')">Aiuto</button>
     </div>
     <div id="globalAiChat" style="max-height:240px;overflow-y:auto;margin-bottom:10px;font-size:12px;line-height:1.45;min-height:80px;"></div>
     <textarea id="globalAiInput" rows="3" placeholder="Scrivi liberamente: es. domani Davide in donazione tutto il giorno; oppure ferie Andrea settimana prossima…" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #a7f3d0;padding:10px;font-size:13px;resize:vertical;"></textarea>
@@ -8232,7 +8239,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.59', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.60', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14212,7 +14219,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.59';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.60';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -14326,12 +14333,96 @@ function minLunchBreakMinutes(wId) {
   }
 
 
-  function openGlobalAiAssistant() {
-    showToast('Assistente disattivato', 'info', 2000);
+
+  /** Fase E: comandi locali legati al motore (senza API esterna). */
+  function handleEngineAssistantIntent(rawMsg) {
+    const msg = String(rawMsg || '').trim();
+    const low = msg.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!low) return null;
+
+    // Problemi / stato settimana
+    if (/problemi|anomalie|cosa\s+non\s+torna|check\s+settimana|spiega\s+stato|stato\s+settimana|copertur/.test(low)) {
+      let report = '';
+      try {
+        if (typeof buildWeekProblemsReport === 'function') report = buildWeekProblemsReport();
+      } catch (e) {}
+      try {
+        if (typeof computeWeekHealth === 'function') {
+          const h = computeWeekHealth();
+          report += (report ? '\n\n' : '') + 'Salute: ' + (h.label || h.level || '—');
+          (h.coverage || []).filter(function(x){ return x && x.bad; }).slice(0, 6).forEach(function(x){
+            report += '\n• ' + (x.day || '') + ' ' + (x.text || 'scopertura');
+          });
+        }
+      } catch (e2) {}
+      if (!report) report = 'Nessun report disponibile.';
+      return {
+        kind: 'report',
+        summary: report,
+        actions: [],
+        chips: [
+          { label: 'Apri problemi', run: function(){ try { openWeekIssues(); } catch(e){} } },
+          { label: 'Genera proposta', run: function(){ try { closeModal('globalAiModal'); generateAutoProposal(); } catch(e){} } }
+        ]
+      };
+    }
+
+    // Genera proposta
+    if (/genera(\s+la)?\s+proposta|genera(\s+i)?\s+turni|ricalcola(\s+turni)?|sistema\s+la\s+settimana/.test(low)) {
+      return {
+        kind: 'propose_generate',
+        summary: 'Posso avviare il motore regole (generateAutoProposal) sulla settimana corrente.\n' +
+          'La proposta passerà dai controlli di copertura prima dell\'applicazione.\n' +
+          'Conferma per aprire il generatore (potrai ancora rivedere prima di applicare).',
+        actions: [{ type: 'engine_generate' }],
+        confirmLabel: 'Avvia generatore'
+      };
+    }
+
+    // Verifica proposta in sospeso
+    if (/verifica(\s+la)?\s+proposta|controlla(\s+la)?\s+proposta/.test(low)) {
+      const p = window.pendingTurnProposal;
+      if (!p || !p.week) {
+        return { kind: 'report', summary: 'Non c\'è una proposta in sospeso. Prima genera i turni.', actions: [] };
+      }
+      let lines = ['Verifica proposta ' + (p.weekKey || '') + ':'];
+      try {
+        if (window.CorvettoEngine && typeof window.CorvettoEngine.hardViolations === 'function') {
+          const viol = window.CorvettoEngine.hardViolations(p) || [];
+          if (!viol.length) lines.push('✓ Nessuna violazione dura rilevata.');
+          else {
+            lines.push('Violazioni:');
+            viol.slice(0, 10).forEach(function(v){ lines.push('• ' + v); });
+          }
+        } else if (typeof proposalHardViolations === 'function') {
+          const viol = proposalHardViolations(p) || [];
+          if (!viol.length) lines.push('✓ Nessuna violazione dura.');
+          else viol.slice(0, 10).forEach(function(v){ lines.push('• ' + v); });
+        }
+      } catch (eV) {
+        lines.push('Verifica non riuscita: ' + (eV.message || eV));
+      }
+      return { kind: 'report', summary: lines.join('\n'), actions: [] };
+    }
+
+    // Aiuto
+    if (/^(aiuto|help|cosa\s+sai\s+fare)\b/.test(low)) {
+      return {
+        kind: 'report',
+        summary: 'Comandi locali (senza API):\n' +
+          '• problemi settimana / spiega stato\n' +
+          '• genera proposta / genera turni\n' +
+          '• verifica proposta\n' +
+          '• ferie/permesso/malattia + nome + data (come prima)\n' +
+          'Opzionale: configura API (⚙️) per frasi più libere via Groq.',
+        actions: []
+      };
+    }
+    return null;
   }
+  window.handleEngineAssistantIntent = handleEngineAssistantIntent;
 
-  function __removedOpenGlobalAiAssistant_DEAD() {
-
+  function openGlobalAiAssistant() {
     const modal = document.getElementById('globalAiModal');
     if (!modal) {
       showToast('Modale assistente non trovata — aggiorna la pagina', 'error');
@@ -14345,6 +14436,19 @@ function minLunchBreakMinutes(wId) {
       const p = document.getElementById('globalAiApiProxy'); if (p) p.value = s.proxy || '';
     } catch (e) {}
     modal.style.display = 'flex';
+    modal.style.visibility = 'visible';
+    modal.style.pointerEvents = 'auto';
+    try {
+      const chat = document.getElementById('globalAiChat');
+      if (chat && !chat.dataset.seeded) {
+        appendGlobalAiChat('assistant',
+          'Assistente operativo Corvetto (locale + opzionale API).\n' +
+          'Posso: spiegare i problemi della settimana, proporre «Genera turni», verificare coperture.\n' +
+          'Nessuna modifica viene salvata senza la tua conferma.\n' +
+          'Prova: «problemi settimana» · «genera proposta» · «spiega stato»');
+        chat.dataset.seeded = '1';
+      }
+    } catch (e2) {}
   }
 
   function toggleGlobalAiSettings() {
@@ -15123,8 +15227,32 @@ function applyGlobalAiActions(actions) {
     if (pending) pending.style.display = 'none';
     window._pendingGlobalAiActions = null;
 
-    // Comando analisi problemi
-    if (/problemi|anomalie|cosa\\s+non\\s+torna|check\\s+settimana/i.test(msg)) {
+    // Fase E: comandi motore locali
+    try {
+      const engIntent = typeof handleEngineAssistantIntent === 'function' ? handleEngineAssistantIntent(expanded || msg) : null;
+      if (engIntent) {
+        appendGlobalAiChat('assistant', engIntent.summary || 'Ok.');
+        if (engIntent.kind === 'propose_generate' && engIntent.actions && engIntent.actions.length) {
+          window._pendingGlobalAiActions = engIntent.actions;
+          const list = document.getElementById('globalAiPendingList');
+          if (list) list.innerHTML = '<div>Avvio generatore turni (motore ufficiale) sulla settimana corrente.</div>';
+          const meta = document.getElementById('globalAiPendingMeta');
+          if (meta) meta.textContent = 'Nulla è applicato finché non confermi. Poi rivedrai la proposta come sempre.';
+          if (pending) pending.style.display = 'block';
+          if (status) status.textContent = 'In attesa di conferma';
+        } else if (engIntent.chips && engIntent.chips.length) {
+          // chips as soft actions — no auto apply
+          if (status) status.textContent = 'Analisi completata';
+        } else {
+          if (status) status.textContent = 'Completato';
+        }
+        if (btn) btn.disabled = false;
+        return;
+      }
+    } catch (eEng) { console.warn(eEng); }
+
+    // Comando analisi problemi (legacy)
+    if (/problemi|anomalie|cosa\s+non\s+torna|check\s+settimana/i.test(msg)) {
       appendGlobalAiChat('assistant', buildWeekProblemsReport());
       if (status) status.textContent = 'Analisi completata';
       if (btn) btn.disabled = false;
@@ -15226,6 +15354,29 @@ function applyGlobalAiActions(actions) {
 
 function confirmGlobalAiActions() {
     const actions = window._pendingGlobalAiActions;
+    if (!actions || !actions.length) {
+      showToast('Nessuna azione da confermare', 'warn');
+      return;
+    }
+    // Fase E: azione motore
+    if (actions.length === 1 && actions[0] && actions[0].type === 'engine_generate') {
+      window._pendingGlobalAiActions = null;
+      const pending = document.getElementById('globalAiPending');
+      if (pending) pending.style.display = 'none';
+      try { closeModal('globalAiModal'); } catch (e) {}
+      try {
+        if (window.CorvettoEngine && typeof window.CorvettoEngine.generate === 'function') {
+          window.CorvettoEngine.generate();
+        } else if (typeof generateAutoProposal === 'function') {
+          generateAutoProposal();
+        }
+        showToast('Generatore avviato — rivedi la proposta prima di applicare', 'info', 3500);
+      } catch (eG) {
+        showToast('Generatore non disponibile', 'error');
+      }
+      return;
+    }
+    // --- azioni dati (assenze/impegni/turni) ---
     if (!actions || !actions.length) { showToast('Nessuna azione', 'error'); return; }
     window._globalAiUndoStack = window._globalAiUndoStack || [];
     window._globalAiUndoStack.push({

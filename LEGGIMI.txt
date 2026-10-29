@@ -1,3 +1,4 @@
-Turni Corvetto v9.11.59 — Fase D dati/sync
-- Indicatori revisione cloud, conflitti guidati, backup in barra conflitto
-- Vedi SECURITY.md e database.rules.example.json (non applicate automaticamente)
+Turni Corvetto v9.11.60 — Fase E assistente
+- Assistente operativo riattivato (locale + API opzionale)
+- Comandi: problemi settimana, genera proposta, verifica proposta
+- Applica solo dopo conferma; generatore = motore ufficiale
