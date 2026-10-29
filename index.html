@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.61</title>
+  <title>Turni Corvetto v9.11.62</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.61';
+    var EXPECTED='9.11.62';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -51,7 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.61"></script>
+  <script src="./engine.js?v=9.11.62"></script>
 
   <script>
     const firebaseConfig = {
@@ -69,7 +69,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.61';
+    const APP_VERSION = '9.11.62';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -85,6 +85,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.62 — Calendario assenze unificato: ferie + malattia + impegni con colori e legenda',
     '9.11.61 — Cartella Assenze unica: ferie, malattia e impegni insieme',
     '9.11.60 — Fase E: assistente operativo locale (spiega/proponi/verifica) con conferma; engine-aware',
     '9.11.59 — Fase D: conflitti con revisioni, indicatori sync, backup in conflitto, template regole RTDB',
@@ -963,9 +964,29 @@
       font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       cursor: pointer; color: #fff;
     }
+
     .leave-chip.tipo-ferie { background: #059669; }
-    .leave-chip.tipo-altro { background: #7c3aed; }
+    .leave-chip.tipo-permesso { background: #7c3aed; }
+    .leave-chip.tipo-malattia { background: #ea580c; }
+    .leave-chip.tipo-ricovero { background: #e11d48; }
+    .leave-chip.tipo-evento { background: #2563eb; }
     .leave-chip.tipo-richiesta { background: #d97706; }
+    .leave-chip.tipo-altro { background: #64748b; }
+    .cal-legend {
+      display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0 4px;
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+    }
+    .cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .cal-legend i {
+      width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+    }
+    .cal-legend i.ferie { background: #059669; }
+    .cal-legend i.permesso { background: #7c3aed; }
+    .cal-legend i.malattia { background: #ea580c; }
+    .cal-legend i.ricovero { background: #e11d48; }
+    .cal-legend i.evento { background: #2563eb; }
+    .cal-legend i.richiesta { background: #d97706; }
+
     .leave-day.today-leave {
       outline: 2px solid var(--primary);
       background: rgba(59, 130, 246, 0.08);
@@ -2399,7 +2420,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.61</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.62</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2487,7 +2508,7 @@
       <button type="button" class="alt" onclick="exportLeavePDF()" title="PDF ferie">📄 PDF</button>
     </div>
     <div class="leave-seg" role="tablist" aria-label="Sezioni ferie">
-      <button type="button" class="leave-seg-btn active" data-leave-seg="cal" onclick="setLeaveSection('cal')">Calendario</button>
+      <button type="button" class="leave-seg-btn active" data-leave-seg="cal" onclick="setLeaveSection('cal')">Calendario unico</button>
       <button type="button" class="leave-seg-btn" data-leave-seg="req" onclick="setLeaveSection('req')">Richieste</button>
       <button type="button" class="leave-seg-btn" data-leave-seg="bal" onclick="setLeaveSection('bal')">Residui</button>
     </div>
@@ -8296,7 +8317,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.61', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.62', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14276,7 +14297,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.61';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.62';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -18857,12 +18878,86 @@ async function downloadJpgFromPreview() {
           name: shortName,
           fullName: w ? w.name : req.workerId,
           tipo: req.tipo,
-          status: req.status
+          status: req.status,
+          kind: (typeof isMalattiaTipo === 'function' && isMalattiaTipo(req.tipo)) ? 'malattia' : 'leave'
         });
       }, false);
     });
     return map;
   }
+
+  /** Calendario condiviso: ferie/permessi + malattia/ricovero + impegni. */
+  function getUnifiedCalendarEntriesForYear(year, workerId) {
+    const map = getLeaveEntriesForYear(year, workerId);
+    // Impegni / eventi
+    (appData.events || []).forEach(function(ev) {
+      if (!ev || !ev.date) return;
+      const d = new Date(String(ev.date).slice(0, 10) + 'T12:00:00');
+      if (!isFinite(d.getTime()) || d.getFullYear() !== year) return;
+      const key = (typeof localDateKey === 'function') ? localDateKey(d) : String(ev.date).slice(0, 10);
+      const ids = Array.isArray(ev.participantIds) ? ev.participantIds.slice() : [];
+      if (!ids.length && ev.workerId) ids.push(ev.workerId);
+      if (workerId) {
+        if (ids.length && ids.indexOf(workerId) < 0) return;
+        if (!ids.length) return;
+      }
+      const people = ids.length ? ids : [null];
+      people.forEach(function(wid) {
+        if (workerId && wid && wid !== workerId) return;
+        const w = wid ? (appData.workers || []).find(function(x){ return x.id === wid; }) : null;
+        const shortName = w ? (String(w.name || '').split(' ').pop() || w.name) : (ev.title ? String(ev.title).slice(0, 10) : 'Evento');
+        if (!map[key]) map[key] = [];
+        map[key].push({
+          reqId: null,
+          eventId: ev.id || null,
+          workerId: wid || '',
+          name: shortName,
+          fullName: w ? w.name : (ev.title || 'Impegno'),
+          tipo: ev.title ? ('Impegno: ' + ev.title) : 'Impegno',
+          status: 'evento',
+          kind: 'evento',
+          event: ev
+        });
+      });
+    });
+    return map;
+  }
+  function calendarChipClass(en) {
+    if (!en) return 'tipo-altro';
+    if (en.status === 'richiesta') return 'tipo-richiesta';
+    if (en.kind === 'evento' || en.status === 'evento') return 'tipo-evento';
+    const t = String(en.tipo || '').toLowerCase();
+    if (t.indexOf('ricovero') >= 0) return 'tipo-ricovero';
+    if (t.indexOf('malattia') >= 0) return 'tipo-malattia';
+    if (t.indexOf('ferie') >= 0) return 'tipo-ferie';
+    if (t.indexOf('permesso') >= 0 || t === 'rol' || t.indexOf('visita') >= 0 || t.indexOf('donazione') >= 0) return 'tipo-permesso';
+    return 'tipo-altro';
+  }
+  function openCalendarEntry(en) {
+    if (!en) return;
+    if (en.kind === 'evento' || en.eventId || en.event) {
+      try {
+        if (typeof openAbsencesFolder === 'function') openAbsencesFolder('eventi');
+        if (typeof openEventModal === 'function') openEventModal(en.event || en.eventId);
+        else if (typeof editEvent === 'function') editEvent(en.eventId || (en.event && en.event.id));
+      } catch (e) { try { openAbsencesFolder('eventi'); } catch (e2) {} }
+      return;
+    }
+    const t = String(en.tipo || '').toLowerCase();
+    if (t.indexOf('malattia') >= 0 || t.indexOf('ricovero') >= 0 || en.kind === 'malattia') {
+      try {
+        if (typeof openAbsencesFolder === 'function') openAbsencesFolder('malattia');
+        if (typeof openMalattiaModal === 'function') openMalattiaModal(en.reqId);
+      } catch (e) {}
+      return;
+    }
+    try {
+      if (typeof openAbsencesFolder === 'function') openAbsencesFolder('ferie');
+      if (typeof openLeaveRequestModal === 'function') openLeaveRequestModal(en.reqId);
+    } catch (e) {}
+  }
+  window.getUnifiedCalendarEntriesForYear = getUnifiedCalendarEntriesForYear;
+
 
   // Residuo ferie: conta solo Lun–Ven (giorni lavorativi standard 40h)
   function countLeaveDays(year, workerId, tipoFilter) {
@@ -18937,10 +19032,18 @@ async function downloadJpgFromPreview() {
     const grid = document.getElementById('leaveCalendarGrid');
     grid.innerHTML = '';
     grid.classList.toggle('month-mode', leaveCalMode === 'month');
-    const leaveMap = getLeaveEntriesForYear(leaveYear, leaveFilterWorker || null);
+    const leaveMap = getUnifiedCalendarEntriesForYear(leaveYear, leaveFilterWorker || null);
 
     const monthsToShow = leaveCalMode === 'month' ? [leaveMonth] : [0,1,2,3,4,5,6,7,8,9,10,11];
     let currentMonthCard = null;
+
+    // Legenda calendario unificato (una volta sopra i mesi)
+    try {
+      const grid0 = document.getElementById('leaveCalendarGrid');
+      if (grid0 && !grid0.querySelector('.cal-legend')) {
+        /* legend injected below after clear */
+      }
+    } catch (eL0) {}
 
     monthsToShow.forEach(m => {
       const card = document.createElement('div');
@@ -18951,7 +19054,7 @@ async function downloadJpgFromPreview() {
         card.style.boxShadow = '0 0 0 2px var(--primary)';
         currentMonthCard = card;
       }
-      card.innerHTML = `<h4>${months[m]} ${leaveYear}${isCurrentMonth ? ' · oggi' : ''}</h4>`;
+      card.innerHTML = `<h4>${months[m]} ${leaveYear}${isCurrentMonth ? ' · oggi' : ''} · ferie · malattia · impegni</h4>`;
       const daysEl = document.createElement('div');
       daysEl.className = 'leave-days';
       ['L','M','M','G','V','S','D'].forEach(d => {
@@ -18987,15 +19090,12 @@ async function downloadJpgFromPreview() {
           chips.className = 'leave-chips';
           entries.forEach(en => {
             const chipEl = document.createElement('div');
-            chipEl.className = 'leave-chip ' + (
-              en.status === 'richiesta' ? 'tipo-richiesta' :
-              en.tipo === 'Ferie' ? 'tipo-ferie' : 'tipo-altro'
-            );
+            chipEl.className = 'leave-chip ' + calendarChipClass(en);
             chipEl.innerText = en.name;
-            chipEl.title = `${en.fullName} – ${en.tipo} (${en.status})`;
+            chipEl.title = (en.fullName || '') + ' – ' + (en.tipo || '') + (en.status && en.status !== 'evento' ? (' (' + en.status + ')') : '');
             chipEl.onclick = (ev) => {
               ev.stopPropagation();
-              openLeaveRequestModal(en.reqId);
+              openCalendarEntry(en);
             };
             chips.appendChild(chipEl);
           });

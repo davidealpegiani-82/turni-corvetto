@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.61
-Cartella Assenze unica: Ferie/permessi · Malattia · Impegni
+Turni Corvetto v9.11.62
+Calendario unificato in Assenze: ferie, malattia e impegni insieme.
