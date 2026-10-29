@@ -1,10 +1,10 @@
-/* SW 9.11.57 network-first */
-const CACHE = 'turni-corvetto-9.11.57';
-const SW_VERSION = '9.11.57';
+/* SW 9.11.58 network-first */
+const CACHE = 'turni-corvetto-9.11.58';
+const SW_VERSION = '9.11.58';
 self.addEventListener('install', function(e) {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function(c) {
-    return c.addAll(['./index.html', './VERSION.txt', './manifest.webmanifest']).catch(function(){});
+    return c.addAll(['./index.html', './engine.js', './VERSION.txt', './manifest.webmanifest']).catch(function(){});
   }));
 });
 self.addEventListener('activate', function(e) {
@@ -16,9 +16,6 @@ self.addEventListener('activate', function(e) {
 });
 self.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
-  if (e.data && e.data.type === 'GET_VERSION' && e.source) {
-    e.source.postMessage({ type: 'SW_VERSION', version: SW_VERSION });
-  }
 });
 self.addEventListener('fetch', function(e) {
   var req = e.request;

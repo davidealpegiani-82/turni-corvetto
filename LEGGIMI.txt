@@ -1,4 +1,3 @@
-Turni Corvetto v9.11.57 — Fase B UX
-- Oggi: 2 azioni primarie + scorciatoie
-- Ferie: sezioni Calendario / Richieste / Residui
-- Malattia: registrazione rapida
+Turni Corvetto v9.11.58 — Fase C motore protetto
+- engine.js: OFFICIAL_POLICY + CorvettoEngine API
+- Self-test unificato al boot (console + __engineTestReport)

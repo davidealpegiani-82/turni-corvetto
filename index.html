@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.57</title>
+  <title>Turni Corvetto v9.11.58</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.57';
+    var EXPECTED='9.11.58';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -51,6 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="./engine.js?v=9.11.58"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +69,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.57';
+    const APP_VERSION = '9.11.58';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +85,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.58 — Fase C: OFFICIAL_POLICY + facciata CorvettoEngine in engine.js, self-test unificato',
     '9.11.57 — Fase B UX: Oggi snella, Ferie a sezioni Calendario/Richieste/Residui, percorsi rapidi',
     '9.11.56 — P0: toolbar Turni snella, pannello problemi unico, versioning/SW allineati',
     '9.11.55 — Fix cache: SW network-first + aggiornamento forzato reale',
@@ -2367,7 +2369,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.57</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.58</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3534,103 +3536,12 @@
   
   // ========== REGOLAMENTO UFFICIALE (questionario utente 17/10/2026) ==========
   // Fonte di verità per generatore, validazione e test. Non reinterpretare.
-  const OFFICIAL_POLICY = {
-    version: '2026-10-17',
-    coverage: {
-      minOpenOffice: 2,
-      minCloseOffice: 1,
-      // Target bilanciamento per n. presenti ufficio (Severin conta in apertura E chiusura se il suo orario copre entrambi)
-      // 5+: 3 ap + 2 ch | 4: 2+2 | 3: 2+1 | 2: 1+1
-      targetByPresent: {
-        5: { open: 3, close: 2 },
-        4: { open: 2, close: 2 },
-        3: { open: 2, close: 1 },
-        2: { open: 1, close: 1 }
-      },
-      preferMoreOpenWhenCloseOk: false, // preferisci bilanciare (es. 2+2) quando possibile
-      lunchBand: { from: '12:00', to: '14:00' },
-      lunchMinWorking: { slot12to13: 2, slot13to14: 2 },
-      lunchStaggerWhen3: ['12:00', '12:30', '13:00'],
-      lunchWhen2: { a: ['12:00','13:00'], b: ['13:00','14:00'] },
-      conflictOpenAndClose: 'fixed_constraints_first' // Severin/manual prima
-    },
-    nastro: {
-      nonSabatistaHours: 8,
-      sabatistaHours: 7,
-      sabatistaRole: 'apertura',
-      saturdayAbsence: 'next_in_rotation',
-      // Rotazione Lun–Ven (ufficio):
-      // - sabatista settimana scorsa → apertura 8h 06:30–15:30
-      // - chi sarà sabatista settimana prossima → chiusura 8h 08:30–17:30
-      // - sabatista questa settimana → apertura 7h (nastro sabato)
-      // Ciclo 3 settimane: A=7h+sabato, B=8h apertura 06:30-15:30, C=8h chiusura 08:30-17:30
-      rotationCycle: ['A_sab7h_0630_1430_plus_sab', 'B_open8h_0630_1530', 'C_close8h_0830_1730'],
-      rotationOrder: ['alpegiani', 'poppa', 'caregnato'],
-      rotationAfterSabatista: 'apertura_8h_0630_1530',
-      rotationBeforeNextSabatista: 'chiusura_8h_0830_1730'
-    },
-    severin: {
-      shiftFixed: true,
-      onlyPauseAdjustable: true,
-      pauseMinutes: 30,
-      pauseOptions: ['12:30-13:00', '13:00-13:30'],
-      // Se già ≥2 ufficio in pausa 12:00–13:00 → pausa Severin automatica 13:00–13:30
-      autoPause1300IfTwoOnBreak12: true,
-      proposePauseMoveNotSilent: true
-    },
-    pauses: {
-      minMinutesExceptSeverin: 60,
-      defaultClose8h: ['13:00','14:00'],
-      defaultOpen8h: ['12:00','13:00'],
-      defaultSabatista: ['12:00','13:00'],
-      open8hMovable: true,
-      sabatistaFixed: true,
-      afterCommitment: 'move_pause_after',
-      fourPeoplePattern: 'two_12_13_two_13_14',
-      ifMoveBreaksOpening: 'do_not_move_signal'
-    },
-    events: {
-      insideShift: 'show_work_and_event_no_coverage',
-      outsideShift: 'keep_shift_overtime_no_stretch',
-      straddlingEnd: 'branch_until_event_start',
-      overtimeAutoChange: 'only_if_coverage_safe',
-      countsForMinCoverage: false,
-      // Lezioni dalle settimane reali (es. W44):
-      // - corso mattutino → non assegnare/ contare in apertura filiale
-      // - trasferta pomeridiana → non assegnare in chiusura; cercare altro closer
-      preferOpenWithoutMorningEvent: true,
-      preferCloseWithoutAfternoonEvent: true
-    },
-    absences: {
-      fullDayHours: 'nastro_of_day',
-      partialDisplay: 'like_events',
-      illnessOpenEnded: true,
-      onChange: 'auto_recalc_with_message',
-      generateMode: 'ask_user', // all / empty / non-manual
-      weeklyTotalIncludesLeaveNastro: true
-    },
-    generation: {
-      neverTouchManualEdit: true,
-      candidateChoice: 'ask_once_clear',
-      ifNoCleanSolution: 'complete_anyway_flag_coverage',
-      magazziniereMonday: 'may_ask_twice'
-    },
-    // Schema Y + eccezione T1: Severin/manual intoccabili sempre
-    priorities: [
-      'nastro_e_rotazione',
-      'coperture',
-      'vincoli_fissi', // dopo nastro/coperture ma Severin/manual sono hard assoluti
-      'pause',
-      'assenze'
-    ],
-    hardAbsolute: ['severin_shift_fixed', 'manualEdit_never'],
-    softMayBreakHard: {
-      allowed: true,
-      neverBreak: ['severin_shift_fixed', 'manualEdit_never'],
-      mayBreak: ['coperture_minime', 'pause_preferenze']
-    }
-  };
-  window.OFFICIAL_POLICY = OFFICIAL_POLICY;
+  // OFFICIAL_POLICY: caricata da engine.js (Fase C)
+  if (typeof window.OFFICIAL_POLICY === 'undefined' || !window.OFFICIAL_POLICY) {
+    console.error('engine.js non caricato: OFFICIAL_POLICY assente');
+    window.OFFICIAL_POLICY = { version: 'missing-engine', coverage: {}, generation: { neverTouchManualEdit: true }, hardAbsolute: [] };
+  }
+  const OFFICIAL_POLICY = window.OFFICIAL_POLICY;
 
 
   const defaultRules = {
@@ -8269,7 +8180,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.57', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.58', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14249,7 +14160,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.57';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.58';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -19350,6 +19261,23 @@ async function downloadJpgFromPreview() {
     updateAuthUI();
   }
 
+  
+  // Fase C: registra API motore sulla facciata CorvettoEngine
+  try {
+    if (window.CorvettoEngine && typeof window.CorvettoEngine.register === 'function') {
+      window.CorvettoEngine.register({
+        generateAutoProposal: typeof generateAutoProposal === 'function' ? generateAutoProposal : null,
+        generateAutoProposalLegacy: typeof generateAutoProposalLegacy === 'function' ? generateAutoProposalLegacy : null,
+        finalizeProposalWeek: typeof finalizeProposalWeek === 'function' ? finalizeProposalWeek : null,
+        getVerifiedCoverageGaps: typeof getVerifiedCoverageGaps === 'function' ? getVerifiedCoverageGaps : null,
+        proposalHardViolations: typeof proposalHardViolations === 'function' ? proposalHardViolations : null,
+        applyPendingProposal: typeof applyPendingProposal === 'function' ? applyPendingProposal : null,
+        computeWeekHealth: typeof computeWeekHealth === 'function' ? computeWeekHealth : null,
+        collectWeekProblems: typeof collectWeekProblems === 'function' ? collectWeekProblems : null
+      });
+    }
+  } catch (eEngReg) { console.warn('CorvettoEngine.register', eEngReg); }
+
   window.addEventListener('DOMContentLoaded', function() {
     try { initTheme(); } catch (e) { console.warn(e); }
     try { initAuth(); } catch (e) { console.warn(e); }
@@ -19364,6 +19292,13 @@ async function downloadJpgFromPreview() {
       if (!sr.ok) console.warn('SCENARIO tests FAIL', sr.fails);
       else console.log('SCENARIO tests OK', sr.name);
     } catch (e2) { console.warn('SCENARIO tests error', e2); }
+    try {
+      if (window.CorvettoEngine && typeof window.CorvettoEngine.runSelfTests === 'function') {
+        var engRep = window.CorvettoEngine.runSelfTests();
+        if (engRep && engRep.ok) console.log('CorvettoEngine self-tests OK', engRep.engineVersion, engRep.policyVersion);
+        else console.warn('CorvettoEngine self-tests FAIL', engRep && engRep.fails);
+      }
+    } catch (e3) { console.warn('CorvettoEngine self-tests error', e3); }
     try { if (typeof registerCorvettoServiceWorker === 'function') registerCorvettoServiceWorker(); } catch (e) {}
     try { if (typeof setupPwaInstallUI === 'function') setupPwaInstallUI(); } catch (e) {}
   });
