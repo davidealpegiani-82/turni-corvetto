@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.68
-Toolbar: un solo percorso Problemi, menu Altro visibile, Svuota tabella in Altro.
+Turni Corvetto v9.11.69
+Menu Altro: su mobile foglio fisso in basso, sempre dentro lo schermo.

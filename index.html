@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.68</title>
+  <title>Turni Corvetto v9.11.69</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.68';
+    var EXPECTED='9.11.69';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.68"></script>
+  <script src="./engine.js?v=9.11.69"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.68';
+    const APP_VERSION = '9.11.69';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.69 — Menu Altro Turni: foglio fisso in basso su mobile, sempre dentro lo schermo',
     '9.11.68 — Toolbar Turni: niente Problemi doppio, Altro visibile, Svuota tabella accessibile',
     '9.11.67 — Spazio utile sopra la bottom bar: body e modali non più coperti',
     '9.11.66 — Pasqua + 16 agosto (commercio); chip calendario con nome festa',
@@ -2362,21 +2363,41 @@
     .toolbar-more > summary::-webkit-details-marker { display: none; }
     .toolbar-more-panel {
       position: absolute; right: 0; top: calc(100% + 6px); z-index: 9700;
-      min-width: 220px; display: flex; flex-direction: column; gap: 6px;
+      min-width: 220px; max-width: min(320px, calc(100vw - 24px));
+      display: flex; flex-direction: column; gap: 6px;
       padding: 10px; border-radius: 12px; border: 1px solid var(--border);
       background: var(--card-bg); box-shadow: 0 16px 36px rgba(0,0,0,.35);
+      box-sizing: border-box;
     }
     body.light-theme .toolbar-more-panel {
       background: #fff;
       box-shadow: 0 16px 36px rgba(15,23,42,.18);
     }
     .toolbar-more-panel button { width: 100%; justify-content: flex-start; }
-    @media (max-width: 640px) {
+    /* Mobile: foglio azioni ancorato allo schermo, sopra la bottom bar */
+    @media (max-width: 820px) {
       .toolbar-more-panel {
-        right: 0; left: auto;
-        /* apre verso l'alto se poco spazio sotto */
-        top: auto;
-        bottom: calc(100% + 6px);
+        position: fixed !important;
+        left: 12px !important;
+        right: 12px !important;
+        bottom: calc(var(--bottom-nav-h, 72px) + 12px) !important;
+        top: auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        max-height: min(55vh, 420px);
+        overflow-y: auto;
+        border-radius: 16px;
+        z-index: 9800 !important;
+        box-shadow: 0 -8px 32px rgba(0,0,0,.28);
+      }
+      /* overlay leggero dietro il foglio */
+      .toolbar-more[open]::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+        z-index: 9790;
       }
     }
 
@@ -2478,7 +2499,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.68</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.69</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -8401,7 +8422,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.68', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.69', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14448,7 +14469,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.68';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.69';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
