@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.55</title>
+  <title>Turni Corvetto v9.11.56</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.55';
+    var EXPECTED='9.11.56';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.55';
+    const APP_VERSION = '9.11.56';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.56 — P0: toolbar Turni snella, pannello problemi unico, versioning/SW allineati',
     '9.11.55 — Fix cache: SW network-first + aggiornamento forzato reale',
     '9.11.54 — Ripristino interfaccia standard pre-Pulse (versione stabile funzionante)',
     '9.11.53 — Contrasto UI (pulsanti leggibili) + colori PDF per eventi/malattia/ricovero',
@@ -2289,7 +2290,28 @@
     td.cell-shift.manual-edit { box-shadow: inset 0 0 0 1.5px rgba(37,99,235,.35); }
     .manual-hint { font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.35; }
 
-</style>
+
+    .toolbar-p0 { display: flex; }
+    .toolbar-more { position: relative; }
+    .toolbar-more > summary {
+      list-style: none; cursor: pointer; user-select: none;
+      min-height: 40px; display: inline-flex; align-items: center;
+      padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--card-bg); font-weight: 700; font-size: 13px;
+    }
+    .toolbar-more > summary::-webkit-details-marker { display: none; }
+    .toolbar-more-panel {
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+      min-width: 200px; display: flex; flex-direction: column; gap: 6px;
+      padding: 10px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--card-bg); box-shadow: 0 12px 28px rgba(0,0,0,.25);
+    }
+    .toolbar-more-panel button { width: 100%; justify-content: flex-start; }
+    @media (max-width: 640px) {
+      .toolbar-more-panel { right: auto; left: 0; }
+    }
+
+  </style>
 </head>
 <body>
 
@@ -2312,7 +2334,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.55</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.56</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2359,20 +2381,24 @@
 
 
   <div class="control-card" id="turniControlCard" style="margin-bottom:0;">
-    <div class="leave-toolbar toolbar-primary" style="margin-bottom:8px;">
-      <button class="alt" onclick="changeWeek(-1)" title="Settimana precedente">◀</button>
+    <div class="leave-toolbar toolbar-primary toolbar-p0" style="margin-bottom:0;flex-wrap:wrap;gap:8px;align-items:center;">
+      <button type="button" class="alt" onclick="changeWeek(-1)" title="Settimana precedente" aria-label="Settimana precedente">◀</button>
       <strong id="weekLabel" style="min-width:110px; text-align:center; font-size:13px;">dal ... al ...</strong>
-      <button class="alt" onclick="changeWeek(1)" title="Settimana successiva">▶</button>
-      <button class="btn-proposal" onclick="generateAutoProposal()" title="Calcola i turni della settimana rispettando le regole">✨ Genera Proposta</button>
-      <button class="alt" onclick="openManualEditPicker()" title="Modifica manualmente un turno">✏️ Modifica turno</button>
-      <button class="success" onclick="copyWeek(2)" title="Copia i turni di due settimane fa">📋 Copia 2 sett. fa</button>
+      <button type="button" class="alt" onclick="changeWeek(1)" title="Settimana successiva" aria-label="Settimana successiva">▶</button>
+      <button type="button" class="btn-proposal" onclick="generateAutoProposal()" title="Genera proposta turni">✨ Genera</button>
+      <button type="button" class="alt" onclick="openExportMenu()" title="Esporta PDF o immagini">📄 Esporta</button>
+      <button type="button" class="alt" onclick="openWeekIssues()" title="Problemi e coperture della settimana">⚠️ Problemi</button>
+      <details class="toolbar-more">
+        <summary>Altro</summary>
+        <div class="toolbar-more-panel">
+          <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
+          <button type="button" class="alt" onclick="copyWeek(2)">📋 Copia 2 sett. fa</button>
+          <button type="button" class="alt" onclick="openPublishChecklist()">✅ Checklist</button>
+          <button type="button" class="danger" onclick="resetAppData()">🗑️ Svuota tabella</button>
+        </div>
+      </details>
     </div>
-    <div class="leave-toolbar toolbar-secondary" style="margin-bottom:0;">
-      <button class="danger" onclick="resetAppData()" title="Svuota i turni della settimana (ferie/eventi restano)">🗑️ Svuota tabella</button>
-      <button class="alt" onclick="openExportMenu()">📤 Esporta</button>
-    </div>
-    <p class="toolbar-hint" style="margin:8px 0 0;font-size:11px;color:var(--text-muted);line-height:1.35;">
-      <p class="hint-compact" id="turniHelpLong">Settimana → Genera → controlla → applica. Esporta per PDF.</p>
+    <p class="hint-compact" id="turniHelpLong" style="margin:8px 0 0;font-size:11px;color:var(--text-muted);">Genera → controlla Problemi → Esporta PDF</p>
   </div>
 
   <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
@@ -5193,15 +5219,58 @@ function isUsableAppData(value) {
   window.updateWeekStatusUI = updateWeekStatusUI;
 
   function openWeekIssues() {
-    const health = computeWeekHealth();
     const list = document.getElementById('weekIssuesList');
     if (!list) return;
-    if (!health.issues.length) {
-      list.innerHTML = '<li><span class="ck ok">✓</span><span>Nessun problema rilevato su coperture o riposi.</span></li>';
+    const items = [];
+    // 1) Health engine (coverage + rest)
+    try {
+      const health = (typeof computeWeekHealth === 'function') ? computeWeekHealth() : { issues: [], coverage: [], level: 'ok', label: '' };
+      if (health.label) {
+        items.push({ sev: health.level === 'bad' ? 'bad' : (health.level === 'warn' ? 'warn' : 'ok'), text: String(health.label) });
+      }
+      (health.coverage || []).filter(function(x){ return x && x.bad; }).forEach(function(x){
+        items.push({ sev: 'bad', text: (x.day || '') + ' · ' + (x.text || 'Scopertura') });
+      });
+      (health.issues || []).forEach(function(msg){
+        items.push({ sev: /11h|riposo|scopert|minimo/i.test(String(msg)) ? 'bad' : 'warn', text: String(msg) });
+      });
+    } catch (eH) { console.warn(eH); }
+    // 2) collectWeekProblems (banner rules) — stessa fonte del banner
+    try {
+      const problems = (typeof collectWeekProblems === 'function') ? (collectWeekProblems() || []) : [];
+      problems.forEach(function(p){
+        const t = ((p && p.title) ? p.title : 'Anomalia') + (p && p.detail ? (' — ' + p.detail) : '');
+        const sev = (p && p.sev === 'danger') ? 'bad' : 'warn';
+        // dedupe approximate
+        if (!items.some(function(it){ return it.text === t; })) items.push({ sev: sev, text: t, raw: p });
+      });
+    } catch (eP) { console.warn(eP); }
+
+    if (!items.length) {
+      list.innerHTML = '<li><span class="ck ok">✓</span><span>Nessun problema rilevato su coperture, riposi o regole della settimana.</span></li>';
     } else {
-      list.innerHTML = health.issues.map(function(msg) {
-        return '<li><span class="ck bad">!</span><span>' + escapeHtmlV47(String(msg)) + '</span></li>';
+      list.innerHTML = items.map(function(it, idx) {
+        const cls = it.sev === 'ok' ? 'ok' : (it.sev === 'bad' ? 'bad' : 'warn');
+        const mark = it.sev === 'ok' ? '✓' : '!';
+        return '<li data-issue-idx="' + idx + '" style="cursor:pointer;"><span class="ck ' + cls + '">' + mark + '</span><span>' +
+          escapeHtmlV47(it.text) + '</span></li>';
       }).join('');
+      // highlight on click if problem object available
+      list.querySelectorAll('li[data-issue-idx]').forEach(function(node){
+        node.onclick = function(){
+          const i = Number(node.getAttribute('data-issue-idx'));
+          const it = items[i];
+          if (it && it.raw && typeof highlightWeekProblem === 'function') {
+            try { highlightWeekProblem(it.raw); } catch (e) {}
+            try { switchView('turni'); } catch (e2) {}
+          }
+        };
+      });
+    }
+    const title = document.querySelector('#weekIssuesModal h3');
+    if (title) {
+      const nBad = items.filter(function(x){ return x.sev === 'bad'; }).length;
+      title.textContent = nBad ? ('Problemi settimana (' + items.length + ')') : (items.length ? 'Avvisi settimana' : 'Settimana ok');
     }
     openModal('weekIssuesModal');
   }
@@ -8158,7 +8227,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.55', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.56', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14138,7 +14207,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.55';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.56';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -19268,10 +19337,12 @@ async function downloadJpgFromPreview() {
 <div class="modal-backdrop" id="weekIssuesModal" style="display:none;" onclick="if(event.target===this)closeModal('weekIssuesModal')">
   <div class="modal" style="max-width:480px;" onclick="event.stopPropagation()">
     <h3 style="margin:0 0 8px;">⚠️ Problemi settimana</h3>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--text-muted);">Elenco unico: coperture, riposi 11h e regole operative. Tocca una voce per evidenziare in griglia se possibile.</p>
     <ul class="checklist-list" id="weekIssuesList"></ul>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">
       <button type="button" class="alt" onclick="closeModal('weekIssuesModal')">Chiudi</button>
-      <button type="button" class="btn-proposal" onclick="closeModal('weekIssuesModal');generateAutoProposal();">✨ Genera</button>
+      <button type="button" class="alt" onclick="closeModal('weekIssuesModal');openPublishChecklist();">Checklist</button>
+      <button type="button" class="btn-proposal" onclick="closeModal('weekIssuesModal');generateAutoProposal();">✨ Genera proposta</button>
     </div>
   </div>
 </div>
