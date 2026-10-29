@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.60</title>
+  <title>Turni Corvetto v9.11.61</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.60';
+    var EXPECTED='9.11.61';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -51,7 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.60"></script>
+  <script src="./engine.js?v=9.11.61"></script>
 
   <script>
     const firebaseConfig = {
@@ -69,7 +69,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.60';
+    const APP_VERSION = '9.11.61';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -85,6 +85,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.61 — Cartella Assenze unica: ferie, malattia e impegni insieme',
     '9.11.60 — Fase E: assistente operativo locale (spiega/proponi/verifica) con conferma; engine-aware',
     '9.11.59 — Fase D: conflitti con revisioni, indicatori sync, backup in conflitto, template regole RTDB',
     '9.11.58 — Fase C: OFFICIAL_POLICY + facciata CorvettoEngine in engine.js, self-test unificato',
@@ -2355,6 +2356,26 @@
     .auth-bar.visible-sync { display:block !important; margin-top:2px; }
     .auth-bar #authStatus { font-size:11px; color:var(--text-muted); font-weight:600; }
 
+  
+    .abs-folder-head {
+      font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .abs-folder-tabs {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    }
+    .abs-folder-btn {
+      min-height: 42px; border-radius: 10px; font-weight: 700; font-size: 12px;
+      border: 1px solid var(--border); background: var(--bg-deep); color: var(--text-muted);
+      padding: 8px 6px; line-height: 1.2;
+    }
+    .abs-folder-btn.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+    @media (max-width: 420px) {
+      .abs-folder-btn { font-size: 11px; min-height: 46px; }
+    }
+
   </style>
 </head>
 <body>
@@ -2378,7 +2399,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.60</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.61</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2411,12 +2432,10 @@
     <div class="nav-tabs view-tabs">
       <button type="button" id="tabOggi" class="active-tab" onclick="switchView('oggi')">🏠 Oggi</button>
       <button type="button" id="tabTurni" onclick="switchView('turni')">📋 Turni</button>
-      <button type="button" id="tabFerie" onclick="switchView('ferie')">🏖️ Assenze</button>
+      <button type="button" id="tabFerie" onclick="openAbsencesFolder('ferie')">🏖️ Assenze</button>
       <button type="button" id="tabAltro" onclick="toggleMoreNav()">⋯ Altro</button>
     </div>
     <div class="nav-more-panel" id="navMorePanel">
-      <button type="button" class="alt" id="tabEventi" onclick="switchView('eventi'); closeMoreNav();">📌 Impegni</button>
-      <button type="button" class="alt" id="tabMalattia" onclick="switchView('malattia'); closeMoreNav();">🤒 Malattia</button>
       <button type="button" class="alt" id="tabSettings" onclick="switchView('settings'); closeMoreNav();">⚙️ Impostazioni</button>
       <button type="button" class="alt" id="tabGuida" onclick="openHelpGuide(); closeMoreNav();">❓ Guida</button>
     </div>
@@ -2444,6 +2463,16 @@
       </details>
     </div>
     <p class="hint-compact" id="turniHelpLong" style="margin:8px 0 0;font-size:11px;color:var(--text-muted);">Genera → controlla Problemi → Esporta PDF</p>
+  </div>
+
+
+  <div class="control-card" id="absencesFolderCard" style="margin-bottom:0; display:none;">
+    <div class="abs-folder-head">Cartella assenze</div>
+    <div class="abs-folder-tabs" role="tablist" aria-label="Tipi assenza">
+      <button type="button" class="abs-folder-btn active" data-abs="ferie" onclick="openAbsencesFolder('ferie')">🏖️ Ferie / permessi</button>
+      <button type="button" class="abs-folder-btn" data-abs="malattia" onclick="openAbsencesFolder('malattia')">🤒 Malattia</button>
+      <button type="button" class="abs-folder-btn" data-abs="eventi" onclick="openAbsencesFolder('eventi')">📌 Impegni</button>
+    </div>
   </div>
 
   <div class="control-card" id="ferieControlCard" style="margin-bottom:0; display:none;">
@@ -2509,7 +2538,7 @@
 
   <div class="op-actions op-actions-b">
     <button type="button" class="primary" onclick="generateAutoProposal()">✨ Genera turni</button>
-    <button type="button" class="secondary" onclick="switchView('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
+    <button type="button" class="secondary" onclick="openAbsencesFolder('ferie'); if(typeof openLeaveRequestModal==='function')openLeaveRequestModal();">+ Assenza</button>
   </div>
   <div class="op-actions-row">
     <button type="button" class="alt" onclick="switchView('turni')">📋 Tabella</button>
@@ -2532,7 +2561,7 @@
   <div class="op-actions-row" style="margin-top:14px;">
     <button type="button" class="alt" onclick="openManualEditPicker()">✏️ Modifica turno</button>
     <button type="button" class="alt" onclick="openPublishChecklist()">Checklist</button>
-    <button type="button" class="alt" onclick="switchView('eventi')">Impegni</button>
+    <button type="button" class="alt" onclick="openAbsencesFolder('eventi')">Impegni</button>
   </div>
 </div>
 
@@ -5833,6 +5862,22 @@ function isUsableAppData(value) {
   window.toggleMoreNav = toggleMoreNav;
   window.closeMoreNav = closeMoreNav;
 
+
+  var _absencesFolder = 'ferie';
+  function openAbsencesFolder(section) {
+    const sec = section || 'ferie';
+    _absencesFolder = (sec === 'malattia' || sec === 'eventi' || sec === 'ferie') ? sec : 'ferie';
+    try { closeMoreNav(); } catch (e) {}
+    // switchView gestisce card/viste; aggiorniamo tab cartella dopo
+    if (typeof switchView === 'function') switchView(_absencesFolder);
+    try {
+      document.querySelectorAll('.abs-folder-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-abs') === _absencesFolder);
+      });
+    } catch (e2) {}
+  }
+  window.openAbsencesFolder = openAbsencesFolder;
+
   function switchView(view) {
     currentView = view;
     closeMoreNav();
@@ -5857,9 +5902,21 @@ function isUsableAppData(value) {
     }
 
     document.querySelectorAll('.nav-tabs button, .view-tabs button').forEach(function(b) { b.classList.remove('active-tab'); });
-    var tabIds = { oggi:'tabOggi', turni:'tabTurni', ferie:'tabFerie', eventi:'tabEventi', malattia:'tabMalattia', settings:'tabSettings', altro:'tabAltro' };
-    var tab = document.getElementById(tabIds[view] || (view === 'eventi' || view === 'malattia' || view === 'settings' ? 'tabAltro' : 'tabOggi'));
+    var isAbs = (view === 'ferie' || view === 'malattia' || view === 'eventi');
+    var tabIds = { oggi:'tabOggi', turni:'tabTurni', ferie:'tabFerie', eventi:'tabFerie', malattia:'tabFerie', settings:'tabSettings', altro:'tabAltro' };
+    var tab = document.getElementById(tabIds[view] || (view === 'settings' ? 'tabSettings' : 'tabOggi'));
     if (tab) tab.classList.add('active-tab');
+
+    var af = document.getElementById('absencesFolderCard');
+    if (af) af.style.display = isAbs ? '' : 'none';
+    if (isAbs) {
+      _absencesFolder = view;
+      try {
+        document.querySelectorAll('.abs-folder-btn').forEach(function(b) {
+          b.classList.toggle('active', b.getAttribute('data-abs') === view);
+        });
+      } catch (eAbs) {}
+    }
 
     var tc = document.getElementById('turniControlCard');
     var fc = document.getElementById('ferieControlCard');
@@ -8239,7 +8296,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.60', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.61', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14219,7 +14276,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.60';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.61';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
