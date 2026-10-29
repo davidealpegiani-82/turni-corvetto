@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.65</title>
+  <title>Turni Corvetto v9.11.66</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.65';
+    var EXPECTED='9.11.66';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.65"></script>
+  <script src="./engine.js?v=9.11.66"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.65';
+    const APP_VERSION = '9.11.66';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.66 — Pasqua + 16 agosto (commercio); chip calendario con nome festa',
     '9.11.65 — Festività nazionali e Milano (S.Ambrogio) in calendario, tabella e generatore',
     '9.11.64 — Calendario sotto i comandi di sezione (ferie/malattia/impegni)',
     '9.11.63 — Calendario assenze fisso e condiviso con filtri ferie/malattia/impegni',
@@ -2424,7 +2425,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.65</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.66</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -8335,7 +8336,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.65', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.66', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8502,6 +8503,8 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
     add(5, 1, 'Festa del Lavoro', 'nazionale');
     add(6, 2, 'Festa della Repubblica', 'nazionale');
     add(8, 15, 'Ferragosto', 'nazionale');
+    // Commercio: spesso chiuso anche il giorno dopo Ferragosto
+    add(8, 16, '16 agosto (ponte commercio)', 'commercio');
     add(11, 1, 'Ognissanti', 'nazionale');
     add(12, 8, 'Immacolata Concezione', 'nazionale');
     add(12, 25, 'Natale', 'nazionale');
@@ -8509,11 +8512,35 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
     add(12, 7, 'Santo Ambrogio (Milano)', 'milano');
     try {
       const easter = getEasterSunday(year);
+      map[isoDateLocal(easter)] = { name: 'Pasqua', scope: 'nazionale' };
       const pasquetta = new Date(easter.getTime());
       pasquetta.setDate(pasquetta.getDate() + 1);
       map[isoDateLocal(pasquetta)] = { name: "Lunedì dell'Angelo (Pasquetta)", scope: 'nazionale' };
     } catch (eE) {}
     return map;
+  }
+  /** Etichetta corta per chip calendario (nome leggibile, non IT/MI). */
+  function holidayChipLabel(fullName) {
+    const n = String(fullName || '').trim();
+    if (!n) return 'Festa';
+    const low = n.toLowerCase();
+    if (low.indexOf('pasquetta') >= 0 || low.indexOf("angelo") >= 0) return 'Pasquetta';
+    if (low === 'pasqua' || low.indexOf('pasqua') === 0) return 'Pasqua';
+    if (low.indexOf('capodanno') >= 0) return 'Capodanno';
+    if (low.indexOf('epifania') >= 0) return 'Epifania';
+    if (low.indexOf('liberazione') >= 0) return '25 apr';
+    if (low.indexOf('lavoro') >= 0) return '1 mag';
+    if (low.indexOf('repubblica') >= 0) return '2 giu';
+    if (low.indexOf('ferragosto') >= 0) return 'Ferragosto';
+    if (low.indexOf('16 agosto') >= 0) return '16 ago';
+    if (low.indexOf('ognissanti') >= 0) return '1 nov';
+    if (low.indexOf('immacolata') >= 0) return 'Immacolata';
+    if (low.indexOf('ambrogio') >= 0) return 'S.Ambrogio';
+    if (low.indexOf('stefano') >= 0) return 'S.Stefano';
+    if (low.indexOf('natale') >= 0) return 'Natale';
+    // fallback: prima parola significativa o "Festa"
+    const first = n.split(/[\s(]/)[0];
+    return (first && first.length <= 12) ? first : 'Festa';
   }
   function getHolidayInfoForDate(d) {
     if (!d) return null;
@@ -14356,7 +14383,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.65';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.66';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -18934,7 +18961,7 @@ async function downloadJpgFromPreview() {
         map[key].unshift({
           reqId: null,
           workerId: '',
-          name: scope === 'milano' ? 'MI' : 'IT',
+          name: (typeof holidayChipLabel === 'function') ? holidayChipLabel(name) : 'Festa',
           fullName: name,
           tipo: name,
           status: 'festivo',

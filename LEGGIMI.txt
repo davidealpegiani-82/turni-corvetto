@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.65
-Festività nazionali + Santo Ambrogio (Milano) in calendario, tabella e generatore.
+Turni Corvetto v9.11.66
+Pasqua + 16 agosto (commercio); chip calendario con nome festa.
