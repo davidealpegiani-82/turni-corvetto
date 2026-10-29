@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "turni_data_v47_pdf": {
+      ".read": "auth != null",
+      ".write": "auth != null && (!data.exists() || !data.child('updatedRevision').exists() || newData.child('updatedRevision').val() >= data.child('updatedRevision').val())"
+    }
+  }
+}

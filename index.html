@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.58</title>
+  <title>Turni Corvetto v9.11.59</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.58';
+    var EXPECTED='9.11.59';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -51,7 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.58"></script>
+  <script src="./engine.js?v=9.11.59"></script>
 
   <script>
     const firebaseConfig = {
@@ -69,7 +69,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.58';
+    const APP_VERSION = '9.11.59';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -85,6 +85,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.59 — Fase D: conflitti con revisioni, indicatori sync, backup in conflitto, template regole RTDB',
     '9.11.58 — Fase C: OFFICIAL_POLICY + facciata CorvettoEngine in engine.js, self-test unificato',
     '9.11.57 — Fase B UX: Oggi snella, Ferie a sezioni Calendario/Richieste/Residui, percorsi rapidi',
     '9.11.56 — P0: toolbar Turni snella, pannello problemi unico, versioning/SW allineati',
@@ -2346,6 +2347,13 @@
     }
     body.light-theme .leave-seg-btn.active { color: #fff; }
 
+  
+    .remote-update-main { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
+    .remote-update-meta { font-size:11px; font-weight:600; color:var(--text-muted); font-family:ui-monospace,monospace; }
+    .remote-update-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .auth-bar.visible-sync { display:block !important; margin-top:2px; }
+    .auth-bar #authStatus { font-size:11px; color:var(--text-muted); font-weight:600; }
+
   </style>
 </head>
 <body>
@@ -2362,14 +2370,14 @@
 </div>
 
 
-<div class="local-file-banner" id="localFileBanner"> Attenzione: stai usando un <strong>file locale</strong> — i dati NON sono in cloud. Per usare l'app con sync apri SOLO questo link Netlify: <a id="officialAppLink" href="https://phenomenal-rugelach-42f064.netlify.app" target="_blank" rel="noopener">phenomenal-rugelach-42f064.netlify.app</a></div><div class="remote-update-bar" id="remoteUpdateBar"><span id="remoteUpdateText">Dati aggiornati da un altro dispositivo.</span><button type="button" class="alt" onclick="applyPendingRemoteData()">Usa cloud</button><button type="button" class="alt" onclick="forcePushLocalToCloud()">Tieni locale</button><button type="button" class="alt" onclick="dismissRemoteUpdate()" style="min-height:auto;padding:4px 8px;">X</button></div><div class="header">
+<div class="local-file-banner" id="localFileBanner"> Attenzione: stai usando un <strong>file locale</strong> — i dati NON sono in cloud. Per usare l'app con sync apri SOLO questo link Netlify: <a id="officialAppLink" href="https://phenomenal-rugelach-42f064.netlify.app" target="_blank" rel="noopener">phenomenal-rugelach-42f064.netlify.app</a></div><div class="remote-update-bar" id="remoteUpdateBar"><div class="remote-update-main"><span id="remoteUpdateText">Dati cloud diversi da questo dispositivo.</span><span id="remoteUpdateMeta" class="remote-update-meta"></span></div><div class="remote-update-actions"><button type="button" class="alt" onclick="applyPendingRemoteData()">Usa cloud</button><button type="button" class="alt" onclick="forcePushLocalToCloud()">Tieni locale</button><button type="button" class="alt" onclick="exportBackupJSON()">Backup</button><button type="button" class="alt" onclick="dismissRemoteUpdate()" style="min-height:auto;padding:4px 8px;">X</button></div></div><div class="header">
   <div class="header-top">
     <div class="app-title-area">
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.58</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.59</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -4190,11 +4198,23 @@ function isUsableAppData(value) {
     }
     const bar = document.getElementById('remoteUpdateBar');
     const txt = document.getElementById('remoteUpdateText');
-    if (txt) txt.textContent = msg || 'Dati cloud diversi. «Usa cloud» = dati online; «Tieni locale» = tieni questo dispositivo.';
+    const meta = document.getElementById('remoteUpdateMeta');
+    const remote = window._pendingRemoteData || window._conflictRemote;
+    const localRev = Number(_lastCloudSeenRevision || (appData && appData.updatedRevision) || 0);
+    const remoteRev = Number(remote && remote.updatedRevision || 0);
+    const remoteBy = remote && remote.updatedBy ? String(remote.updatedBy).slice(0, 14) : '—';
+    let remoteAt = '—';
+    try {
+      if (remote && remote.updatedAt) remoteAt = new Date(Number(remote.updatedAt)).toLocaleString('it-IT');
+    } catch (eT) {}
+    if (txt) {
+      txt.textContent = msg || 'Conflitto dati tra questo dispositivo e il cloud. Consigliato: Backup, poi scegli.';
+    }
+    if (meta) {
+      meta.textContent = 'Locale r' + localRev + ' · Cloud r' + remoteRev + ' · da ' + remoteBy + ' · ' + remoteAt;
+    }
     if (bar) bar.classList.add('visible');
-    // Un conflitto non è uno stato "ok": non colorare di verde una sync
-    // che richiede ancora una scelta esplicita dell'utente.
-    try { setSyncStatus('err', 'conflitto cloud'); } catch (e) {}
+    try { setSyncStatus('err', 'conflitto · r' + localRev + '≠r' + remoteRev); } catch (e) {}
   }
   function dismissRemoteUpdate() {
     // Chiudere la barra non deve cancellare la copia remota in conflitto.
@@ -4211,6 +4231,13 @@ function isUsableAppData(value) {
   /** Forza invio dati locali sul cloud (risolve conflitto a favore del dispositivo corrente). */
   function forcePushLocalToCloud() {
     try {
+      const localRev = Number(_lastCloudSeenRevision || (appData && appData.updatedRevision) || 0);
+      const remote = window._pendingRemoteData || window._conflictRemote;
+      const remoteRev = Number(remote && remote.updatedRevision || 0);
+      const msg = 'Tieni locale e sovrascrivi il cloud?\n\nQuesto dispositivo: r' + localRev +
+        '\nCloud: r' + remoteRev +
+        '\n\nLe modifiche fatte su altri dispositivi andranno perse se non già nel locale. Fai Backup se non sei sicuro.';
+      if (!confirm(msg)) return;
       window._pendingRemoteData = null;
       window._syncSuspended = false;
       dismissRemoteUpdate();
@@ -4346,7 +4373,15 @@ function isUsableAppData(value) {
   function exportBackupJSON() {
     try {
       normalizeAppData();
-      const payload = { exportedAt: new Date().toISOString(), appVersion: APP_VERSION, data: appData };
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        appVersion: APP_VERSION,
+        clientId: (typeof CLIENT_ID !== 'undefined' ? CLIENT_ID : null),
+        updatedRevision: Number(appData && appData.updatedRevision || 0),
+        updatedAt: Number(appData && appData.updatedAt || 0),
+        note: 'Backup Turni Corvetto — conserva in luogo sicuro',
+        data: appData
+      };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
@@ -5305,33 +5340,50 @@ function isUsableAppData(value) {
     }, ms);
   }
 
+  function formatSyncRevisionLabel() {
+    try {
+      const rev = Number(_lastCloudSeenRevision || (appData && appData.updatedRevision) || 0);
+      return rev ? ('r' + rev) : '';
+    } catch (e) { return ''; }
+  }
   function setSyncStatus(state, detail) {
     const d = detail ? String(detail) : '';
+    const rev = formatSyncRevisionLabel();
+    const revBit = rev ? (' · ' + rev) : '';
     let htmlStatus = '';
     let cls = 'sync-indicator';
     let title = '';
     if (state === 'ok') {
       cls += ' sync-ok';
-      htmlStatus = '🟢 Cloud' + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
-      title = 'Sincronizzato';
+      htmlStatus = '🟢 Cloud' + revBit + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
+      title = 'Sincronizzato' + (rev ? (' — revisione ' + rev) : '') + ' — tocca per ricaricare dal cloud';
     } else if (state === 'busy') {
       cls += ' sync-busy';
       htmlStatus = '🔵 Sync…' + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
-      title = 'Connessione in corso';
+      title = 'Sincronizzazione in corso';
     } else if (state === 'err') {
       cls += ' sync-err';
-      htmlStatus = '🔴 ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d || 'errore') : (d || 'errore'));
-      title = 'Errore sync';
+      htmlStatus = '🔴 ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d || 'errore') : (d || 'errore')) + revBit;
+      title = 'Errore o conflitto sync' + (rev ? (' — locale su ' + rev) : '');
     } else {
       cls += ' sync-local';
-      htmlStatus = '🟠 Locale' + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
-      title = 'Solo locale';
+      htmlStatus = '🟠 Locale' + revBit + (d ? ' · ' + (typeof escapeHtmlV47 === 'function' ? escapeHtmlV47(d) : d) : '');
+      title = 'Solo locale o offline';
     }
     document.querySelectorAll('#syncIndicator').forEach(function(el) {
       el.className = cls;
       el.innerHTML = htmlStatus;
       el.title = title;
     });
+    try {
+      const auth = document.getElementById('authStatus');
+      const bar = document.getElementById('authBar');
+      if (auth) {
+        const mode = state === 'ok' ? 'cloud live' : (state === 'err' ? (d || 'conflitto') : (state === 'busy' ? 'sync…' : 'locale'));
+        auth.textContent = '☁️ ' + mode + (rev ? (' · ' + rev) : '') + ' · v' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '');
+      }
+      if (bar) bar.classList.add('visible-sync');
+    } catch (eA) {}
   }
 
 
@@ -8180,7 +8232,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.58', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.59', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14160,7 +14212,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.58';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.59';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -19247,7 +19299,14 @@ async function downloadJpgFromPreview() {
   function updateAuthUI() {
     const st = document.getElementById('authStatus');
     if (!st) return;
-    st.textContent = db ? '☁️ Sync automatica · v' + APP_VERSION : '☁️ Solo locale · v' + APP_VERSION;
+    try {
+      const rev = (typeof formatSyncRevisionLabel === 'function') ? formatSyncRevisionLabel() : '';
+      st.textContent = (db ? '☁️ Cloud' : '☁️ Solo locale') + (rev ? (' · ' + rev) : '') + ' · v' + APP_VERSION;
+      const bar = document.getElementById('authBar');
+      if (bar) bar.classList.add('visible-sync');
+    } catch (e) {
+      st.textContent = db ? '☁️ Sync automatica · v' + APP_VERSION : '☁️ Solo locale · v' + APP_VERSION;
+    }
     try {
       const lab = document.getElementById('appVersionLabel');
       if (lab) lab.textContent = 'CORVETTO · v' + APP_VERSION;
