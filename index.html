@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.69</title>
+  <title>Turni Corvetto v9.11.70</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.69';
+    var EXPECTED='9.11.70';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.69"></script>
+  <script src="./engine.js?v=9.11.70"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.69';
+    const APP_VERSION = '9.11.70';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.70 — Cancellazione turni protetta (manualEdit) + sync non sovrascrive locale più recente',
     '9.11.69 — Menu Altro Turni: foglio fisso in basso su mobile, sempre dentro lo schermo',
     '9.11.68 — Toolbar Turni: niente Problemi doppio, Altro visibile, Svuota tabella accessibile',
     '9.11.67 — Spazio utile sopra la bottom bar: body e modali non più coperti',
@@ -2499,7 +2500,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.69</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.70</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -4806,6 +4807,25 @@ function isUsableAppData(value) {
         data.workers = workers;
       }
       if (!workers.length) return false;
+
+      // Non sovrascrivere modifiche locali più recenti (es. cancellazione turni)
+      try {
+        if (source && source !== 'local' && appData && appData.workers) {
+          var localAt = Number(appData.updatedAt || _lastLocalWriteAt || 0);
+          var remoteAt = Number(data.updatedAt || 0);
+          var localRev = Number(appData.updatedRevision || 0);
+          var remoteRev = Number(data.updatedRevision || 0);
+          if (localAt > remoteAt + 800 && localRev >= remoteRev) {
+            try { setSyncStatus('ok', 'locale più recente'); } catch (eS) {}
+            try { if (typeof syncToCloudNow === 'function') syncToCloudNow(); } catch (eP) {}
+            return true;
+          }
+          if (typeof shouldPreferLocalOverRemote === 'function' && shouldPreferLocalOverRemote(appData, data)) {
+            try { if (typeof syncToCloudNow === 'function') syncToCloudNow(); } catch (eP2) {}
+            return true;
+          }
+        }
+      } catch (ePref) {}
 
       appData = data;
       try {
@@ -8422,7 +8442,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.69', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.70', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -9623,13 +9643,31 @@ function minLunchBreakMinutes(wId) {
   }
 
   function clearDayData() {
-    if (appData.weeks[currentWeekKey] && appData.weeks[currentWeekKey][currentWorkerId]) {
-      delete appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx];
-    }
+    if (!appData.weeks) appData.weeks = {};
+    if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
+    if (!appData.weeks[currentWeekKey][currentWorkerId]) appData.weeks[currentWeekKey][currentWorkerId] = {};
+    // Non cancellare la chiave: lascia un segnaposto protetto, altrimenti
+    // Genera / bilanciamento / sync rimettono il turno (es. Rallo).
+    appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx] = {
+      mIn: '', mOut: '', pIn: '', pOut: '',
+      status: '',
+      note: '',
+      generated: false,
+      movedByEngine: false,
+      manualEdit: true,
+      clearedByUser: true
+    };
+    try { appData.updatedAt = Date.now(); } catch (eU) {}
+    try { window._ignoreRemoteUntil = Date.now() + 12000; } catch (eI) {}
+    try { _lastLocalWriteAt = Date.now(); } catch (eL) {}
     closeModal('dayModal');
     try { if (typeof renderOperationalHome === 'function') renderOperationalHome(); } catch (e) {}
-    syncToCloud();
+    try {
+      if (typeof syncToCloudNow === 'function') syncToCloudNow();
+      else syncToCloud();
+    } catch (eS) { try { syncToCloud(); } catch (e2) {} }
     renderWeek();
+    try { showToast('Giorno svuotato e protetto da rigenerazione', 'success', 2500); } catch (eT) {}
   }
 
   function copyPreviousDay() {
@@ -9662,7 +9700,15 @@ function minLunchBreakMinutes(wId) {
     const wName = worker ? worker.name : '';
 
     if (!mIn && !mOut && !pIn && !pOut && !note && !existingData.status) {
-      delete appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx];
+      appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx] = {
+        mIn: '', mOut: '', pIn: '', pOut: '',
+        status: '',
+        note: '',
+        generated: false,
+        movedByEngine: false,
+        manualEdit: true,
+        clearedByUser: true
+      };
     } else {
       let dayData = {
         ...existingData,
@@ -9673,7 +9719,8 @@ function minLunchBreakMinutes(wId) {
         note: note,
         generated: false,
         movedByEngine: false,
-        manualEdit: true
+        manualEdit: true,
+        clearedByUser: false
       };
       // Applica pausa pranzo (min 1h, 30' Severin) considerando impegni del giorno
       if (!dayData.status || dayData.status === 'LAVORO' || dayData.status === 'ROL') {
@@ -11688,8 +11735,8 @@ function minLunchBreakMinutes(wId) {
   function putGenerated(week,wid,day,shift,extra={}){
     if(!week[wid]) week[wid]={};
     const prev = week[wid][day];
-    // Hard: mai toccare modifiche manuali
-    if (prev && prev.manualEdit) return;
+    // Hard: mai toccare modifiche manuali / giorni svuotati dall'utente
+    if (prev && (prev.manualEdit || prev.clearedByUser)) return;
     // Hard: competenze apertura/chiusura (non assegnare turni incompatibili)
     if (shift && typeof shiftAllowedForWorker === 'function' && !shiftAllowedForWorker(wid, shift)) {
       return;
@@ -11805,6 +11852,7 @@ function minLunchBreakMinutes(wId) {
     if(isEngineLockedWorker(wid)) return false;
     const d=cellAt(week,wid,day);
     if(!d) return true;
+    if(d.manualEdit || d.clearedByUser) return false;
     if(isHardUnavailableCell(d)) return false;
     if(isPartialRolCell(d) && !partialLeaveWindow(d)) return false;
     return d.generated===true;
@@ -11952,6 +12000,7 @@ function minLunchBreakMinutes(wId) {
     if(w && workerBrain(w).fixed===true) return false;
     const d=cellAt(week,wid,day);
     if(!d) return true;
+    if(d.manualEdit || d.clearedByUser) return false;
     if(isHardUnavailableCell(d)) return false;
     if(isPartialRolCell(d) && !partialLeaveWindow(d)) return false;
     return d.generated===true;
@@ -14469,7 +14518,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.69';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.70';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
