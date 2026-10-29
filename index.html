@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.70</title>
+  <title>Turni Corvetto v9.11.71</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.70';
+    var EXPECTED='9.11.71';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.70"></script>
+  <script src="./engine.js?v=9.11.71"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.70';
+    const APP_VERSION = '9.11.71';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.71 — Corso+pausa: niente auto-spostamento se manuale; OT solo fuori giornata; ore corso = 8h nastro',
     '9.11.70 — Cancellazione turni protetta (manualEdit) + sync non sovrascrive locale più recente',
     '9.11.69 — Menu Altro Turni: foglio fisso in basso su mobile, sempre dentro lo schermo',
     '9.11.68 — Toolbar Turni: niente Problemi doppio, Altro visibile, Svuota tabella accessibile',
@@ -2500,7 +2501,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.70</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.71</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -7708,6 +7709,7 @@ function renderWeek() {
       (e.participantIds || []).forEach(wid => {
         const cell = week[wid] && week[wid][day];
         if (!cell || isHardUnavailableCell(cell)) return;
+        if (cell.manualEdit || cell.lockBreak) return;
         // anche senza orari: prova ad assorbire l'impegno nel nastro
         const dObj = new Date(e.date + 'T12:00:00');
         const before = JSON.stringify({ mIn: cell.mIn, mOut: cell.mOut, pIn: cell.pIn, pOut: cell.pOut });
@@ -7731,25 +7733,20 @@ function renderWeek() {
     if (!fromTime || !toTime) return 0;
     const evA = timeToMin(fromTime), evB = timeToMin(toTime);
     if (!(evB > evA)) return 0;
+    if (!cell) return 0;
+    // OT solo fuori dalla giornata (prima di mIn o dopo pOut). La pausa pranzo
+    // non conta come "buco": corso 08:30-14:30 con fine turno 17:30 → 0 OT.
+    let dayStart = null, dayEnd = null;
+    if (cell.mIn) dayStart = timeToMin(cell.mIn);
+    if (cell.pIn && (dayStart == null || timeToMin(cell.pIn) < dayStart)) dayStart = timeToMin(cell.pIn);
+    if (cell.pOut) dayEnd = timeToMin(cell.pOut);
+    if (cell.mOut && (dayEnd == null || timeToMin(cell.mOut) > dayEnd)) dayEnd = timeToMin(cell.mOut);
+    if (dayStart == null || dayEnd == null || !(dayEnd > dayStart)) return 0;
+    let outside = 0;
+    if (evA < dayStart) outside += Math.min(evB, dayStart) - evA;
 
-    // IMPORTANTE: per il calcolo dello straordinario si confronta l'impegno
-    // con l'orario contrattuale grezzo, NON con workIntervals(), perché questa
-    // sottrae già il blocco di indisponibilità dell'evento per la copertura.
-    // Altrimenti un corso sovrapposto al turno viene erroneamente contato
-    // come straordinario per tutta la sua durata.
-    const intervals = [];
-    if (cell && cell.mIn && cell.mOut && timeToMin(cell.mOut) > timeToMin(cell.mIn)) {
-      intervals.push([timeToMin(cell.mIn), timeToMin(cell.mOut)]);
-    }
-    if (cell && cell.pIn && cell.pOut && timeToMin(cell.pOut) > timeToMin(cell.pIn)) {
-      intervals.push([timeToMin(cell.pIn), timeToMin(cell.pOut)]);
-    }
-    let covered = 0;
-    intervals.forEach(function(iv) {
-      const o0 = Math.max(iv[0], evA), o1 = Math.min(iv[1], evB);
-      if (o1 > o0) covered += o1 - o0;
-    });
-    return Math.max(0, (evB - evA) - covered);
+    if (evB > dayEnd) outside += evB - Math.max(evA, dayEnd);
+    return Math.max(0, outside);
   }
 
   /** Proposta opzionale: prolungare pOut/mOut per coprire lo straordinario (solo suggerimento). */
@@ -8442,7 +8439,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.70', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.71', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8888,68 +8885,56 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
       return ivs.every(function(iv) { return b <= iv[0] || a >= iv[1]; });
     }
 
-    // Straordinario: porzione di impegno fuori dal turno (senza modificare orari)
+    // Straordinario: solo fuori dalla giornata (non la pausa pranzo)
     let otTotal = 0;
     const overlapping = [];
     events.forEach(function(ev) {
       const a = ev[0], b = ev[1];
       if (eventFullyOutside(a, b)) {
-        otTotal += (b - a);
+        overlapping.push(ev);
       } else {
         overlapping.push(ev);
-        // parte fuori dagli intervalli di lavoro
-        let covered = 0;
-        workIntervalsLocal().forEach(function(iv) {
-          const o0 = Math.max(a, iv[0]), o1 = Math.min(b, iv[1]);
-          if (o1 > o0) covered += (o1 - o0);
-        });
-        otTotal += Math.max(0, (b - a) - covered);
+      }
+      if (typeof computeEventOvertimeMinutes === 'function') {
+        otTotal += computeEventOvertimeMinutes(out, minToTime(a), minToTime(b));
       }
     });
     if (otTotal >= 15) {
-      out.overtimeMinutes = Math.max(Number(out.overtimeMinutes) || 0, otTotal);
+      out.overtimeMinutes = otTotal;
       out.overtimeNote = 'Straordinario ~' + (otTotal / 60).toFixed(1) + 'h (impegno fuori orario di lavoro)';
+    } else {
+      out.overtimeMinutes = 0;
+      delete out.overtimeNote;
     }
 
-    // Sposta pausa SOLO se c'è almeno un impegno che interseca la fascia 11:00–14:30
-    // E interseca il turno (non riunioni serali 18:00).
-    const lunchWindowHit = overlapping.some(function(ev) {
-      const a = ev[0], b = ev[1];
-      return !(b <= timeToMin('11:00') || a >= timeToMin('14:30'));
-    });
-    if (lunchWindowHit && (isFlexibleLunchOfficeWorker(wId) || isSeverinWorker(wId))) {
-      const optimized = optimizeLunchBreakOnly(out, wId, overlapping);
-      if (optimized) {
-        // Conserva mIn e fine turno originali: solo mOut/pIn dalla ottimizzazione
-        out.mOut = optimized.mOut || out.mOut;
-        out.pIn = optimized.pIn || out.pIn;
-        // NON toccare pOut / mIn
-        out.breakAdjusted = true;
-        if (optimized.breakSlotNote) out.breakSlotNote = optimized.breakSlotNote;
+    // Sposta pausa solo se non è manuale. Corso lungo (es. 08:30–14:30): lascia 13:00–14:00.
+    if (!(out.manualEdit || out.lockBreak || out.clearedByUser)) {
+      const lunchWindowHit = overlapping.some(function(ev) {
+        const a = ev[0], b = ev[1];
+        return !(b <= timeToMin('11:00') || a >= timeToMin('14:30'));
+      });
+      const longSpanCourse = overlapping.some(function(ev) {
+        const a = ev[0], b = ev[1];
+        return a <= timeToMin('09:30') && b >= timeToMin('14:00');
+      });
+      if (lunchWindowHit && !longSpanCourse && (isFlexibleLunchOfficeWorker(wId) || isSeverinWorker(wId))) {
+        const optimized = optimizeLunchBreakOnly(out, wId, overlapping);
+        if (optimized) {
+          out.mOut = optimized.mOut || out.mOut;
+          out.pIn = optimized.pIn || out.pIn;
+          out.breakAdjusted = true;
+          if (optimized.breakSlotNote) out.breakSlotNote = optimized.breakSlotNote;
+        }
       }
     }
 
-    // Ricalcola OT dopo eventuale spostamento pausa
+    // Ricalcola OT dopo eventuale spostamento pausa (solo fuori giornata)
     if (out.mIn || out.pIn) {
       let ot2 = 0;
       events.forEach(function(ev) {
         if (typeof computeEventOvertimeMinutes === 'function') {
           ot2 += computeEventOvertimeMinutes(out, minToTime(ev[0]), minToTime(ev[1]));
         }
-      });
-      // computeEventOvertimeMinutes expects HH:MM strings
-      ot2 = 0;
-      events.forEach(function(ev) {
-        const a = ev[0], b = ev[1];
-        const ivs = [];
-        if (out.mIn && out.mOut) ivs.push([timeToMin(out.mIn), timeToMin(out.mOut)]);
-        if (out.pIn && out.pOut) ivs.push([timeToMin(out.pIn), timeToMin(out.pOut)]);
-        let covered = 0;
-        ivs.forEach(function(iv) {
-          const o0 = Math.max(a, iv[0]), o1 = Math.min(b, iv[1]);
-          if (o1 > o0) covered += o1 - o0;
-        });
-        ot2 += Math.max(0, (b - a) - covered);
       });
       if (ot2 >= 15) {
         out.overtimeMinutes = ot2;
@@ -9722,20 +9707,29 @@ function minLunchBreakMinutes(wId) {
         manualEdit: true,
         clearedByUser: false
       };
-      // Applica pausa pranzo (min 1h, 30' Severin) considerando impegni del giorno
+      // Salvataggio manuale: non sovrascrivere la pausa scelta dall'utente
+      dayData.lockBreak = true;
+      dayData.manualEdit = true;
       if (!dayData.status || dayData.status === 'LAVORO' || dayData.status === 'ROL') {
-        const before = JSON.stringify({ mIn: dayData.mIn, mOut: dayData.mOut, pIn: dayData.pIn, pOut: dayData.pOut });
-        const dateObj = new Date(currentDate);
-        // ricostruisci data del giorno corrente in tabella
         let monday = new Date(currentDate); monday.setHours(12,0,0,0);
         const dow = monday.getDay() || 7; monday.setDate(monday.getDate() - (dow - 1));
         const dayDate = new Date(monday); dayDate.setDate(monday.getDate() + currentDayIdx); dayDate.setHours(12,0,0,0);
-        dayData = absorbEventsIntoShift(dayData, currentWorkerId, dayDate);
-        const after = JSON.stringify({ mIn: dayData.mIn, mOut: dayData.mOut, pIn: dayData.pIn, pOut: dayData.pOut });
-        if (before !== after) {
-          const mb = minLunchBreakMinutes(currentWorkerId);
-          showToast('Pausa pranzo adeguata automaticamente (minimo ' + mb + ' min)', 'info', 3500);
-        }
+        try {
+          const events = (typeof getWorkerDayEventIntervals === 'function')
+            ? (getWorkerDayEventIntervals(currentWorkerId, dayDate) || [])
+            : [];
+          let ot = 0;
+          events.forEach(function(ev) {
+            ot += computeEventOvertimeMinutes(dayData, minToTime(ev[0]), minToTime(ev[1]));
+          });
+          if (ot >= 15) {
+            dayData.overtimeMinutes = ot;
+            dayData.overtimeNote = 'Straordinario ~' + (ot / 60).toFixed(1) + 'h (impegno fuori orario)';
+          } else {
+            dayData.overtimeMinutes = 0;
+            delete dayData.overtimeNote;
+          }
+        } catch (eOtSave) {}
         const warn = validateShiftRules(dayData, wName, currentWorkerId);
         if (warn.length) {
           showToast(warn.join(' · '), 'warn', 4500);
@@ -14518,7 +14512,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.70';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.71';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;

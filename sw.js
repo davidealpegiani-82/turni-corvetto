@@ -1,6 +1,6 @@
-/* SW 9.11.70 network-first */
-const CACHE = 'turni-corvetto-9.11.70';
-const SW_VERSION = '9.11.70';
+/* SW 9.11.71 network-first */
+const CACHE = 'turni-corvetto-9.11.71';
+const SW_VERSION = '9.11.71';
 self.addEventListener('install', function(e) {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function(c) {
