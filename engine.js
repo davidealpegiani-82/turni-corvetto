@@ -103,7 +103,7 @@ const OFFICIAL_POLICY = {
       mayBreak: ['coperture_minime', 'pause_preferenze']
     }
   };
-window.OFFICIAL_POLICY = OFFICIAL_POLICY;
+global.OFFICIAL_POLICY = OFFICIAL_POLICY;
 
 
   const Engine = {
