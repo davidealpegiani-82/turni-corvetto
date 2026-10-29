@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.64
-Calendario condiviso sotto i comandi di sezione.
+Turni Corvetto v9.11.65
+Festività nazionali + Santo Ambrogio (Milano) in calendario, tabella e generatore.

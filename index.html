@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.64</title>
+  <title>Turni Corvetto v9.11.65</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.64';
+    var EXPECTED='9.11.65';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.64"></script>
+  <script src="./engine.js?v=9.11.65"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.64';
+    const APP_VERSION = '9.11.65';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.65 — Festività nazionali e Milano (S.Ambrogio) in calendario, tabella e generatore',
     '9.11.64 — Calendario sotto i comandi di sezione (ferie/malattia/impegni)',
     '9.11.63 — Calendario assenze fisso e condiviso con filtri ferie/malattia/impegni',
     '9.11.62 — Calendario assenze unificato: ferie + malattia + impegni con colori e legenda',
@@ -2396,6 +2397,11 @@
       background: var(--primary); color: #fff; border-color: var(--primary);
     }
 
+  
+    .leave-chip.tipo-festivo { background: #b91c1c; }
+    .cal-legend i.festivo { background: #b91c1c; }
+    th.is-holiday { box-shadow: inset 0 -2px 0 #dc2626; }
+
   </style>
 </head>
 <body>
@@ -2418,7 +2424,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.64</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.65</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -2552,6 +2558,7 @@
       <button type="button" class="cal-type-btn" data-cal-type="permesso" onclick="setCalendarTypeFilter('permesso')">Permessi</button>
       <button type="button" class="cal-type-btn" data-cal-type="malattia" onclick="setCalendarTypeFilter('malattia')">Malattia</button>
       <button type="button" class="cal-type-btn" data-cal-type="evento" onclick="setCalendarTypeFilter('evento')">Impegni</button>
+      <button type="button" class="cal-type-btn" data-cal-type="festivo" onclick="setCalendarTypeFilter('festivo')">Festivi</button>
     </div>
     <div class="leave-calendar-grid" id="leaveCalendarGrid"></div>
   </div>
@@ -5881,6 +5888,7 @@ function isUsableAppData(value) {
         const t = String(en.tipo || '').toLowerCase();
         const kind = en.kind || '';
         if (f === 'evento') return kind === 'evento' || en.status === 'evento';
+        if (f === 'festivo') return kind === 'festivo' || en.status === 'festivo';
         if (f === 'malattia') return kind === 'malattia' || t.indexOf('malattia') >= 0 || t.indexOf('ricovero') >= 0;
         if (f === 'ferie') return t.indexOf('ferie') >= 0;
         if (f === 'permesso') {
@@ -6368,6 +6376,7 @@ function renderWeek() {
 
     if (!appData.weeks) appData.weeks = {};
     if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
+    try { applyHolidaysToWeek(appData.weeks[currentWeekKey], currentWeekKey); } catch (eHolR) {}
 
     // Prima del paint: pulizia note impegno + adeguo pause pranzo
     try {
@@ -6419,7 +6428,15 @@ function renderWeek() {
       const todayStyle = isToday
         ? 'background: #3b82f6; color: #fff; border-radius: 8px;'
         : '';
-      trHeader.innerHTML += `<th class="${isToday ? 'is-today' : ''}" style="font-size: 11px; ${todayStyle}">${daysNames[i]} <span style="font-weight: 800; font-size: 12px;">${d.getDate()}</span></th>`;
+      const holInfo = (typeof getHolidayInfoForDate === 'function') ? getHolidayInfoForDate(d) : null;
+      const holName = holInfo ? holInfo.name : null;
+      const holStyle = holName
+        ? (isToday ? 'background:#b91c1c;color:#fff;border-radius:8px;' : 'background:rgba(220,38,38,.12);')
+        : todayStyle;
+      const holLine = holName
+        ? `<div style="font-size:9px;font-weight:800;line-height:1.15;margin-top:2px;max-width:72px;white-space:normal;">${escapeHtmlV47(holName)}</div>`
+        : '';
+      trHeader.innerHTML += `<th class="${isToday ? 'is-today' : ''}${holName ? ' is-holiday' : ''}" style="font-size: 11px; ${holStyle}" title="${holName ? escapeHtmlV47(holName) : ''}">${daysNames[i]} <span style="font-weight: 800; font-size: 12px;">${d.getDate()}</span>${holLine}</th>`;
     }
     trHeader.innerHTML += `<th class="col-total" style="font-weight: 800;">Totale</th>`;
 
@@ -8318,7 +8335,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.64', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.65', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -8475,35 +8492,86 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
   function getItalianHolidays(year) {
     year = Number(year) || new Date().getFullYear();
     const map = {};
-    function add(mm, dd, name) {
+    function add(mm, dd, name, scope) {
       const key = year + '-' + String(mm).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
-      map[key] = name;
+      map[key] = { name: name, scope: scope || 'nazionale' };
     }
-    add(1, 1, 'Capodanno');
-    add(1, 6, 'Epifania');
-    add(4, 25, 'Liberazione');
-    add(5, 1, 'Festa del Lavoro');
-    add(6, 2, 'Festa della Repubblica');
-    add(8, 15, 'Ferragosto');
-    add(11, 1, 'Ognissanti');
-    add(12, 8, 'Immacolata Concezione');
-    add(12, 25, 'Natale');
-    add(12, 26, 'Santo Stefano');
+    add(1, 1, 'Capodanno', 'nazionale');
+    add(1, 6, 'Epifania', 'nazionale');
+    add(4, 25, 'Liberazione', 'nazionale');
+    add(5, 1, 'Festa del Lavoro', 'nazionale');
+    add(6, 2, 'Festa della Repubblica', 'nazionale');
+    add(8, 15, 'Ferragosto', 'nazionale');
+    add(11, 1, 'Ognissanti', 'nazionale');
+    add(12, 8, 'Immacolata Concezione', 'nazionale');
+    add(12, 25, 'Natale', 'nazionale');
+    add(12, 26, 'Santo Stefano', 'nazionale');
+    add(12, 7, 'Santo Ambrogio (Milano)', 'milano');
     try {
       const easter = getEasterSunday(year);
       const pasquetta = new Date(easter.getTime());
       pasquetta.setDate(pasquetta.getDate() + 1);
-      map[isoDateLocal(pasquetta)] = "Lunedì dell'Angelo (Pasquetta)";
+      map[isoDateLocal(pasquetta)] = { name: "Lunedì dell'Angelo (Pasquetta)", scope: 'nazionale' };
     } catch (eE) {}
     return map;
   }
-  function getHolidayForDate(d) {
+  function getHolidayInfoForDate(d) {
     if (!d) return null;
     const dt = (d instanceof Date) ? d : new Date(d);
     if (isNaN(dt.getTime())) return null;
     const map = getItalianHolidays(dt.getFullYear());
-    return map[isoDateLocal(dt)] || null;
+    const v = map[isoDateLocal(dt)];
+    if (!v) return null;
+    if (typeof v === 'string') return { name: v, scope: 'nazionale' };
+    return { name: v.name, scope: v.scope || 'nazionale' };
   }
+  function getHolidayForDate(d) {
+    const info = getHolidayInfoForDate(d);
+    return info ? info.name : null;
+  }
+  function isHolidayDate(d) {
+    return !!getHolidayInfoForDate(d);
+  }
+  function applyHolidaysToWeek(week, weekKey) {
+    if (!week) return week;
+    try {
+      const monday = (typeof weekKeyToMonday === 'function')
+        ? weekKeyToMonday(weekKey || currentWeekKey)
+        : null;
+      if (!monday) return week;
+      for (let day = 0; day <= 5; day++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + day);
+        d.setHours(12, 0, 0, 0);
+        const info = getHolidayInfoForDate(d);
+        if (!info) continue;
+        const label = 'FESTIVO: ' + info.name;
+        (appData.workers || []).forEach(function(w) {
+          if (!w || w.selected === false) return;
+          if (!week[w.id]) week[w.id] = {};
+          let cell = week[w.id][day];
+          if (!cell) cell = {};
+          if (cell.manualEdit) return;
+          const st = String(cell.status || '').toUpperCase();
+          if (st === 'FERIE' || st === 'MALATTIA' || st === 'RICOVERO') return;
+          week[w.id][day] = Object.assign({}, cell, {
+            status: 'CHIUSO',
+            mIn: '', mOut: '', pIn: '', pOut: '',
+            note: label,
+            holiday: true,
+            holidayName: info.name,
+            holidayScope: info.scope,
+            generated: true
+          });
+        });
+      }
+    } catch (eH) { console.warn('applyHolidaysToWeek', eH); }
+    return week;
+  }
+  window.getHolidayInfoForDate = getHolidayInfoForDate;
+  window.applyHolidaysToWeek = applyHolidaysToWeek;
+  window.isHolidayDate = isHolidayDate;
+
   function cellWorkStartMin(cell) {
     if (!cell || (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(cell))) return null;
     if (cell.mIn) return timeToMin(cell.mIn);
@@ -12538,6 +12606,10 @@ function minLunchBreakMinutes(wId) {
     const rules=R();
     const proposal=cloneWeekForProposal(currentWeekKey);
     const notes=[];
+    try {
+      applyHolidaysToWeek(proposal, currentWeekKey);
+      notes.push('Festività nazionali/Milano applicate come CHIUSO (salvo modifiche manuali/assenze).');
+    } catch (eHolGen) {}
     // Rotazioni.
     let prevDate=new Date(currentDate); prevDate.setDate(prevDate.getDate()-7);
     const prevKey=getWeekKey(prevDate), lastSat=getLastSaturdayInfo(prevKey);
@@ -12910,6 +12982,17 @@ function minLunchBreakMinutes(wId) {
       { key:'ufficio', start:'11:00', end:'12:00', min:1, label:'ufficio chiusura sabato' }
     ];
     for(let day=0; day<=5; day++) {
+      try {
+        if (typeof weekKeyToMonday === 'function' && typeof getHolidayInfoForDate === 'function') {
+          const mon = weekKeyToMonday(currentWeekKey || getWeekKey(currentDate));
+          if (mon) {
+            const dd = new Date(mon);
+            dd.setDate(mon.getDate() + day);
+            dd.setHours(12,0,0,0);
+            if (getHolidayInfoForDate(dd)) continue;
+          }
+        }
+      } catch (eSkipH) {}
       const dayWindows = windows.filter(win =>
         day === 5 ? win.start >= '07:00' && win.end <= '12:00' :
                     win.start >= '06:30' && win.end <= '17:30' && !win.label.includes('sabato')
@@ -14273,7 +14356,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.64';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.65';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -18838,9 +18921,28 @@ async function downloadJpgFromPreview() {
     return map;
   }
 
-  /** Calendario condiviso: ferie/permessi + malattia/ricovero + impegni. */
+  /** Calendario condiviso: ferie/permessi + malattia/ricovero + impegni + festività. */
   function getUnifiedCalendarEntriesForYear(year, workerId) {
     const map = getLeaveEntriesForYear(year, workerId);
+    try {
+      const holMap = getItalianHolidays(year) || {};
+      Object.keys(holMap).forEach(function(key) {
+        const v = holMap[key];
+        const name = (v && typeof v === 'object') ? v.name : v;
+        const scope = (v && typeof v === 'object' && v.scope) ? v.scope : 'nazionale';
+        if (!map[key]) map[key] = [];
+        map[key].unshift({
+          reqId: null,
+          workerId: '',
+          name: scope === 'milano' ? 'MI' : 'IT',
+          fullName: name,
+          tipo: name,
+          status: 'festivo',
+          kind: 'festivo',
+          holidayScope: scope
+        });
+      });
+    } catch (eHolCal) {}
     // Impegni / eventi
     (appData.events || []).forEach(function(ev) {
       if (!ev || !ev.date) return;
@@ -18876,6 +18978,7 @@ async function downloadJpgFromPreview() {
   }
   function calendarChipClass(en) {
     if (!en) return 'tipo-altro';
+    if (en.kind === 'festivo' || en.status === 'festivo') return 'tipo-festivo';
     if (en.status === 'richiesta') return 'tipo-richiesta';
     if (en.kind === 'evento' || en.status === 'evento') return 'tipo-evento';
     const t = String(en.tipo || '').toLowerCase();
@@ -18887,6 +18990,10 @@ async function downloadJpgFromPreview() {
   }
   function openCalendarEntry(en) {
     if (!en) return;
+    if (en.kind === 'festivo' || en.status === 'festivo') {
+      try { showToast(en.fullName || en.tipo || 'Festività', 'info', 3500); } catch (e) {}
+      return;
+    }
     if (en.kind === 'evento' || en.eventId || en.event) {
       try {
         if (typeof openAbsencesFolder === 'function') openAbsencesFolder('eventi');
@@ -19005,7 +19112,7 @@ async function downloadJpgFromPreview() {
         card.style.boxShadow = '0 0 0 2px var(--primary)';
         currentMonthCard = card;
       }
-      card.innerHTML = `<h4>${months[m]} ${leaveYear}${isCurrentMonth ? ' · oggi' : ''} · ferie · malattia · impegni</h4>`;
+      card.innerHTML = `<h4>${months[m]} ${leaveYear}${isCurrentMonth ? ' · oggi' : ''} · ferie · malattia · impegni · festivi</h4>`;
       const daysEl = document.createElement('div');
       daysEl.className = 'leave-days';
       ['L','M','M','G','V','S','D'].forEach(d => {
