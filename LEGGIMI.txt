@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.63
-Calendario condiviso fisso in Assenze, con filtri Tutti/Ferie/Permessi/Malattia/Impegni.
+Turni Corvetto v9.11.64
+Calendario condiviso sotto i comandi di sezione.
