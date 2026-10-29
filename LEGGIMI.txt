@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.66
-Pasqua + 16 agosto (commercio); chip calendario con nome festa.
+Turni Corvetto v9.11.67
+Spazio utile sopra bottom bar: pagine e modali non coperte dai 4 tasti.

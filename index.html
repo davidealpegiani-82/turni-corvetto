@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.66</title>
+  <title>Turni Corvetto v9.11.67</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.66';
+    var EXPECTED='9.11.67';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.66"></script>
+  <script src="./engine.js?v=9.11.67"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.66';
+    const APP_VERSION = '9.11.67';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.67 — Spazio utile sopra la bottom bar: body e modali non più coperti',
     '9.11.66 — Pasqua + 16 agosto (commercio); chip calendario con nome festa',
     '9.11.65 — Festività nazionali e Milano (S.Ambrogio) in calendario, tabella e generatore',
     '9.11.64 — Calendario sotto i comandi di sezione (ferie/malattia/impegni)',
@@ -1798,9 +1799,16 @@
     #problemsPanel .prob-empty { font-size: 13px; color: var(--text-muted); padding: 6px 0; }
     .conflict-modal-actions { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
     @media (max-width: 640px) {
-      .modal { width: 100% !important; max-width: 100% !important; max-height: 100vh !important;
-        border-radius: 16px 16px 0 0 !important; margin: 0 !important; }
-      .modal-backdrop { align-items: flex-end !important; }
+      .modal {
+        width: 100% !important; max-width: 100% !important;
+        max-height: calc(100vh - var(--bottom-nav-h) - 28px) !important;
+        max-height: calc(100dvh - var(--bottom-nav-h) - 28px) !important;
+        border-radius: 16px 16px 0 0 !important; margin: 0 !important;
+      }
+      .modal-backdrop {
+        align-items: flex-end !important;
+        padding-bottom: calc(var(--bottom-nav-h) + 10px) !important;
+      }
       button, .btn { min-height: 42px; padding: 10px 14px !important; font-size: 14px !important; }
       input, select, textarea { min-height: 42px; font-size: 16px !important; }
       .header h1 { font-size: 1.25rem !important; }
@@ -2133,13 +2141,19 @@
     .rules-banner .rb-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; width:100%; }
     .rules-banner .rb-actions button { font-size:11px; padding:4px 10px; min-height:32px; }
 
-    /* Bottom action bar mobile */
+    /* Bottom action bar mobile — spazio riservato al contenuto */
+    :root {
+      --bottom-nav-h: calc(62px + env(safe-area-inset-bottom, 0px));
+    }
     .bottom-nav {
       display:none; position:fixed; left:0; right:0; bottom:0; z-index:9000;
+      height: var(--bottom-nav-h);
+      box-sizing: border-box;
       background:rgba(15,23,42,.92); backdrop-filter:blur(12px);
       border-top:1px solid rgba(255,255,255,.08);
-      padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+      padding:6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
       grid-template-columns:repeat(4,1fr); gap:4px;
+      align-items: center;
     }
     body.light-theme .bottom-nav {
       background:rgba(255,255,255,.96); border-top-color:#e2e8f0;
@@ -2154,7 +2168,28 @@
     .bottom-nav button:active { background:rgba(59,130,246,.12); }
     @media (max-width:820px) {
       .bottom-nav { display:grid; }
-      body { padding-bottom:72px; }
+      body {
+        padding-bottom: calc(var(--bottom-nav-h) + 12px) !important;
+      }
+      /* Contenuti principali: niente elementi nascosti sotto la barra */
+      .op-shell,
+      #viewTurni,
+      #viewFerie,
+      #viewMalattia,
+      #viewEventi,
+      #viewSettings,
+      #viewOggi {
+        padding-bottom: 8px;
+      }
+      /* Modali: area utile sopra la bottom bar */
+      .modal-backdrop {
+        padding-bottom: calc(var(--bottom-nav-h) + 10px) !important;
+        box-sizing: border-box;
+      }
+      .modal {
+        max-height: calc(100vh - var(--bottom-nav-h) - 28px) !important;
+        max-height: calc(100dvh - var(--bottom-nav-h) - 28px) !important;
+      }
       #turniControlCard .leave-toolbar button.btn-proposal,
       #turniControlCard .leave-toolbar button.success { display:none; }
     }
@@ -2425,7 +2460,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.66</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.67</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -8336,7 +8371,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.66', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.67', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14383,7 +14418,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.66';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.67';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
