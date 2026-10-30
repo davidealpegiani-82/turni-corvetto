@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.71</title>
+  <title>Turni Corvetto v9.11.72</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.71';
+    var EXPECTED='9.11.72';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.71"></script>
+  <script src="./engine.js?v=9.11.72"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.71';
+    const APP_VERSION = '9.11.72';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.72 — Messaggi «protetto»: chiarito che si può sempre modificare a mano',
     '9.11.71 — Corso+pausa: niente auto-spostamento se manuale; OT solo fuori giornata; ore corso = 8h nastro',
     '9.11.70 — Cancellazione turni protetta (manualEdit) + sync non sovrascrive locale più recente',
     '9.11.69 — Menu Altro Turni: foglio fisso in basso su mobile, sempre dentro lo schermo',
@@ -2501,7 +2502,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.71</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.72</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3123,7 +3124,7 @@
 <div class="modal-backdrop" id="dayModal">
   <div class="modal">
     <h3 id="modalDayTitle">Modifica Turno</h3>
-    <p class="manual-hint" id="manualEditHint">Modifica manuale: questo turno non verrà sovrascritto da «Genera proposta».</p>
+    <p class="manual-hint" id="manualEditHint">Puoi sempre modificare orari e salvare. Dopo il salvataggio «Genera proposta» non sovrascriverà questo giorno.</p>
     <button style="width:100%; margin-bottom:16px;" class="alt" onclick="copyPreviousDay()">📋 Copia dal giorno precedente</button>
     
     <div class="form-group">
@@ -5070,7 +5071,7 @@ function isUsableAppData(value) {
         const day = action.day;
         if (!week[id]) week[id] = {};
         const prev = week[id][day] || {};
-        if (prev.manualEdit) { showToast('Cella protetta: apri la tabella', 'warn'); return; }
+        if (prev.manualEdit) { showToast('Turno modificato a mano: aprilo dalla tabella per cambiarlo (il suggerimento automatico non lo sovrascrive).', 'info', 4000); return; }
         if (typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(prev)) {
           showToast('Persona assente quel giorno', 'warn'); return;
         }
@@ -8439,7 +8440,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.71', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.72', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -9440,6 +9441,24 @@ function minLunchBreakMinutes(wId) {
     document.getElementById('pOut').value = data.pOut || "";
     document.getElementById('dayNote').value = data.note || "";
 
+    // Campi sempre editabili (anche se già salvati a mano)
+    ['mIn','mOut','pIn','pOut','dayNote'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.readOnly = false; el.disabled = false; }
+    });
+    try {
+      var hint = document.getElementById('manualEditHint');
+      if (hint) {
+        if (data.manualEdit || data.lockBreak) {
+          hint.textContent = 'Già salvato a mano: puoi comunque cambiare orari e risalvare. «Genera» non li sovrascriverà.';
+        } else if (data.clearedByUser) {
+          hint.textContent = 'Giorno svuotato a mano: inserisci nuovi orari e salva, oppure lascia vuoto.';
+        } else {
+          hint.textContent = 'Puoi sempre modificare orari e salvare. Dopo il salvataggio «Genera proposta» non sovrascriverà questo giorno.';
+        }
+      }
+    } catch (eH) {}
+
     document.getElementById('dayModal').style.display = 'flex';
   }
   window.openDayModal = openDayModal;
@@ -9652,7 +9671,7 @@ function minLunchBreakMinutes(wId) {
       else syncToCloud();
     } catch (eS) { try { syncToCloud(); } catch (e2) {} }
     renderWeek();
-    try { showToast('Giorno svuotato e protetto da rigenerazione', 'success', 2500); } catch (eT) {}
+    try { showToast('Giorno svuotato. Puoi reinserire orari quando vuoi; «Genera» non li rimetterà.', 'success', 3200); } catch (eT) {}
   }
 
   function copyPreviousDay() {
@@ -9747,7 +9766,7 @@ function minLunchBreakMinutes(wId) {
     syncToCloud();
     renderWeek();
     try { if (typeof renderOperationalHome === 'function') renderOperationalHome(); } catch (eOp) {}
-    showToast('Turno salvato (protetto dalla generazione)', 'success', 2200);
+    showToast('Turno salvato. Puoi modificarlo di nuovo quando vuoi; «Genera» non lo sovrascriverà.', 'success', 3200);
   }
 
   // ========== GENERAZIONE AUTOMATICA PROPOSTA TURNI ==========
@@ -14512,7 +14531,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.71';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.72';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;

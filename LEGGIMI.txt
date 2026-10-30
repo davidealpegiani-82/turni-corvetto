@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.71
-Corso+pausa: manuale rispettato; OT solo fuori giornata.
+Turni Corvetto v9.11.72
+Messaggi protetto/chiariti: modifica manuale sempre possibile.

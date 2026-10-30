@@ -107,7 +107,7 @@ global.OFFICIAL_POLICY = OFFICIAL_POLICY;
 
 
   const Engine = {
-    version: '9.11.71',
+    version: '9.11.72',
     policyVersion: (OFFICIAL_POLICY && OFFICIAL_POLICY.version) || null,
     policy: OFFICIAL_POLICY,
     _api: null,
