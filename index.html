@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.72</title>
+  <title>Turni Corvetto v9.11.73</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.72';
+    var EXPECTED='9.11.73';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.72"></script>
+  <script src="./engine.js?v=9.11.73"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.72';
+    const APP_VERSION = '9.11.73';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.73 — Quota localStorage: salvataggio compatto + pulizia automatica snapshot/backup',
     '9.11.72 — Messaggi «protetto»: chiarito che si può sempre modificare a mano',
     '9.11.71 — Corso+pausa: niente auto-spostamento se manuale; OT solo fuori giornata; ore corso = 8h nastro',
     '9.11.70 — Cancellazione turni protetta (manualEdit) + sync non sovrascrive locale più recente',
@@ -2502,7 +2503,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.72</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.73</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3760,18 +3761,93 @@
     events: []
   };
 
+  function freeLocalStorageSpace() {
+    var keys = [
+      'turni_corvetto_snapshots_v1',
+      'turni_corvetto_snapshot_meta',
+      'turni_corvetto_backup_history_v1',
+      'turni_corvetto_local_pre_cloud',
+      'turni_corvetto_undo_stack',
+      'corvetto_pwa_dismiss'
+    ];
+    keys.forEach(function(k) {
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    // Chiavi temporanee / copie
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (!k) continue;
+        if (/^turni_corvetto_(snap|backup|pre_|copy)/i.test(k) || /snapshot|backup_history/i.test(k)) {
+          try { localStorage.removeItem(k); } catch (e2) {}
+        }
+      }
+    } catch (e3) {}
+  }
+
+  function compactAppDataForLocal(src) {
+    var data;
+    try { data = JSON.parse(JSON.stringify(src || appData || {})); }
+    catch (e) { data = src || appData || {}; }
+    try {
+      // Tieni poche settimane attive in locale
+      if (data.weeks && typeof data.weeks === 'object') {
+        var keys = Object.keys(data.weeks).sort();
+        if (keys.length > 12) {
+          var keep = keys.slice(-12);
+          var nw = {};
+          keep.forEach(function(k) { nw[k] = data.weeks[k]; });
+          data.weeks = nw;
+        }
+      }
+      // Archivio locale ridotto (il cloud resta completo via sync)
+      if (data.archive && data.archive.weeks) {
+        var ak = Object.keys(data.archive.weeks).sort();
+        if (ak.length > 4) {
+          var keepA = ak.slice(-4);
+          var na = {};
+          keepA.forEach(function(k) { na[k] = data.archive.weeks[k]; });
+          data.archive.weeks = na;
+        }
+      }
+      if (Array.isArray(data.auditLog) && data.auditLog.length > 40) data.auditLog = data.auditLog.slice(-40);
+      if (Array.isArray(data.changeLog) && data.changeLog.length > 40) data.changeLog = data.changeLog.slice(-40);
+      if (Array.isArray(data.diagnosticsLog) && data.diagnosticsLog.length > 20) data.diagnosticsLog = data.diagnosticsLog.slice(-20);
+    } catch (eC) {}
+    return data;
+  }
+
   function saveLocalData() {
     setSaveStatus('saving');
     try {
-      localStorage.setItem('turni_corvetto_test_data', JSON.stringify(appData));
+      try { if (typeof archiveOldWeeks === 'function') archiveOldWeeks(12, true); } catch (eA) {}
+      localStorage.setItem('turni_corvetto_test_data', JSON.stringify(compactAppDataForLocal(appData)));
       setSaveStatus('ok');
       maybeAutoSnapshot();
-      // Se Firebase SDK non è attivo, prova comunque a pubblicare su RTDB via REST (debounced)
       try { scheduleRestCloudPush(); } catch (eR) {}
     } catch (e) {
       console.warn('saveLocalData', e);
-      setSaveStatus('err');
-      showToast('Errore salvataggio locale (spazio pieno?)', 'error', 4000);
+      // Quota piena: libera snapshot/backup e riprova in forma compatta
+      try {
+        freeLocalStorageSpace();
+        try { if (typeof archiveOldWeeks === 'function') archiveOldWeeks(8, true); } catch (eA2) {}
+        localStorage.setItem('turni_corvetto_test_data', JSON.stringify(compactAppDataForLocal(appData)));
+        setSaveStatus('ok');
+        if (!window._quotaToastAt || (Date.now() - window._quotaToastAt) > 20000) {
+          window._quotaToastAt = Date.now();
+          showToast('Memoria telefono piena: liberati i backup locali. Dati salvati; il cloud resta il riferimento principale.', 'warn', 5500);
+        }
+        try { scheduleRestCloudPush(); } catch (eR2) {}
+        try { if (typeof syncToCloudNow === 'function') syncToCloudNow(); } catch (eS) {}
+      } catch (e3) {
+        console.warn('saveLocalData retry failed', e3);
+        setSaveStatus('err');
+        if (!window._quotaToastAt || (Date.now() - window._quotaToastAt) > 20000) {
+          window._quotaToastAt = Date.now();
+          showToast('Memoria locale piena. Le modifiche restano in cloud se online. Impostazioni browser → elimina dati sito se persiste.', 'error', 6500);
+        }
+        try { if (typeof syncToCloudNow === 'function') syncToCloudNow(); } catch (eS2) {}
+      }
     }
   }
 
@@ -3837,7 +3913,7 @@
     } catch (e) {
       // se pieno, tieni meno snapshot
       try {
-        const reduced = (arr || []).slice(0, 10);
+        const reduced = (arr || []).slice(0, 2);
         localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(reduced));
       } catch (e2) {
         showToast('Spazio locale insufficiente per nuovi backup', 'warn', 4000);
@@ -3853,12 +3929,13 @@
       label: label || 'automatico',
       appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''),
       weekKey: (typeof currentWeekKey !== 'undefined' ? currentWeekKey : ''),
-      // dati completi
-      data: JSON.parse(JSON.stringify(appData))
+      data: (typeof compactAppDataForLocal === 'function')
+        ? compactAppDataForLocal(appData)
+        : JSON.parse(JSON.stringify(appData))
     };
     let arr = listSnapshots();
     arr.unshift(snap);
-    if (arr.length > 30) arr = arr.slice(0, 30);
+    if (arr.length > 5) arr = arr.slice(0, 5);
     persistSnapshots(arr);
     appendAudit('backup_snapshot', snap.label + ' · ' + snap.id);
     return snap;
@@ -8440,7 +8517,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.72', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.73', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10162,7 +10239,7 @@ function minLunchBreakMinutes(wId) {
   window.collectWeekProblems = collectWeekProblems;
 
   /** Tiene online le ultime N settimane; il resto va in appData.archive.weeks (sempre nel backup). */
-  const HOT_WEEKS_KEEP = 16;
+  const HOT_WEEKS_KEEP = 12;
 
   function listWeekKeysSorted() {
     const keys = Object.keys((appData && appData.weeks) || {});
@@ -14515,7 +14592,7 @@ function minLunchBreakMinutes(wId) {
   
   // ========== PWA force update + backup history + rebalance offer ==========
   const BACKUP_HISTORY_KEY = 'turni_corvetto_backup_history_v1';
-  const BACKUP_HISTORY_MAX = 30;
+  const BACKUP_HISTORY_MAX = 5;
 
   async function forceAppUpdate() {
     try { showToast('Aggiornamento forzato…', 'info', 2000); } catch (e0) {}
@@ -14531,7 +14608,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.72';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.73';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -14544,14 +14621,25 @@ function minLunchBreakMinutes(wId) {
         at: new Date().toISOString(),
         label: label || 'Auto',
         appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''),
-        data: JSON.parse(JSON.stringify(appData))
+        data: (typeof compactAppDataForLocal === 'function')
+          ? compactAppDataForLocal(appData)
+          : JSON.parse(JSON.stringify(appData))
       };
       let list = [];
       try { list = JSON.parse(localStorage.getItem(BACKUP_HISTORY_KEY) || '[]'); } catch (e) { list = []; }
       if (!Array.isArray(list)) list = [];
       list.unshift(entry);
       if (list.length > BACKUP_HISTORY_MAX) list = list.slice(0, BACKUP_HISTORY_MAX);
-      localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(list));
+      try {
+        localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(list));
+      } catch (eQ) {
+        try {
+          list = list.slice(0, 1);
+          localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify(list));
+        } catch (eQ2) {
+          try { localStorage.removeItem(BACKUP_HISTORY_KEY); } catch (eQ3) {}
+        }
+      }
       try { updateBackupHistoryUI(); } catch (eU) {}
       return entry.id;
     } catch (e) {

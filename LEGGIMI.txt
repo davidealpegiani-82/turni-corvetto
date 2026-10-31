@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.72
-Messaggi protetto/chiariti: modifica manuale sempre possibile.
+Turni Corvetto v9.11.73
+localStorage: salvataggio compatto e pulizia automatica se spazio pieno.
