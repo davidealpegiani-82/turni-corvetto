@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.73</title>
+  <title>Turni Corvetto v9.11.74</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.73';
+    var EXPECTED='9.11.74';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.73"></script>
+  <script src="./engine.js?v=9.11.74"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.73';
+    const APP_VERSION = '9.11.74';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.74 — Genera opzione 2: niente freeze (async + cache storico + smart leggero)',
     '9.11.73 — Quota localStorage: salvataggio compatto + pulizia automatica snapshot/backup',
     '9.11.72 — Messaggi «protetto»: chiarito che si può sempre modificare a mano',
     '9.11.71 — Corso+pausa: niente auto-spostamento se manuale; OT solo fuori giornata; ore corso = 8h nastro',
@@ -2503,7 +2504,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.73</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.74</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="forceReloadFromCloud()" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -8517,7 +8518,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.73', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.74', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -12892,6 +12893,8 @@ function minLunchBreakMinutes(wId) {
         const existingOff = cellAt(proposal, id, day);
         if (existingOff && existingOff.manualEdit) continue;
         if (existingOff && typeof isHardUnavailableCell === 'function' && isHardUnavailableCell(existingOff)) continue;
+        // fillMode empty: non riscrivere celle già piene
+        if (options.fillMode === 'empty' && !isBlankProposalCell(proposal, id, day)) continue;
         putGenerated(proposal, id, day, makeStandardOfficeShift(id, day, nextUfficio, prevUfficio, rules));
       }
       for(const id of MAG_PAIR_A().concat(MAG_PAIR_B())){
@@ -13327,9 +13330,13 @@ function minLunchBreakMinutes(wId) {
     if(p.warehouse) return 'magazzino';
     return 'altro';
   }
+  var _smartHistCache = Object.create(null);
+  function clearSmartHistCache(){ _smartHistCache = Object.create(null); }
   function smartHistoryStats(wid,limit=12){
     const w=workerObj(wid); if(!w) return {weeks:0,hours:0,saturdays:0,openings:0,closings:0};
-    const rows=smartHistoryWeeks(limit); let hours=0,saturdays=0,openings=0,closings=0;
+    const ck = String(wid) + '|' + String(limit) + '|' + String(currentWeekKey || '');
+    if (_smartHistCache[ck]) return _smartHistCache[ck];
+    const rows=smartHistoryWeeks(Math.min(limit, 6)); let hours=0,saturdays=0,openings=0,closings=0;
     rows.forEach((row,i)=>{
       const weight=Math.pow(0.82,i);
       const wk=appData.weeks[row.key]||{};
@@ -13342,7 +13349,9 @@ function minLunchBreakMinutes(wId) {
         if(day<5 && coveredAt(c,timeToMin('17:15'))) closings += weight;
       }
     });
-    return {weeks:rows.length,hours,saturdays,openings,closings};
+    const out = {weeks:rows.length,hours,saturdays,openings,closings};
+    _smartHistCache[ck] = out;
+    return out;
   }
   function smartCurrentStats(week,wid){
     let hours=0,saturdays=0,openings=0,closings=0;
@@ -13516,7 +13525,7 @@ function minLunchBreakMinutes(wId) {
   function smartRunDayRepair(week,day,baseContext){
     if(day>4) return {changed:false,log:[]};
     let changed=false, log=[];
-    for(let pass=0;pass<2;pass++){
+    for(let pass=0;pass<1;pass++){
       const base=smartScoreProposal(week); let best=null;
       const ids=[...new Set([...SABATO_UFFICIO_IDS(),...MAG_PAIR_A(),...MAG_PAIR_B(),MARIO_ID()])].filter(id=>!!workerObj(id));
       for(const id of ids){
@@ -14077,6 +14086,24 @@ function minLunchBreakMinutes(wId) {
       clearMode = (ans === '2') ? 'empty' : (ans === '3') ? 'nonmanual' : 'all';
     }
     window._generateClearMode = null;
+
+    // Evita freeze UI: dopo il prompt lascia respirare il browser, poi genera.
+    try { showToast('Generazione in corso… attendi qualche secondo', 'info', 6000); } catch (eT0) {}
+    setTimeout(function() {
+      try {
+        _runGenerateAutoProposalBody(clearMode);
+      } catch (eGen) {
+        console.error('Genera async', eGen);
+        try { showToast('Errore in generazione: ' + (eGen && eGen.message ? eGen.message : eGen), 'error', 5000); } catch (eT1) {}
+      } finally {
+        try { window._syncSuspended = false; } catch (eF) {}
+      }
+    }, 60);
+    return;
+  }
+
+  function _runGenerateAutoProposalBody(clearMode) {
+    currentWeekKey=getWeekKey(currentDate);
     // Durante generazione non far interferire il cloud
     try {
       window._pendingRemoteData = null;
@@ -14084,6 +14111,7 @@ function minLunchBreakMinutes(wId) {
       window._ignoreRemoteUntil = Date.now() + 180000;
       dismissRemoteUpdate();
     } catch (eSup) {}
+    try { if (typeof clearSmartHistCache === 'function') clearSmartHistCache(); } catch (eC) {}
 
     try {
       if (!appData.weeks) appData.weeks = {};
@@ -14105,7 +14133,7 @@ function minLunchBreakMinutes(wId) {
     } catch (eClr) {}
 
     try{
-      const base=generateAutoProposalLegacy({silent:true});
+      const base=generateAutoProposalLegacy({silent:true, fillMode: clearMode});
 
       if(!base || !base.week){
         throw new Error('Il motore base non ha restituito una proposta.');
@@ -14138,10 +14166,18 @@ function minLunchBreakMinutes(wId) {
       const hasChoices=(base.choices||[]).some(c=>c.options&&c.options.length>1);
       const hasCoverageGaps=Number(baseScore.coverageGaps||0)>0;
 
-      // Settimana vuota / proposta già valida:
-      // niente ricerca combinatoria inutile. Il cervello deve comunque
-      // produrre score e report, ma non deve rallentare la generazione.
-      if(hasChoices || hasCoverageGaps){
+      // Opzione 2 (solo vuote): evita Smart Brain pesante → freeze su telefono.
+      // Usa solo la proposta base + un riparo leggero se servono coperture.
+      if (clearMode === 'empty') {
+        if (hasCoverageGaps) {
+          try {
+            for (let day = 0; day <= 4; day++) {
+              smartRunDayRepair(base.week, day, { thisPair: (base.meta && base.meta.thisPairIds) || [] });
+            }
+          } catch (eLight) { console.warn(eLight); }
+        }
+        proposal = base;
+      } else if(hasChoices || hasCoverageGaps){
         proposal=smartOptimizeProposal(base);
         // Non riapplicare la rotazione qui: lo fa solo finalizeProposalWeek (ordine fisso).
         try {
@@ -14250,9 +14286,11 @@ function minLunchBreakMinutes(wId) {
       window._proposalChoiceAnswers=null;
       try{ if(window.pendingTurnProposal) window.pendingTurnProposal.choices=dedupeProposalChoices(window.pendingTurnProposal.choices||[]);}catch(e){}
     showProposalReviewModal();
+      try { window._syncSuspended = false; } catch (eOk) {}
       return proposal;
     }catch(err){
       console.error('Genera Proposta:',err);
+      try { window._syncSuspended = false; } catch (eErr) {}
 
       // Fallback esplicito: se il cervello intelligente fallisce,
       // proviamo comunque a mostrare la proposta del motore storico.
@@ -14608,7 +14646,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.73';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.74';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;

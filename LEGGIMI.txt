@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.73
-localStorage: salvataggio compatto e pulizia automatica se spazio pieno.
+Turni Corvetto v9.11.74
+Genera opzione 2 senza freeze.
