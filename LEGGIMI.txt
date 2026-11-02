@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.74
-Genera opzione 2 senza freeze.
+Turni Corvetto v9.11.75
+Sync avvio con timeout e watchdog — non resta bloccata su Sync…
