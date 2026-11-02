@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.75
-Sync avvio con timeout e watchdog — non resta bloccata su Sync…
+Turni Corvetto v9.11.76
+Avvio anti-blocco: UI locale immediata, cloud differito.
