@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.76
-Avvio anti-blocco: UI locale immediata, cloud differito.
+Turni Corvetto v9.11.77
+Avvio solo locale; cloud in background senza bloccare Sync.
