@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.77</title>
+  <title>Turni Corvetto v9.11.78</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.77';
+    var EXPECTED='9.11.78';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.77"></script>
+  <script src="./engine.js?v=9.11.78"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.77';
+    const APP_VERSION = '9.11.78';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.78 — Fix freeze: rimosso MutationObserver globale che bloccava l\'UI',
     '9.11.77 — Avvio solo locale (niente Sync automatico che blocca); cloud al tocco',
     '9.11.76 — Avvio anti-blocco: UI subito da locale, cloud differito, niente loop sync',
     '9.11.75 — Sync all’avvio: timeout cloud + watchdog, non resta più bloccata su Sync…',
@@ -2507,7 +2508,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.77</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.78</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="try{forceUnlockSync();}catch(e){};try{forceReloadFromCloud();}catch(e2){}" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -4709,6 +4710,7 @@ function isUsableAppData(value) {
       if (typeof switchView === 'function' && (currentView === 'oggi' || !currentView)) switchView('oggi');
       else if (typeof renderOperationalHome === 'function') renderOperationalHome();
     } catch (eOg) { console.warn('oggi refresh', eOg); }
+    try { if (typeof forceUnlockUI === 'function') forceUnlockUI(); } catch (eFu) {}
   }
 
   
@@ -8592,7 +8594,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.77', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.78', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -9612,6 +9614,7 @@ function minLunchBreakMinutes(wId) {
     } catch (eH) {}
 
     document.getElementById('dayModal').style.display = 'flex';
+    try { enhanceTimeInputs(document.getElementById('dayModal')); } catch (eEnh) {}
   }
   window.openDayModal = openDayModal;
 
@@ -10455,13 +10458,54 @@ function minLunchBreakMinutes(wId) {
     } catch (e) {}
   }
 
-  // Osserva aperture modali
-  const _timeObs = new MutationObserver(() => enhanceTimeInputs(document));
-  try {
-    _timeObs.observe(document.documentElement, { childList: true, subtree: true });
-  } catch (e) {}
-  document.addEventListener('DOMContentLoaded', () => enhanceTimeInputs(document));
-  setTimeout(() => enhanceTimeInputs(document), 800);
+  // NON osservare tutto il document: su mobile ogni renderWeek/modifica DOM
+  // faceva scattare enhanceTimeInputs e bloccava completamente l'interfaccia.
+  // Si attiva solo all'apertura di una modale e una volta al load.
+  document.addEventListener('DOMContentLoaded', function() {
+    try { enhanceTimeInputs(document); } catch (e) {}
+  });
+  setTimeout(function() { try { enhanceTimeInputs(document); } catch (e) {} }, 800);
+
+  // Hook openModal se esiste
+  (function() {
+    var _origOpen = null;
+    function wrapOpenModal() {
+      if (typeof openModal !== 'function') return;
+      if (openModal._timeEnhancedWrap) return;
+      _origOpen = openModal;
+      window.openModal = function(id) {
+        var r = _origOpen.apply(this, arguments);
+        try {
+          var el = document.getElementById(id);
+          if (el) enhanceTimeInputs(el);
+        } catch (e) {}
+        return r;
+      };
+      window.openModal._timeEnhancedWrap = true;
+    }
+    try { wrapOpenModal(); } catch (e) {}
+    setTimeout(function() { try { wrapOpenModal(); } catch (e) {} }, 500);
+  })();
+
+  // Sblocca eventuali overlay invisibili che intercettano i tocchi
+  function forceUnlockUI() {
+    try {
+      document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+        if (el.style && el.style.display === 'flex') return; // modale voluta aperta
+        el.style.display = 'none';
+      });
+      var bar = document.getElementById('remoteUpdateBar');
+      if (bar) bar.classList.remove('visible');
+      var details = document.querySelectorAll('details.toolbar-more[open]');
+      details.forEach(function(d) { d.open = false; });
+      try { window._syncSuspended = false; _applyingRemote = false; } catch (e) {}
+      try { setSyncStatus('ok', 'locale'); } catch (e2) {}
+    } catch (e3) {}
+  }
+  window.forceUnlockUI = forceUnlockUI;
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(forceUnlockUI, 300);
+  });
 
   async function isPdfStackReady() {
     try {
@@ -14720,7 +14764,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.77';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.78';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
