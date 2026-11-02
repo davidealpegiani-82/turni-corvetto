@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.78</title>
+  <title>Turni Corvetto v9.11.79</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.78';
+    var EXPECTED='9.11.79';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.78"></script>
+  <script src="./engine.js?v=9.11.79"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.78';
+    const APP_VERSION = '9.11.79';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.79 — Safe boot: niente renderWeek/cloud all\'avvio, UI sbloccata subito',
     '9.11.78 — Fix freeze: rimosso MutationObserver globale che bloccava l\'UI',
     '9.11.77 — Avvio solo locale (niente Sync automatico che blocca); cloud al tocco',
     '9.11.76 — Avvio anti-blocco: UI subito da locale, cloud differito, niente loop sync',
@@ -2156,7 +2157,7 @@
     :root {
       --bottom-nav-h: calc(62px + env(safe-area-inset-bottom, 0px));
     }
-    .bottom-nav {
+    .bottom-nav { z-index: 5000; pointer-events: auto;
       display:none; position:fixed; left:0; right:0; bottom:0; z-index:9000;
       height: var(--bottom-nav-h);
       box-sizing: border-box;
@@ -2508,7 +2509,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.78</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.79</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="try{forceUnlockSync();}catch(e){};try{forceReloadFromCloud();}catch(e2){}" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -4677,40 +4678,29 @@ function isUsableAppData(value) {
   }
 
   function finishInitRender() {
-    setTimeout(function(){ try { if (typeof updateRulesBanner==="function") updateRulesBanner(); } catch(e){} }, 120);
-
-    try { if (typeof tryRecoverFromLocalBackups === 'function') tryRecoverFromLocalBackups(); } catch (e) {}
-    try { if (typeof sanitizeAppData === 'function') sanitizeAppData(); } catch (e) {}
-
-    normalizeAppData();
-    if (typeof updateLocalFileBanner === 'function') updateLocalFileBanner();
+    // SAFE BOOT: non costruire la tabella turni all'avvio (su mobile bloccava tutto).
     try {
       if (!currentDate || isNaN(currentDate.getTime())) currentDate = new Date();
     } catch (e) { currentDate = new Date(); }
+    try { if (typeof normalizeAppData === 'function') normalizeAppData(); } catch (eN) {}
     try {
       var tEl = document.getElementById('appTitle');
       if (tEl) tEl.innerText = (appData.title || 'CORVETTO') + ' ✏️';
     } catch (e) {}
     try {
-      var nEl = document.getElementById('notesTitleLabel');
-      if (nEl) nEl.innerText = appData.notesTitle || 'Note / Comunicazioni:';
-    } catch (e) {}
-    if (typeof applyTurniViewMode === 'function') {
-      const mode = localStorage.getItem('turniViewMode') || 'auto';
-      turniViewMode = mode;
-    }
-    try { if (typeof pruneStaleMedicalLeaveCells === 'function') pruneStaleMedicalLeaveCells(); } catch (eP0) {}
-    renderWeek();
-    renderQuickHoursButtons();
-    renderQuickStatusButtons();
-    renderQuickNotesButtons();
-    if (typeof renderLeaveView === 'function' && currentView === 'ferie') renderLeaveView();
-    if (typeof renderEventsView === 'function' && currentView === 'eventi') renderEventsView();
-    try {
-      if (typeof switchView === 'function' && (currentView === 'oggi' || !currentView)) switchView('oggi');
+      currentView = 'oggi';
+      if (typeof switchView === 'function') switchView('oggi');
       else if (typeof renderOperationalHome === 'function') renderOperationalHome();
     } catch (eOg) { console.warn('oggi refresh', eOg); }
     try { if (typeof forceUnlockUI === 'function') forceUnlockUI(); } catch (eFu) {}
+    // Lavori secondari dopo che l'UI è usabile
+    setTimeout(function() {
+      try { if (typeof updateLocalFileBanner === 'function') updateLocalFileBanner(); } catch (e) {}
+      try { if (typeof updateRulesBanner === 'function') updateRulesBanner(); } catch (e) {}
+      try { if (typeof renderQuickHoursButtons === 'function') renderQuickHoursButtons(); } catch (e) {}
+      try { if (typeof renderQuickStatusButtons === 'function') renderQuickStatusButtons(); } catch (e) {}
+      try { if (typeof renderQuickNotesButtons === 'function') renderQuickNotesButtons(); } catch (e) {}
+    }, 400);
   }
 
   
@@ -5013,8 +5003,9 @@ function isUsableAppData(value) {
       setSyncStatus('ok', 'locale');
     } catch (eLoc) {}
 
-    // Cloud in background molto leggero: solo lettura REST, senza mostrare "Sync…"
-    // e senza applicare se il parse è troppo grande / lento.
+    // Cloud automatico DISABILITATO all'avvio (causava freeze su telefono).
+    // Usa il badge sync / Pubblica per aggiornare dal cloud.
+    window._skipAutoCloud = true;
     setTimeout(function() {
       try {
         if (window._skipAutoCloud) return;
@@ -6188,6 +6179,7 @@ function isUsableAppData(value) {
   window.openAbsencesFolder = openAbsencesFolder;
 
   function switchView(view) {
+    try { if (typeof forceUnlockUI === 'function') forceUnlockUI(); } catch (eU) {}
     currentView = view;
     closeMoreNav();
     const map = { oggi:'viewOggi', turni:'viewTurni', proposta:'viewTurni', ferie:'viewFerie', eventi:'viewEventi', malattia:'viewMalattia', settings:'viewSettings' };
@@ -8594,7 +8586,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.78', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.79', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -10491,13 +10483,21 @@ function minLunchBreakMinutes(wId) {
   function forceUnlockUI() {
     try {
       document.querySelectorAll('.modal-backdrop').forEach(function(el) {
-        if (el.style && el.style.display === 'flex') return; // modale voluta aperta
+        // Chiudi tutto: un backdrop invisibile bloccava i tocchi
         el.style.display = 'none';
       });
       var bar = document.getElementById('remoteUpdateBar');
       if (bar) bar.classList.remove('visible');
+      var ban = document.getElementById('localFileBanner');
+      if (ban) ban.classList.remove('visible');
       var details = document.querySelectorAll('details.toolbar-more[open]');
       details.forEach(function(d) { d.open = false; });
+      document.querySelectorAll('.toast').forEach(function(t) { try { t.remove(); } catch (e) {} });
+      try {
+        document.body.style.pointerEvents = 'auto';
+        document.documentElement.style.pointerEvents = 'auto';
+        document.body.style.overflow = '';
+      } catch (eB) {}
       try { window._syncSuspended = false; _applyingRemote = false; } catch (e) {}
       try { setSyncStatus('ok', 'locale'); } catch (e2) {}
     } catch (e3) {}
@@ -14764,7 +14764,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.78';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.79';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -20122,30 +20122,20 @@ async function downloadJpgFromPreview() {
 
   window.addEventListener('DOMContentLoaded', function() {
     try { initTheme(); } catch (e) { console.warn(e); }
-    try { initAuth(); } catch (e) { console.warn(e); }
     try { initApp(); } catch (e) { console.error('initApp', e); }
-    // Test e SW dopo il primo paint: non devono bloccare l'apertura
+    try { if (typeof forceUnlockUI === 'function') forceUnlockUI(); } catch (e) {}
+    // Tocco ovunque sblocca eventuali blocchi residui
+    try {
+      document.addEventListener('touchstart', function() {
+        try { forceUnlockUI(); } catch (e) {}
+      }, { once: true, passive: true });
+    } catch (eT) {}
+    // Test / SW / auth molto dopo
     setTimeout(function() {
-      try {
-        var tr = runOfficialPolicyTests();
-        if (!tr.ok) console.warn('OFFICIAL_POLICY tests FAIL', tr.fails);
-        else console.log('OFFICIAL_POLICY OK', tr.policyVersion);
-      } catch (e) {}
-      try {
-        var sr = runScenarioRulesTests();
-        if (!sr.ok) console.warn('SCENARIO tests FAIL', sr.fails);
-        else console.log('SCENARIO tests OK', sr.name);
-      } catch (e2) { console.warn('SCENARIO tests error', e2); }
-      try {
-        if (window.CorvettoEngine && typeof window.CorvettoEngine.runSelfTests === 'function') {
-          var engRep = window.CorvettoEngine.runSelfTests();
-          if (engRep && engRep.ok) console.log('CorvettoEngine self-tests OK', engRep.engineVersion, engRep.policyVersion);
-          else console.warn('CorvettoEngine self-tests FAIL', engRep && engRep.fails);
-        }
-      } catch (e3) { console.warn('CorvettoEngine self-tests error', e3); }
+      try { initAuth(); } catch (e) {}
       try { if (typeof registerCorvettoServiceWorker === 'function') registerCorvettoServiceWorker(); } catch (e) {}
       try { if (typeof setupPwaInstallUI === 'function') setupPwaInstallUI(); } catch (e) {}
-    }, 1200);
+    }, 3000);
   });
 
 </script>

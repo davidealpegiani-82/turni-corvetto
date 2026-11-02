@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.78
-Rimosso MutationObserver globale che bloccava UI.
+Turni Corvetto v9.11.79
+Safe boot senza renderWeek/cloud all'avvio.
