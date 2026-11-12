@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.81</title>
+  <title>Turni Corvetto v9.11.82</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.81';
+    var EXPECTED='9.11.82';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.81"></script>
+  <script src="./engine.js?v=9.11.82"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.81';
+    const APP_VERSION = '9.11.82';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.82 — URL ufficiale = GitHub Pages (Netlify non aggiornato)',
     '9.11.81 — Applica proposta: non bloccata da celle manuali; overwrite guidato; generate riempie cleared',
     '9.11.80 — Sabato ferie solo se di turno; magazzinieri nuovi compilabili a mano e dal generatore',
     '9.11.79 — Safe boot: niente renderWeek/cloud all\'avvio, UI sbloccata subito',
@@ -170,7 +171,7 @@
     '7.1.1 — UI leggibile (meno viola, più contrasto)',
     '7.0.0 — Diagnostica, audit, validazione proposte'
   ];
-    const OFFICIAL_URL = 'https://phenomenal-rugelach-42f064.netlify.app';
+    const OFFICIAL_URL = 'https://davidealpegiani-82.github.io/turni-corvetto/';
     const CLIENT_ID = (function(){
       try {
         let id = sessionStorage.getItem('turni_client_id');
@@ -2504,14 +2505,14 @@
   </div>
 </div>
 
-<div class="local-file-banner" id="localFileBanner"> Attenzione: stai usando un <strong>file locale</strong> — i dati NON sono in cloud. Per usare l'app con sync apri SOLO questo link Netlify: <a id="officialAppLink" href="https://phenomenal-rugelach-42f064.netlify.app" target="_blank" rel="noopener">phenomenal-rugelach-42f064.netlify.app</a></div><div class="remote-update-bar" id="remoteUpdateBar"><div class="remote-update-main"><span id="remoteUpdateText">Dati cloud diversi da questo dispositivo.</span><span id="remoteUpdateMeta" class="remote-update-meta"></span></div><div class="remote-update-actions"><button type="button" class="alt" onclick="applyPendingRemoteData()">Usa cloud</button><button type="button" class="alt" onclick="forcePushLocalToCloud()">Tieni locale</button><button type="button" class="alt" onclick="exportBackupJSON()">Backup</button><button type="button" class="alt" onclick="dismissRemoteUpdate()" style="min-height:auto;padding:4px 8px;">X</button></div></div><div class="header">
+<div class="local-file-banner" id="localFileBanner"> Attenzione: stai usando un <strong>file locale</strong> — i dati NON sono in cloud. Per usare l'app con sync apri SOLO questo link Netlify: <a id="officialAppLink" href="https://davidealpegiani-82.github.io/turni-corvetto/" target="_blank" rel="noopener">davidealpegiani-82.github.io/turni-corvetto</a></div><div class="remote-update-bar" id="remoteUpdateBar"><div class="remote-update-main"><span id="remoteUpdateText">Dati cloud diversi da questo dispositivo.</span><span id="remoteUpdateMeta" class="remote-update-meta"></span></div><div class="remote-update-actions"><button type="button" class="alt" onclick="applyPendingRemoteData()">Usa cloud</button><button type="button" class="alt" onclick="forcePushLocalToCloud()">Tieni locale</button><button type="button" class="alt" onclick="exportBackupJSON()">Backup</button><button type="button" class="alt" onclick="dismissRemoteUpdate()" style="min-height:auto;padding:4px 8px;">X</button></div></div><div class="header">
   <div class="header-top">
     <div class="app-title-area">
       <div class="app-icon">📅</div>
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.81</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.82</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="try{forceUnlockSync();}catch(e){};try{forceReloadFromCloud();}catch(e2){}" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -3473,7 +3474,7 @@
       Team (chi lavora), Regole (come generare i turni), Backup (salvare/ripristinare). Usali quando cambia l’organico o le regole, non ogni giorno.</p>
       <p><strong>7. Salvataggio</strong><br>
       «Tutto salvato» = ok. Su Netlify i dati vanno anche in cloud. Evita di usare solo il file scaricato (content://).</p>
-      <p style="font-size:12px;color:var(--text-muted);">Apri sempre: <strong>https://phenomenal-rugelach-42f064.netlify.app</strong></p>
+      <p style="font-size:12px;color:var(--text-muted);">Apri sempre: <strong>https://davidealpegiani-82.github.io/turni-corvetto/</strong></p>
     </div>
     <div class="modal-actions" style="margin-top:12px;"><button class="success" onclick="closeModal('helpGuideModal')">Ho capito</button></div>
   </div>
@@ -4052,7 +4053,7 @@
       } else if (_localCloudSnapshotLoaded) {
         message = '☁️ <strong>Dati caricati dal cloud come copia locale</strong>: questa copia non è in sincronizzazione live; le modifiche fatte qui restano locali.';
       }
-      ban.innerHTML = message + ' Apri la versione ufficiale: <a id="officialAppLink" href="' + OFFICIAL_URL + '" target="_blank" rel="noopener">phenomenal-rugelach-42f064.netlify.app</a>';
+      ban.innerHTML = message + ' Apri la versione ufficiale: <a id="officialAppLink" href="' + OFFICIAL_URL + '" target="_blank" rel="noopener">davidealpegiani-82.github.io/turni-corvetto</a>';
     } else ban.classList.remove('visible');
   }
 
@@ -8516,7 +8517,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
     // HTTPS consigliato
     try {
       if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        alert('Apri l\'app dall\'URL Netlify (HTTPS) per abilitare le notifiche.\nEsempio: https://phenomenal-rugelach-42f064.netlify.app');
+        alert('Apri l\'app dall\'URL Netlify (HTTPS) per abilitare le notifiche.\nEsempio: https://davidealpegiani-82.github.io/turni-corvetto/');
         return;
       }
     } catch (e) {}
@@ -8596,7 +8597,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.81', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.82', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -14823,7 +14824,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.81';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.82';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;

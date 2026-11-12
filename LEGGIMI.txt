@@ -1,2 +1,3 @@
-Turni Corvetto v9.11.81
-Applica proposta anche con celle manuali (conferma overwrite).
+Turni Corvetto v9.11.82
+Apri SEMPRE: https://davidealpegiani-82.github.io/turni-corvetto/
+La vecchia Netlify non è aggiornata (mostra ancora v9.4.0).
