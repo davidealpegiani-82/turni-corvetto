@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.80
-Sabato ferie solo se di turno; nuovi magazzinieri compilabili.
+Turni Corvetto v9.11.81
+Applica proposta anche con celle manuali (conferma overwrite).

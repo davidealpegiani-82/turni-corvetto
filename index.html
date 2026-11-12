@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.80</title>
+  <title>Turni Corvetto v9.11.81</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.80';
+    var EXPECTED='9.11.81';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.80"></script>
+  <script src="./engine.js?v=9.11.81"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.80';
+    const APP_VERSION = '9.11.81';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.81 — Applica proposta: non bloccata da celle manuali; overwrite guidato; generate riempie cleared',
     '9.11.80 — Sabato ferie solo se di turno; magazzinieri nuovi compilabili a mano e dal generatore',
     '9.11.79 — Safe boot: niente renderWeek/cloud all\'avvio, UI sbloccata subito',
     '9.11.78 — Fix freeze: rimosso MutationObserver globale che bloccava l\'UI',
@@ -2510,7 +2511,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.80</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.81</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="try{forceUnlockSync();}catch(e){};try{forceReloadFromCloud();}catch(e2){}" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -8595,7 +8596,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.80', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.81', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -11965,9 +11966,14 @@ function minLunchBreakMinutes(wId) {
   function cellAt(week,wid,day){ return week[wid] && week[wid][day] ? week[wid][day] : null; }
   function putGenerated(week,wid,day,shift,extra={}){
     if(!week[wid]) week[wid]={};
-    const prev = week[wid][day];
-    // Hard: mai toccare modifiche manuali / giorni svuotati dall'utente
-    if (prev && (prev.manualEdit || prev.clearedByUser)) return;
+    const prev = week[wid][day] || week[wid][String(day)];
+    // Hard: non toccare turni modificati a mano CON contenuto (orari o status non-lavoro)
+    // clearedByUser: il generatore PUÒ riempire (l'utente ha svuotato, non ha imposto un turno)
+    if (prev && prev.manualEdit && !extra.forceOverwrite) {
+      const hasContent = !!(prev.mIn || prev.mOut || prev.pIn || prev.pOut ||
+        (prev.status && String(prev.status).toUpperCase() !== 'LAVORO' && String(prev.status).toUpperCase() !== ''));
+      if (hasContent && !prev.clearedByUser) return;
+    }
     // Hard: competenze apertura/chiusura (non assegnare turni incompatibili)
     if (shift && typeof shiftAllowedForWorker === 'function' && !shiftAllowedForWorker(wid, shift)) {
       return;
@@ -14276,13 +14282,27 @@ function minLunchBreakMinutes(wId) {
       if (clearMode === 'all') {
         appData.weeks[currentWeekKey] = {};
       } else if (clearMode === 'empty') {
-        // lascia tutto com'è: il motore riempie i buchi
+        // lascia tutto com'è: il motore riempie i buchi (anche clearedByUser)
+        try {
+          const wk = appData.weeks[currentWeekKey] || {};
+          Object.keys(wk).forEach(function(wid) {
+            const days = wk[wid] || {};
+            Object.keys(days).forEach(function(d) {
+              const c = days[d];
+              if (c && c.clearedByUser && !(c.mIn || c.pIn || (c.status && String(c.status).toUpperCase() !== 'LAVORO'))) {
+                // sblocca per il riempimento della proposta
+                c.clearedByUser = false;
+                c.manualEdit = false;
+              }
+            });
+          });
+        } catch (eEmpty) {}
       } else if (clearMode === 'nonmanual') {
         const wk = appData.weeks[currentWeekKey];
         Object.keys(wk).forEach(function(wid) {
           const days = wk[wid] || {};
           Object.keys(days).forEach(function(d) {
-            if (days[d] && days[d].manualEdit) return;
+            if (days[d] && days[d].manualEdit && !days[d].clearedByUser) return;
             delete days[d];
           });
         });
@@ -14803,7 +14823,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.80';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.81';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
@@ -16761,33 +16781,107 @@ function applyPendingProposal(options) {
       return;
     }
 
+    const forceOverwriteManual = !!(options.forceOverwriteManual || (p.meta && p.meta.forceOverwriteManual));
     const proposalBeforeWeek = JSON.parse(JSON.stringify(appData.weeks[p.weekKey] || {}));
     pushUndo('Proposta automatica', snapshotWeeks());
     recordProposalLeaveImpacts(p.weekKey, proposalBeforeWeek, p.week);
-    // NESSUNA mutazione dopo la validazione: i bilanciamenti sono già stati
-    // eseguiti e controllati sopra. Scrivere p.week così com'è.
-    appData.weeks[p.weekKey] = p.week;
+
+    // Merge cella-per-cella: applica la proposta, preserva solo manualEdit CON contenuto
+    // (salvo forceOverwriteManual). Niente più "0 celle applicabili" se c'è qualcosa da scrivere.
+    function cellHasManualContent(c) {
+      if (!c || !c.manualEdit) return false;
+      if (c.clearedByUser) return false; // svuotata: la proposta può riempire
+      if (c.generated) return false; // era generata poi marcata per errore
+      return !!(c.mIn || c.mOut || c.pIn || c.pOut ||
+        (c.status && String(c.status).toUpperCase() !== 'LAVORO' && String(c.status).toUpperCase() !== ''));
+    }
+    function cellsEqual(a, b) {
+      try { return JSON.stringify(a || null) === JSON.stringify(b || null); } catch (e) { return false; }
+    }
+    const base = JSON.parse(JSON.stringify(appData.weeks[p.weekKey] || {}));
+    const prop = p.week || {};
+    let applied = 0, preserved = 0, same = 0;
+    const allIds = new Set([].concat(Object.keys(base), Object.keys(prop)));
+    allIds.forEach(function(wid) {
+      if (!base[wid]) base[wid] = {};
+      const days = new Set();
+      Object.keys(base[wid] || {}).forEach(function(d) { days.add(String(d)); });
+      Object.keys(prop[wid] || {}).forEach(function(d) { days.add(String(d)); });
+      days.forEach(function(ds) {
+        const di = parseInt(ds, 10);
+        if (isNaN(di) || di < 0 || di > 5) return;
+        const prev = base[wid][di] || base[wid][ds] || null;
+        const next = (prop[wid] && (prop[wid][di] || prop[wid][ds])) || null;
+        if (cellsEqual(prev, next)) { same++; return; }
+        if (!forceOverwriteManual && cellHasManualContent(prev)) {
+          // Mantieni manuale
+          preserved++;
+          return;
+        }
+        if (next) {
+          const written = Object.assign({}, next);
+          // Una volta applicata dalla proposta, non resta "protetta" se era generated
+          if (written.generated || forceOverwriteManual) {
+            written.manualEdit = false;
+            written.clearedByUser = false;
+          }
+          base[wid][di] = written;
+          base[wid][String(di)] = written;
+          applied++;
+        } else if (forceOverwriteManual && prev) {
+          delete base[wid][di];
+          delete base[wid][String(di)];
+          applied++;
+        } else if (!prev || prev.clearedByUser || prev.generated) {
+          if (next == null && prev && prev.clearedByUser) {
+            // resta vuota
+            same++;
+          }
+        }
+      });
+    });
+
+    if (applied === 0 && preserved > 0 && !forceOverwriteManual) {
+      const okForce = confirm(
+        'La proposta non ha potuto aggiornare le celle perché ' + preserved +
+        ' risultano modificate a mano.\n\n' +
+        'Vuoi SOVRASCRIVERE le modifiche manuali e applicare comunque la proposta generata?'
+      );
+      if (okForce) {
+        return applyPendingProposal(Object.assign({}, options, { forceOverwriteManual: true }));
+      }
+      showToast('Operazione non completata: preservate ' + preserved + ' celle manuali. Rigenera con opzione 1 oppure conferma la sovrascrittura.', 'warn', 6000);
+      try { if (typeof showProposalReviewModal === 'function') showProposalReviewModal(); } catch (eUi) {}
+      return;
+    }
+
+    appData.weeks[p.weekKey] = base;
     // Memorizza chi ha fatto il sabato di questa settimana → prossima rotazione
     try {
       if (!appData.rules) appData.rules = {};
-      var roles = (typeof getOfficeRotationRoles === 'function') ? getOfficeRotationRoles(p.week) : {};
+      var roles = (typeof getOfficeRotationRoles === 'function') ? getOfficeRotationRoles(base) : {};
       const satId = (p.meta && p.meta.nextUfficioId) || roles.nextUfficio || null;
       if (satId) appData.rules.lastSaturdayUfficioId = satId;
       if (roles.prevUfficio) appData.rules.prevSaturdayUfficioId = roles.prevUfficio;
     } catch (e) {}
+    try { if (typeof pruneNonWorkingSaturdayLeaves === 'function') pruneNonWorkingSaturdayLeaves(p.weekKey); } catch (eP) {}
     syncToCloud();
     closeModal('proposalModal');
     renderWeek();
     window.pendingTurnProposal = null;
-    appendAudit('proposta_applicata', p.weekKey || '');
-    try { if (typeof pushAppNotificationLog === 'function') pushAppNotificationLog('Proposta applicata', 'Settimana ' + (p.weekKey || '') + ' aggiornata.'); } catch (eN2) {}
+    appendAudit('proposta_applicata', (p.weekKey || '') + ' · applicate ' + applied + ' · preservate ' + preserved);
+    try { if (typeof pushAppNotificationLog === 'function') pushAppNotificationLog('Proposta applicata', 'Settimana ' + (p.weekKey || '') + ': ' + applied + ' celle aggiornate.'); } catch (eN2) {}
     try {
       window._syncSuspended = false;
       window._ignoreRemoteUntil = 0;
       window._pendingRemoteData = null;
       dismissRemoteUpdate();
     } catch (eClr) {}
-    showToast((p.meta && p.meta.forceCoverageOverride) ? 'Proposta applicata in ECCEZIONE (copertura sotto minimo). Annulla con ↩️' : 'Proposta applicata. Puoi annullare con ↩️', 'success', 4500);
+    var msg = 'Proposta applicata: ' + applied + ' celle aggiornate';
+    if (preserved) msg += ', ' + preserved + ' manuali preservate';
+    if (p.meta && p.meta.forceCoverageOverride) msg += ' (eccezione copertura)';
+    msg += '. Annulla con ↩️';
+    showToast(msg, 'success', 5000);
     if (typeof checkWeeklyHoursAnomalies === 'function') checkWeeklyHoursAnomalies();
   }
 
