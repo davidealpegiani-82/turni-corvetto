@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Turni Corvetto v9.11.79</title>
+  <title>Turni Corvetto v9.11.80</title>
 
   <script>
   (function(){
-    var EXPECTED='9.11.79';
+    var EXPECTED='9.11.80';
     try {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs){
@@ -50,7 +50,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="./engine.js?v=9.11.79"></script>
+  <script src="./engine.js?v=9.11.80"></script>
 
   <script>
     const firebaseConfig = {
@@ -68,7 +68,7 @@
     let auth = null;
     let currentUser = null;
     const RTDB_PATH = 'turni_data_v47_pdf';
-    const APP_VERSION = '9.11.79';
+    const APP_VERSION = '9.11.80';
     const EVENT_COVERAGE_OPTIMIZATION_REV = '2026-10-21-event-coverage-diagnostic-1';
   const LEAVE_STATUS_MAP = {
     'Ferie': 'FERIE',
@@ -84,6 +84,7 @@
     'Ricovero': 'RICOVERO'
   };
   const APP_CHANGELOG = [
+    '9.11.80 — Sabato ferie solo se di turno; magazzinieri nuovi compilabili a mano e dal generatore',
     '9.11.79 — Safe boot: niente renderWeek/cloud all\'avvio, UI sbloccata subito',
     '9.11.78 — Fix freeze: rimosso MutationObserver globale che bloccava l\'UI',
     '9.11.77 — Avvio solo locale (niente Sync automatico che blocca); cloud al tocco',
@@ -2509,7 +2510,7 @@
       <div>
         <h1 id="appTitle" onclick="editTitle()">CORVETTO ✏️</h1>
         <div class="header-subtitle">
-          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.79</strong>
+          <strong id="appVersionStrong" onclick="forceAppUpdate()" style="cursor:pointer;text-decoration:underline;">v9.11.80</strong>
           <span class="sync-indicator sync-local" id="syncIndicator" onclick="try{forceUnlockSync();}catch(e){};try{forceReloadFromCloud();}catch(e2){}" style="cursor:pointer;" title="Sync cloud">🟠</span>
           <span class="save-indicator" id="saveIndicator" title="Salvataggio">💾</span>
         </div>
@@ -7282,10 +7283,12 @@ function renderWeek() {
       || /donazione/i.test(String(approvedLeave.tipo || ''))
     );
     if (leaveIsFullDay && isPaidLeaveStatus(st)) {
-      // Sempre nastro reale della settimana (sample + rotazione), non req.hours eventualmente stale.
+      // Sabato non di turno: 0 ore (non contare ferie "fantasma")
+      if (day === 5 && !(nastro > 0)) return 0;
       return nastro || Number(approvedLeave.hours || 0) || 0;
     }
     if (dayData.leaveFullDay && isPaidLeaveStatus(st)) {
+      if (day === 5 && !(nastro > 0)) return 0;
       return nastro || Number(dayData.leaveHours || 0) || 0;
     }
 
@@ -8586,7 +8589,7 @@ function buildWeekEventsIcsText(events) { return buildCalendarICS(events || [], 
         console.warn('SW richiede HTTPS');
         return;
       }
-      navigator.serviceWorker.register('./sw.js?v=9.11.79', { scope: './' }).then(function(reg) {
+      navigator.serviceWorker.register('./sw.js?v=9.11.80', { scope: './' }).then(function(reg) {
         console.log('SW ok', reg.scope);
         try { reg.update(); } catch (e) {}
         if (reg.waiting) {
@@ -9577,10 +9580,20 @@ function minLunchBreakMinutes(wId) {
     let daysNames = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"];
     let monthsNames = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
     let worker = appData.workers.find(w => w.id === wId);
+    // Garantisce struttura dati anche per nuovi collaboratori (es. Dennis)
+    try {
+      if (!appData.weeks) appData.weeks = {};
+      if (!appData.weeks[currentWeekKey]) appData.weeks[currentWeekKey] = {};
+      if (!appData.weeks[currentWeekKey][wId]) appData.weeks[currentWeekKey][wId] = {};
+    } catch (eStruct) {}
 
     document.getElementById('modalDayTitle').innerText = `${worker ? worker.name : ''} — ${daysNames[day]} ${dateObj.getDate()} ${monthsNames[dateObj.getMonth()]}`;
 
     let data = (appData.weeks[currentWeekKey] && appData.weeks[currentWeekKey][wId] && appData.weeks[currentWeekKey][wId][day]) || {};
+    // Chiavi numeriche vs stringa
+    if ((!data || (!data.mIn && !data.pIn && !data.status)) && appData.weeks[currentWeekKey][wId]) {
+      data = appData.weeks[currentWeekKey][wId][day] || appData.weeks[currentWeekKey][wId][String(day)] || data || {};
+    }
     document.getElementById('mIn').value = data.mIn || "";
     document.getElementById('mOut').value = data.mOut || "";
     document.getElementById('pIn').value = data.pIn || "";
@@ -9850,8 +9863,9 @@ function minLunchBreakMinutes(wId) {
     const worker = appData.workers.find(w => w.id === currentWorkerId);
     const wName = worker ? worker.name : '';
 
+    if (!appData.weeks[currentWeekKey][currentWorkerId]) appData.weeks[currentWeekKey][currentWorkerId] = {};
     if (!mIn && !mOut && !pIn && !pOut && !note && !existingData.status) {
-      appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx] = {
+      const emptyCell = {
         mIn: '', mOut: '', pIn: '', pOut: '',
         status: '',
         note: '',
@@ -9860,6 +9874,8 @@ function minLunchBreakMinutes(wId) {
         manualEdit: true,
         clearedByUser: true
       };
+      appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx] = emptyCell;
+      appData.weeks[currentWeekKey][currentWorkerId][String(currentDayIdx)] = emptyCell;
     } else {
       let dayData = {
         ...existingData,
@@ -9902,8 +9918,8 @@ function minLunchBreakMinutes(wId) {
         }
       }
       // Controllo tetto 40h settimanali
-      const prev = appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx];
       appData.weeks[currentWeekKey][currentWorkerId][currentDayIdx] = dayData;
+      appData.weeks[currentWeekKey][currentWorkerId][String(currentDayIdx)] = dayData;
       const weekTot = calcWorkerWeekHours(currentWorkerId, currentWeekKey);
       if (weekTot > 40.01) {
         alert(`⚠️ ${wName}: totale settimanale ${weekTot.toFixed(1)}h supera le 40 ore consentite.`);
@@ -13018,6 +13034,23 @@ function minLunchBreakMinutes(wId) {
       for(const id of MAG_PAIR_A().concat(MAG_PAIR_B())){
         if(isBlankProposalCell(proposal,id,day)) putGenerated(proposal,id,day,makeStandardMagShift(id,day,thisPair,rules));
       }
+      // Magazzinieri nuovi / senza coppia (es. Dennis): settimana feriale 8h se cella vuota
+      try {
+        const paired = new Set([].concat(MAG_PAIR_A() || [], MAG_PAIR_B() || [], [MARIO_ID()].filter(Boolean)));
+        (appData.workers || []).forEach(function(w) {
+          if (!w || w.selected === false) return;
+          if (String(w.group || '').toUpperCase() !== 'MAGAZZINO') return;
+          if (paired.has(w.id)) return;
+          if (typeof isHardUnavailableCell === 'function') {
+            const ex = cellAt(proposal, w.id, day);
+            if (ex && isHardUnavailableCell(ex)) return;
+          }
+          if (isBlankProposalCell(proposal, w.id, day)) {
+            const shift = (rules && rules.mag8h) ? Object.assign({}, rules.mag8h) : { mIn:'08:30', mOut:'13:00', pIn:'14:00', pOut:'17:30' };
+            putGenerated(proposal, w.id, day, shift);
+          }
+        });
+      } catch (eUnpaired) {}
     }
     // Sabato: SOLO la rotazione ufficiale (Alpegiani → Poppa → Caregnato).
     // - nextUfficio lavora; gli altri in RIPOSO.
@@ -14764,7 +14797,7 @@ function minLunchBreakMinutes(wId) {
         await Promise.all(regs.map(function(r) { return r.unregister(); }));
       }
     } catch (e2) { console.warn(e2); }
-    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.79';
+    var url = location.origin + location.pathname.replace(/\/index\.html$/i, '/') + '?nocache=' + Date.now() + '&v=9.11.80';
     try { location.replace(url); } catch (e3) { location.href = url; }
   }
   window.forceAppUpdate = forceAppUpdate;
