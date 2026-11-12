@@ -6622,6 +6622,12 @@ function getDayDisplayModelV47(wId, day, dateObj, dayData){
   }
 
 function renderWeek() {
+    try {
+      if (typeof currentWeekKey !== 'undefined' && currentWeekKey && typeof pruneNonWorkingSaturdayLeaves === 'function') {
+        pruneNonWorkingSaturdayLeaves(currentWeekKey);
+      }
+    } catch (ePrw) {}
+
     currentWeekKey = getWeekKey(currentDate);
     try { if (typeof repairMedicalLeaveLabels === 'function') repairMedicalLeaveLabels(); } catch (eMed) {}
     try { if (typeof updateWeekStatusUI === 'function') setTimeout(updateWeekStatusUI, 0); } catch (eUx) {}
@@ -18897,18 +18903,65 @@ async function downloadJpgFromPreview() {
   // includeSaturday=true forza tutti i sabati, anche quando non risultano lavorativi.
   function shouldIncludeSaturdayForLeave(req, dateObj) {
     if (!req || !dateObj) return false;
+    // Solo se l'utente ha forzato esplicitamente il sabato nella richiesta
     if (req.includeSaturday === true) return true;
-    const wk = getWeekKey(dateObj), dateKey = localDateKey(dateObj);
-    const cell = appData.weeks?.[wk]?.[req.workerId]?.[5];
-    if (cell && (cell.mIn || cell.pIn) && !['RIPOSO','CHIUSO'].includes(String(cell.status||'').toUpperCase())) return true;
-    if (cell?.leaveRequestId) {
-      const linked = (appData.leaveRequests || []).find(r => r.id === cell.leaveRequestId);
-      const baseline = linked?.turnsBefore?.[dateKey];
-      if (baseline && (baseline.mIn || baseline.pIn)) return true;
+    // REGOLA: se NON è di turno al sabato (nastro 0), il sabato non è ferie
+    // (es. Mattia fuori coppia di magazzino).
+    try {
+      const wk = getWeekKey(dateObj);
+      const nastro = (typeof getNastroHoursForDay === 'function')
+        ? Number(getNastroHoursForDay(req.workerId, 5, wk) || 0)
+        : 0;
+      return nastro > 0;
+    } catch (e) { return false; }
+  }
+
+  /** Rimuove FERIE/assenza automatica al sabato se il collaboratore non è di turno. */
+  function pruneNonWorkingSaturdayLeaves(weekKey) {
+    try {
+      if (!weekKey || !appData.weeks || !appData.weeks[weekKey]) return 0;
+      const week = appData.weeks[weekKey];
+      let n = 0;
+      Object.keys(week).forEach(function(wid) {
+        const cell = week[wid] && (week[wid][5] || week[wid]['5']);
+        if (!cell) return;
+        const st = String(cell.status || '').toUpperCase();
+        const isLeave = st === 'FERIE' || st === 'MALATTIA' || st === 'RICOVERO' || st === 'ROL'
+          || !!cell.leaveFullDay || !!cell.leaveRequestId;
+        if (!isLeave) return;
+        if (cell.manualEdit && (cell.mIn || cell.pIn)) return;
+        let nastro = 0;
+        try { nastro = Number(getNastroHoursForDay(wid, 5, weekKey) || 0); } catch (eN) { nastro = 0; }
+        if (nastro > 0) return;
+        let restored = null;
+        try {
+          const req = (appData.leaveRequests || []).find(function(r) { return r && r.id === cell.leaveRequestId; });
+          if (req && req.turnsBefore) {
+            const mon = (typeof weekKeyToMonday === 'function') ? weekKeyToMonday(weekKey) : null;
+            if (mon) {
+              const sat = new Date(mon); sat.setDate(mon.getDate() + 5);
+              const dk = (typeof localDateKey === 'function') ? localDateKey(sat) : '';
+              if (dk && req.turnsBefore[dk] && (req.turnsBefore[dk].mIn || req.turnsBefore[dk].pIn || req.turnsBefore[dk].status === 'LAVORO')) {
+                restored = Object.assign({}, req.turnsBefore[dk]);
+              }
+            }
+          }
+        } catch (eR) {}
+        if (restored) {
+          week[wid][5] = restored;
+          week[wid]['5'] = restored;
+        } else {
+          const empty = { mIn: '', mOut: '', pIn: '', pOut: '', status: '', note: '', generated: false, clearedByUser: false };
+          week[wid][5] = empty;
+          week[wid]['5'] = empty;
+        }
+        n++;
+      });
+      return n;
+    } catch (e) {
+      console.warn('pruneNonWorkingSaturdayLeaves', e);
+      return 0;
     }
-    // Se il turno non è ancora stato generato, la rotazione settimanale stabilisce
-    // se il sabato è lavorativo per questo collaboratore (ufficio 7h, coppia magazzino 5h).
-    try { return getNastroHoursForDay(req.workerId, 5, wk) > 0; } catch (e) { return false; }
   }
 
   /** True se dateKey (YYYY-MM-DD) rientra nel periodo della richiesta. */

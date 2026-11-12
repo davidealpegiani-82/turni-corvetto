@@ -1,2 +1,2 @@
-Turni Corvetto v9.11.79
-Safe boot senza renderWeek/cloud all'avvio.
+Turni Corvetto v9.11.80
+Sabato ferie solo se di turno; nuovi magazzinieri compilabili.
